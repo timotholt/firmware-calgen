@@ -206,6 +206,34 @@ def _transformer_checks(d: Design, core: Core, limits: dict) -> list[Check]:
     return out
 
 
+def bobbin_build(core: Core, windings: list[tuple[str, int, int, int]], limits: dict) -> dict:
+    """Lay the windings out on an E-core bobbin, to scale: 1 conductor per wire, turns per layer
+    limited by the breadth between the margin tapes, layers stacking outward from the bobbin
+    wall, tape between windings and over the outside. Shared by the check and the drawing."""
+    w_win, h_win = core.wa_mm2 / (2 * core.ht_mm), 2 * core.ht_mm  # one window of the pair (bare)
+    wall, margin, tape = limits["bobbin_wall_mm"], limits["margin_mm"], limits["tape_layer_mm"]
+    y0, y1 = wall + margin, h_win - wall - margin
+    x, conductors, spans, tapes, layers = wall, [], [], [], []
+    for k, (name, turns, strands, awg) in enumerate(windings):
+        d = _wire_od(awg)
+        per = max(1, int((y1 - y0) // d))
+        n = turns * strands
+        x_start, left = x, n
+        while left > 0:
+            cnt = min(per, left)
+            for j in range(cnt):
+                conductors.append((k, x + d / 2, y0 + d / 2 + j * d, d / 2))
+            layers.append((name, d, cnt))
+            left -= cnt
+            x += d
+        spans.append((k, x_start, x))
+        t = tape * (limits["tape_layers_between"] if k < len(windings) - 1 else limits["tape_layers_outer"])
+        tapes.append((x, x + t))
+        x += t
+    return {"w": w_win, "h": h_win, "wall": wall, "margin": margin, "y0": y0, "y1": y1, "build": x,
+            "fits": x <= w_win, "conductors": conductors, "spans": spans, "tapes": tapes, "layers": layers}
+
+
 def _copper_checks(d: Design, core: Core, limits: dict) -> list[Check]:
     out = []
     worst, tex = 0.0, []
@@ -218,9 +246,23 @@ def _copper_checks(d: Design, core: Core, limits: dict) -> list[Check]:
     tex.append(rf"\text{{limit: }} {_f(limits['j_max_a_per_mm2'])}\,\mathrm{{A/mm^2}} \quad \text{{(assumption)}}")
     out.append(Check("current_density", "Wire is thick enough for the current", PASS if ok else FLAG,
                      f"worst winding {_f(worst)} A/mm² vs {_f(limits['j_max_a_per_mm2'])} A/mm²" + ("" if ok else ": wire too thin, it will run hot"), tex))
+    if core.family != "toroid":
+        b = bobbin_build(core, [(w.name, w.turns, w.strands, w.awg) for w in d.windings], limits)
+        per_w = {}
+        for name, dia, _ in b["layers"]:
+            per_w.setdefault(name, []).append(dia)
+        terms = " + ".join(f"{len(v)} \\times {_f(v[0])}" for v in per_w.values())
+        tape_total = sum(t1 - t0 for t0, t1 in b["tapes"])
+        out.append(Check("window_fill", "Windings fit the bobbin with insulation", PASS if b["fits"] else FLAG,
+                         f"winding build {b['build']:.2f} mm of the {b['w']:.2f} mm window ({b['build'] / b['w'] * 100:.0f}%), "
+                         f"with a {_f(b['wall'])} mm bobbin, {_f(b['margin'])} mm margin tape at each end, and tape between and over the windings"
+                         + ("" if b["fits"] else ": it won't fit with this insulation"),
+                         [rf"\text{{build}} = \underbrace{{{_f(b['wall'])}}}_{{\text{{bobbin}}}} + \underbrace{{{terms}}}_{{\text{{layers}} \times d}} + \underbrace{{{_f(tape_total)}}}_{{\text{{tape}}}} = {b['build']:.2f}\,\mathrm{{mm}} \le {b['w']:.2f}\,\mathrm{{mm}}",
+                          rf"\text{{breadth between margins}} = {_f(b['h'])} - 2({_f(b['wall'])} + {_f(b['margin'])}) = {_f(b['y1'] - b['y0'])}\,\mathrm{{mm}} \quad \text{{(assumptions)}}"]))
+        return out
     cu = sum(w.turns * w.strands * awg_area_mm2(w.awg) for w in d.windings)
     fill = cu / core.wa_mm2
-    lim = limits["fill_max_toroid"] if core.family == "toroid" else limits["fill_max_ecore"]
+    lim = limits["fill_max_toroid"]
     ok = fill <= lim
     out.append(Check("window_fill", "Copper fits the core window", PASS if ok else FLAG,
                      f"{fill * 100:.0f}% of the window vs {lim * 100:.0f}% limit" + ("" if ok else ": the winding won't fit"),
@@ -425,10 +467,10 @@ def default_tab(checks: list[Check], has_curve: bool, has_flux: bool = False) ->
     return "curve" if has_curve else ("flux" if has_flux else "winding")
 
 
-def _named_figures(core: Core | None, d: Design) -> dict[str, str | None]:
+def _named_figures(core: Core | None, d: Design, limits: dict) -> dict[str, str | None]:
     if core is None:
         return {"curve": None, "winding": None}
-    win = svg_window(core, [(w.name, w.turns, w.strands, w.awg) for w in d.windings])
+    win = svg_window(core, [(w.name, w.turns, w.strands, w.awg) for w in d.windings], limits=limits)
     curve = (svg_l_vs_i(core, d.windings[0].turns, d.i_pk_a, parse_inductance_uh(d.l_text), ref_at="zero")
              if d.kind == "inductor" and core.family == "toroid" else None)
     flux = svg_flux(core, d) if d.kind == "transformer" and core.bsat_mt else None
@@ -479,7 +521,7 @@ def site_records(root: Path) -> dict:
             "source": x["source"],
             "checks": [dataclasses.asdict(c) for c in checks],
             "flagged": any(c.status == FLAG for c in checks),
-            "fig": _named_figures(core, rec),
+            "fig": _named_figures(core, rec, limits),
             "default_tab": default_tab(checks, core is not None and rec.kind == "inductor" and core.family == "toroid",
                                        core is not None and rec.kind == "transformer" and bool(core.bsat_mt)),
         })
@@ -617,7 +659,7 @@ def _wire_od(awg: int) -> float:
     return 0.127 * 92 ** ((36 - awg) / 39) * 1.08
 
 
-def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int = 1) -> str:
+def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int = 1, limits: dict | None = None) -> str:
     """Cross-section through the core window with every wire drawn to scale.
     windings: (name, turns, strands, awg). Wires are packed in layers along the window edge."""
     wires = [(k, _wire_od(awg)) for k, (_, turns, strands, awg) in enumerate(windings) for _ in range(turns * strands)]
@@ -656,33 +698,43 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
                 f'M{-r_in:.2f},0a{r_in:.2f},{r_in:.2f} 0 1,0 {2 * r_in:.2f},0a{r_in:.2f},{r_in:.2f} 0 1,0 {-2 * r_in:.2f},0"/>') + spoke_svg
         view = f"{-vb:.1f} {-vb:.1f} {2 * vb:.1f} {2 * vb:.1f}"
     else:
-        w, h = core.wa_mm2 / (2 * core.ht_mm), 2 * core.ht_mm  # one window of the pair, bare (no former)
-        leg = core.id_mm
-        # Layers run the full window height, wound outward from the center leg; each winding
-        # starts a new layer after a 0.4 mm insulation gap (tape), as on a real bobbin.
-        x, i = 0.0, 0
-        while i < len(wires):
-            k, d = wires[i]
-            if x + d > w:
-                break
-            per_col = max(1, int(h // d))
-            j = 0
-            while i < len(wires) and wires[i][0] == k and j < per_col:
-                placed.append((k, x + d / 2, d / 2 + j * d, d / 2))
-                i += 1
-                j += 1
-            x += d
-            if i < len(wires) and wires[i][0] != k:
-                x += 0.4
-        overflow = len(wires) - i
-        t = leg / 2  # half center leg (cut at the symmetry line); outer leg and yokes drawn at the same width
-        body = (f'<path class="mw-core" fill-rule="evenodd" d="M{-t:.2f},{-t:.2f}h{t + w + t:.2f}v{h + 2 * t:.2f}h{-(t + w + t):.2f}z'
-                f'M0,0h{w:.2f}v{h:.2f}h{-w:.2f}z"/>'
-                f'<line class="mw-cut" x1="{-t:.2f}" y1="{-t:.2f}" x2="{-t:.2f}" y2="{h + t:.2f}"/>'
-                f'<rect class="mw-win" x="0" y="0" width="{w:.2f}" height="{h:.2f}"/>')
+        if limits is None:
+            raise ValueError("E-core drawings need the construction limits (bobbin, margins, tape)")
+        bb = bobbin_build(core, windings, limits)
+        w, h, wall, y0, y1 = bb["w"], bb["h"], bb["wall"], bb["y0"], bb["y1"]
+        placed = list(bb["conductors"])
+        overflow = 0 if bb["fits"] else sum(1 for c in placed if c[1] + c[3] > w)
+        t = core.id_mm / 2  # half center leg (cut at the symmetry line); outer leg and yokes drawn at the same width
+        x_end = bb["build"]
+        parts = [f'<path class="mw-core" fill-rule="evenodd" d="M{-t:.2f},{-t:.2f}h{t + w + t:.2f}v{h + 2 * t:.2f}h{-(t + w + t):.2f}z'
+                 f'M0,0h{w:.2f}v{h:.2f}h{-w:.2f}z"/>',
+                 f'<line class="mw-cut" x1="{-t:.2f}" y1="{-t:.2f}" x2="{-t:.2f}" y2="{h + t:.2f}"/>',
+                 f'<rect class="mw-win" x="0" y="0" width="{w:.2f}" height="{h:.2f}"/>',
+                 # bobbin: wall along the center leg and flanges at both ends
+                 f'<rect class="mw-bob" x="0" y="0" width="{wall:.2f}" height="{h:.2f}"/>',
+                 f'<rect class="mw-bob" x="0" y="0" width="{min(x_end, w):.2f}" height="{wall:.2f}"/>',
+                 f'<rect class="mw-bob" x="0" y="{h - wall:.2f}" width="{min(x_end, w):.2f}" height="{wall:.2f}"/>']
+        for _, xs, xe in bb["spans"]:  # margin tape at both ends of each winding
+            parts.append(f'<rect class="mw-margin" x="{xs:.2f}" y="{wall:.2f}" width="{xe - xs:.2f}" height="{y0 - wall:.2f}"/>'
+                         f'<rect class="mw-margin" x="{xs:.2f}" y="{y1:.2f}" width="{xe - xs:.2f}" height="{y0 - wall:.2f}"/>')
+        for xs, xe in bb["tapes"]:
+            parts.append(f'<rect class="mw-tape" x="{xs:.2f}" y="{wall:.2f}" width="{max(xe - xs, 0.12):.2f}" height="{h - 2 * wall:.2f}"/>')
+        body = "".join(parts)
         view = f"{-t - 2:.1f} {-t - 2:.1f} {w + 2 * t + 4:.1f} {h + 2 * t + 4:.1f}"
     circles = "".join(f'<circle class="mw-w{k}" cx="{x:.2f}" cy="{y:.2f}" r="{r:.3f}"/>' for k, x, y, r in placed)
     label = ", ".join(f"{name}: {t} × {n} × {a} AWG" for name, t, n, a in windings)
+    if core.family != "toroid":
+        note = (f"bobbin {_f(limits['bobbin_wall_mm'])} mm (grey), margin tape {_f(limits['margin_mm'])} mm at each end (hatched), "
+                f"{limits['tape_layers_between']} tape layers between windings; build {bb['build']:.2f} of {bb['w']:.2f} mm"
+                + ("" if bb["fits"] else ", doesn't fit"))
+        size = "bigfig" if overflow else "winfig"
+        circles = "".join(f'<circle class="mw-w{k}" cx="{x:.2f}" cy="{y:.2f}" r="{r:.3f}"/>' for k, x, y, r in placed)
+        t = core.id_mm / 2
+        # rotated 90°: center leg at the bottom, layers build upward, so the long window fills the panel width
+        rview = f"{-t - 2:.1f} {-(w + t + 2):.1f} {h + 2 * t + 4:.1f} {w + 2 * t + 4:.1f}"
+        return (f'<figure class="mfig {size}"><svg viewBox="{rview}" role="img" aria-label="Winding window: {label}; build {bb["build"]:.2f} of {bb["w"]:.2f} mm">'
+                f'<g transform="rotate(-90)">{body}{circles}</g></svg>'
+                f"<figcaption>E-core window (one side), to scale, center leg at the bottom · {label} · {note}</figcaption></figure>")
     note = f"{len(wires) - overflow} of {len(wires)} conductors drawn" + (f"; {overflow} don't fit" if overflow else "")
     # toroids: a thumbnail beside the inductance curve, large only when the winding doesn't fit;
     # transformers have no curve, so the window is their main figure

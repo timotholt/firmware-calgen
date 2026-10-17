@@ -1,8 +1,14 @@
 # Design limits for the magnetics checks. ASSUMPTIONS (typical textbook values), not vendor data.
 j_max_a_per_mm2: 5.0        # copper current density, RMS
 fill_max_toroid: 0.40       # bare copper / window area; Magnetics quotes wound sizes at a 40% winding factor
-fill_max_ecore: 0.25        # bare copper / bare core window; leaves room for the coil former and insulation
 toroid_bias_limit: h80      # peak magnetizing force must not exceed the data sheet's 80%-permeability point
 bsat_margin: 0.80           # transformer peak flux density <= 80% of the data sheet's minimum B_sat
 ratio_tol_pct: 1.0          # stated turns ratio vs. the winding table
 ripple_fraction: 0.30       # inductor ripple current, peak-to-peak, as a fraction of the line/rated peak (first-pass requirement estimates)
+# Transformer construction on an E-core bobbin (ASSUMPTIONS; real values come from the safety standard,
+# working voltage, and the bobbin data sheet). Used by the window check and the drawing.
+bobbin_wall_mm: 1.0         # coil-former wall on the center-leg side and at each flange
+margin_mm: 3.0              # margin tape at each end of the winding breadth (creepage, ~3000 VAC test)
+tape_layer_mm: 0.05         # polyester tape, one layer
+tape_layers_between: 3      # between primary and secondary
+tape_layers_outer: 2        # over the outside

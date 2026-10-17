@@ -163,11 +163,12 @@ def test_window_drawing_shows_overflow_only_when_the_winding_cannot_fit():
     by = {d.id: d for d in DESIGNS}
     for did, overflows in (("MAG-001", False), ("MAG-008", True), ("XFMR-001", False)):
         d = by[did]
-        svg = mg.svg_window(CORES[d.core], [(w.name, w.turns, w.strands, w.awg) for w in d.windings])
-        total = sum(w.turns * w.strands for w in d.windings)
-        drawn, of = map(int, re.search(r"(\d+) of (\d+) conductors drawn", svg).groups())
-        assert of == total and (drawn < total) == overflows, did
-        assert ("don't fit" in svg) == overflows
+        svg = mg.svg_window(CORES[d.core], [(w.name, w.turns, w.strands, w.awg) for w in d.windings], limits=LIMITS)
+        if d.kind == "inductor":
+            total = sum(w.turns * w.strands for w in d.windings)
+            drawn, of = map(int, re.search(r"(\d+) of (\d+) conductors drawn", svg).groups())
+            assert of == total and (drawn < total) == overflows, did
+        assert ("don't fit" in svg) == overflows, did
 
 
 def test_inductance_curve_matches_the_check_at_peak():
@@ -195,3 +196,16 @@ def test_default_tab_opens_the_evidence_for_the_verdict():
     want = {"MAG-001": "curve", "MAG-003": "curve", "MAG-005": "curve", "MAG-009": "curve", "MAG-006": "winding",
             "MAG-008": "winding", "MAG-010": "drawing", "XFMR-002": "drawing", "XFMR-001": "flux"}
     assert {k: recs[k]["default_tab"] for k in want} == want
+
+
+
+def test_transformer_build_includes_bobbin_margins_and_tape():
+    d = {x.id: x for x in DESIGNS}["XFMR-001"]
+    b = mg.bobbin_build(CORES[d.core], [(w.name, w.turns, w.strands, w.awg) for w in d.windings], LIMITS)
+    # 24 x 20 AWG in 2 layers, 12 x 16 AWG in 2 layers, on a 1 mm bobbin with 3 + 2 tape layers of 0.05 mm
+    expect = 1.0 + 2 * mg._wire_od(20) + 2 * mg._wire_od(16) + 5 * 0.05
+    assert b["build"] == pytest.approx(expect) and b["fits"]
+    assert b["y1"] - b["y0"] == pytest.approx(2 * 11.2 - 2 * (1.0 + 3.0))  # breadth between the margin tapes
+    assert all(b["y0"] <= y - r and y + r <= b["y1"] + 1e-9 for _, _, y, r in b["conductors"])  # no wire in the margins
+    tight = dict(LIMITS, margin_mm=6.0)  # bigger margins push the same winding out of the window
+    assert not mg.bobbin_build(CORES[d.core], [(w.name, w.turns, w.strands, w.awg) for w in d.windings], tight)["fits"]

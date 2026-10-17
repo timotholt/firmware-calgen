@@ -72,3 +72,16 @@ About a day. No paid model calls in v1. New dependencies: a PDF writer for the g
 - **Model used for checks and sizing ("derated fit"):** the vendor curve with H scaled by k = max(H_fit,80/H_min,80, H_fit,50/H_min,50), so it passes at or below both guaranteed minimum points: smooth, vendor-shaped, and still conservative. No extrapolation past the data sheet's 50% point. The existing record check (peak H ≤ H₈₀ minimum) is unchanged.
 - **Charts:** derated curve solid, vendor typical curve faint, the two guaranteed points marked; x-axis 0 to 1.5× the design's peak current so the operating point's margin is visible.
 - **Transformers:** windings drawn as layers (columns along the window height), primary nearest the center leg, insulation gap, then secondary; shown at normal size since transformers have no inductance curve. Number formatting no longer uses scientific notation.
+
+## Phase 4: transformer construction (bobbin, margins, insulation) (2026-10-17)
+**Why:** the transformer window check compared bare copper with the bare core window against a 25% proxy limit, and the picture showed windings touching the core with no safety insulation, though the drawings call for a 3000 VAC primary-to-secondary test.
+
+**Model (assumptions, stated in `limits.yaml` and on the page; real values come from the applicable safety standard, working voltage, and the bobbin's data sheet):**
+- Coil former (bobbin): 1.0 mm wall on the center-leg side and at both flanges.
+- Margin tape: 3.0 mm at each end of the winding breadth, so creepage between primary and secondary runs around the margins (typical for reinforced insulation at this test voltage).
+- Tape: 3 layers × 0.05 mm between windings; 2 layers over the outside.
+- Winding: turns per layer = usable breadth / wire diameter (heavy-build enamel, ≈1.08 × bare); layers stack outward from the bobbin; primary first.
+
+**Check:** `window_fill` for E cores becomes a build check: bobbin wall + all layers + tape ≤ window width (bare (B − C)/2 from the core data). Message gives used vs available mm. Toroids keep the bare-copper fill check (no bobbin).
+**Drawing:** window with bobbin, margin tape blocks, tape lines between windings, and conductors in their layers, to scale.
+**Answer key:** unchanged (both transformers still fit; XFMR-002 is flagged only for its turns ratio).
