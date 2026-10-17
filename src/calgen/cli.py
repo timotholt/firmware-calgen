@@ -160,6 +160,17 @@ def cmd_eval(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_report(args: argparse.Namespace) -> int:
+    from calgen.report import write_report
+
+    b = _load(args)
+    committed = Path(args.compare_to) if args.compare_to else Path("firmware/include") / f"calgen_{b.variant.name}.h"
+    previous = committed.read_text(encoding="utf-8") if committed.exists() else ""
+    path = write_report(b, Path(args.out), previous)
+    print(f"wrote {path} ({'all gates passed' if b.ok else f'{len(b.failures)} failure(s)'})")
+    return 0 if b.ok else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="calgen",
@@ -181,6 +192,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--patch", help="rewrite CALGEN:BEGIN/END blocks in this existing C file instead")
     p.add_argument("--dry-run", action="store_true", help="print the unified diff; write nothing")
     p.set_defaults(func=cmd_build)
+
+    p = variant_cmd("report", "write the HTML review report for a variant (also for failing builds)")
+    p.add_argument("--out", default="out/reports", help="output directory")
+    p.add_argument("--compare-to", help="previous header to diff against (default: committed header)")
+    p.set_defaults(func=cmd_report)
 
     p = sub.add_parser("audit", help="read-only: check existing C firmware against a variant's spec")
     p.add_argument("source", help="directory of legacy .c/.h files")
