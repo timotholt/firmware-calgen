@@ -105,7 +105,7 @@ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/sv
 .fb:hover{background:var(--soft)}.fb.sel{background:var(--sel);color:var(--selfg)}.fb.bad{border-color:var(--bad)}.fb .t{font-weight:600;margin-bottom:4px}.fb .r{font-family:var(--mono);font-size:11px;line-height:1.5;overflow-wrap:anywhere}
 .fb.sel .tag{background:transparent;color:var(--selfg);border:1px solid var(--selfg)}.under{grid-column:5}.tab{cursor:pointer;border:1px solid var(--line);background:var(--bg)}.tab.on{background:var(--sel);color:var(--selfg)}
 .inp label{display:block;font-size:12px;color:var(--muted)}.inp input,.inp select{width:100%;font:inherit;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
-@media (max-width:768px){.fgrid{grid-template-columns:1fr}.farrow{transform:rotate(90deg)}.under,.fvert{grid-column:auto}}ol.problems li{margin:6px 0}h1.hero{font-size:28px;line-height:1.25;margin:24px 0 8px;max-width:38ch;text-wrap:balance}.lead{font-size:19px;line-height:1.5;margin:0 0 24px;max-width:70ch}
+@media (max-width:768px){.fgrid{grid-template-columns:1fr}.farrow{transform:rotate(90deg)}.under,.fvert{grid-column:auto}}ol.problems li{margin:6px 0}h1.hero{font-size:28px;line-height:1.25;margin:24px 0 8px}.assume{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:4px 24px;margin:0;padding:0;list-style:none;font-size:14.5px;line-height:1.45}.assume li{padding:8px 0;border-bottom:1px solid var(--line)}.assume b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:500}.lead{font-size:19px;line-height:1.5;margin:0 0 24px;max-width:70ch}
 .proof{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:16px 0;margin:0 0 20px}
 .proof b{display:block;font-family:var(--mono);font-size:24px;font-weight:600}.proof span{display:block;font-size:13px;color:var(--muted);line-height:1.4}
 .cta{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;margin:0 0 40px}.cta a{font-size:14px}
@@ -176,6 +176,16 @@ def page_home(counts: dict[str, int], ai: dict[str, float]) -> str:
 <div class="card"><h3>What this demo does</h3><p>Generates those constants from the spec with every number traced to its source, audits existing firmware against the spec, and writes nothing when a gate fails.</p></div>
 <div class="card"><h3>What I don't claim</h3><p>Power-electronics design, loop tuning, magnetics, EMI, or certification. Those values come from engineers; the tool carries them safely from spec to source.</p></div>
 </div>
+<h2>Assumptions this demo makes</h2>
+<p class="sub">IntelliPower doesn't publish its firmware or board designs, so these are stated, not known. Values that rest on them are tagged <i>assumption</i> in the playground.</p>
+<ul class="assume">
+<li><b>Processor</b>TI C2000-class: F28004x (floating point, 100 MHz, 12-bit comparator DAC) by default; F2803x (no FPU, IQ20 fixed point, 60 MHz, 10-bit DAC) as the legacy port. The pairing with these products is illustrative.</li>
+<li><b>Power stage</b>Double-conversion online UPS: boost PFC rectifier, DC bus, inverter, battery on the bus.</li>
+<li><b>Control board</b>Invented current sensing: 2 mΩ shunt, ×10 amplifier, mid-rail biased into a 3.3 V ADC. Rev B swaps in a ×20 amplifier.</li>
+<li><b>Design choices</b>Invented: 20 kHz switching, 1 µs dead time, 7% bus margin, 95% sensor headroom, peak limit 3.5 × rated current, 30 s overload delay.</li>
+<li><b>Battery</b>LiFePO4 at 2.5 V per cell cutoff and 3.65 V full charge (generic chemistry figures).</li>
+<li><b>Where constants live</b>In C headers as <code>#define</code>s, the form the posting implies; other forms (tables, EEPROM images) would only change the output format.</li>
+</ul>
 <h2>What a generated line looks like</h2>
 <pre>{_e(sample)}</pre>
 <p class="sub">The formula, every input, and the file each came from travel with the constant. The review report typesets the same derivation, and a test checks that the typeset math equals the computed value.</p>
