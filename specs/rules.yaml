@@ -388,6 +388,7 @@ checks:
     op: "<"
     rhs: vbus_set
     block: bus
+    fix: "Raise the DC bus margin, or lower the output voltage or its regulation band."
 
   - id: bus_sense_range
     describe: Bus setpoint must sit inside the bus sensor's range with headroom
@@ -395,6 +396,7 @@ checks:
     op: "<="
     rhs: design.sense_headroom * vbus_fs
     block: bus
+    fix: "Use a bus divider with a larger ratio (bigger top resistor) or lower the bus margin."
 
   - id: vout_sense_range
     describe: Output peak at the top of the regulation band must sit inside the output sensor's range
@@ -402,6 +404,7 @@ checks:
     op: "<="
     rhs: design.sense_headroom * vout_fs_pk
     block: inv
+    fix: "Use an output divider with a larger ratio, or lower the output voltage."
 
   - id: iout_sense_range
     describe: Hardware peak limit must sit inside the current sensor's range, or the sensor saturates before the limit fires
@@ -409,6 +412,7 @@ checks:
     op: "<="
     rhs: design.sense_headroom * iout_fs_pk
     block: out
+    fix: "Lower the current shunt or the amplifier gain so the sensor covers the peak limit (keep the original amplifier, or use a smaller shunt with the alternate one). Lowering the peak-limit factor is a design change: it risks nuisance trips on crest-factor loads."
 
   - id: overload_below_pk_limit
     describe: The timed RMS overload must act before the hardware limit, so normal overloads don't trip the fast protection
@@ -416,6 +420,7 @@ checks:
     op: "<"
     rhs: iout_pk_limit
     block: out
+    fix: "Raise the peak-limit factor, or lower the overload trip level."
 
   - id: dac_hi_in_range
     describe: Positive peak-limit DAC code must exist on this chip's comparator DAC
@@ -423,6 +428,7 @@ checks:
     op: "<="
     rhs: target.dac_max
     block: out
+    fix: "Lower the current shunt or amplifier gain; the comparator DAC can't represent this limit."
 
   - id: deadband_in_range
     describe: Dead-time count must fit this chip's dead-band counter
@@ -430,6 +436,7 @@ checks:
     op: "<="
     rhs: target.db_max
     block: inv
+    fix: "Shorten the dead time or use a slower PWM clock."
 
   - id: alarm_below_trip
     describe: Overload alarm must come before the trip
@@ -437,6 +444,7 @@ checks:
     op: "<"
     rhs: iout_trip
     block: out
+    fix: "Set the overload alarm below the trip level."
 
   - id: vbat_sense_range
     describe: A fully charged battery must sit inside the battery sensor's range
@@ -444,6 +452,7 @@ checks:
     op: "<="
     rhs: design.sense_headroom * vbat_fs
     block: batt
+    fix: "Use a battery divider with a larger ratio."
 
   - id: cutoff_below_nominal
     describe: Low-battery cutoff must be below nominal
@@ -451,3 +460,5 @@ checks:
     op: "<"
     rhs: vbat_nom
     block: batt
+
+    fix: "Lower the per-cell cutoff voltage."

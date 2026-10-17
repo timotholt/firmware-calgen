@@ -52,7 +52,10 @@ a{color:inherit}.btn{display:inline-block;border:1px solid var(--line);border-ra
 .probpill{border:0;cursor:pointer;font:inherit;font-size:12px}
 .stages .fb{position:relative}
 .fb .probs{position:absolute;left:6px;right:6px;top:calc(100% - 10px);z-index:4;padding:8px 26px 8px 10px;border-radius:8px;background:var(--bg);color:var(--bad);border:1px solid var(--bad);box-shadow:0 6px 18px rgba(0,0,0,.25);font-size:12px;line-height:1.4;animation:probin .2s ease-out}
-.fb .probs ul{margin:0;padding-left:16px}.probx{position:absolute;top:4px;right:6px;border:0;background:transparent;color:var(--bad);font-size:16px;line-height:1;cursor:pointer}
+.fb .probs ul{margin:0;padding-left:16px}
+.howfix{margin-top:8px;padding-top:6px;border-top:1px solid var(--line);color:var(--fg)}.howfix p{margin:4px 0;color:var(--muted)}
+.applyfix{display:block;width:100%;text-align:left;margin-top:6px;font:inherit;font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid var(--ok);background:var(--okbg);color:var(--ok);cursor:pointer}
+.applyfix:hover{filter:brightness(1.1)}.probx{position:absolute;top:4px;right:6px;border:0;background:transparent;color:var(--bad);font-size:16px;line-height:1;cursor:pointer}
 @keyframes probin{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.fb .probs{animation:none}}
 .pg{display:grid;grid-template-columns:minmax(260px,340px) minmax(0,1fr);grid-template-areas:"stages ins" "stages fms";grid-template-rows:auto 1fr;gap:16px 24px;margin-top:16px}

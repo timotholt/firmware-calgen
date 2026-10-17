@@ -225,6 +225,40 @@ def _sense_line(val: dict, headroom_pct: float | None) -> str:
     return f"Current sensor ±{fs.value:.1f} A peak · hardware peak limit {pk.value:.1f} A uses {used:.0f}% (max {limit:g}%) · {verdict}"
 
 
+def suggestions(b: Build) -> dict[str, list[dict]]:
+    """Concrete, one-click fixes for failures where the arithmetic is simple. check id -> suggestions."""
+    import math
+
+    from calgen.units import from_si
+
+    out: dict[str, list[dict]] = {}
+    env = b.env
+    need = ("target.v_ref", "board.r_shunt", "board.g_amp", "design.sense_headroom")
+    lim = next((c for c in b.constants if c.rule.id == "iout_pk_limit"), None)
+    failing = {k.check.id for k in b.checks if k.status == FAIL} | {
+        c.rule.id for c in b.constants if c.status == FAIL and c.rule.id.startswith("iout_pklim_dac")}
+    if lim is None or lim.value is None or not all(n in env for n in need) or not failing & {
+            "iout_sense_range", "dac_hi_in_range", "iout_pklim_dac_lo", "iout_pklim_dac_hi"}:
+        return out
+    v_half = env["target.v_ref"].value / 2
+    rg_max = v_half * env["design.sense_headroom"].value / lim.value  # ohms x gain the sensor can afford
+    r_now, g_now = env["board.r_shunt"].value, env["board.g_amp"].value
+    r_max_mohm = from_si(rg_max / g_now, "mohm")
+    g_max = rg_max / r_now
+    r_pick = math.floor(r_max_mohm * 10) / 10
+    g_pick = float(math.floor(g_max))
+    items = []
+    if r_pick > 0:
+        items.append({"label": f"Use a {r_pick:g} mΩ shunt (needs ≤ {r_max_mohm:.2f} mΩ with gain {g_now:g})", "key": "board.r_shunt", "value": r_pick})
+    if g_pick >= 1:
+        items.append({"label": f"Use amp gain {g_pick:g} V/V (needs ≤ {g_max:.1f} with {from_si(r_now, 'mohm'):g} mΩ)", "key": "board.g_amp", "value": g_pick})
+    for cid in ("iout_sense_range", "dac_hi_in_range"):
+        out[cid] = items
+    out["iout_pklim_dac_lo"] = items
+    out["iout_pklim_dac_hi"] = items
+    return out
+
+
 def to_json(b: Build, base_header: str | None = None) -> dict:
     try:
         c_text, gate_msg = header(b), ""
@@ -233,6 +267,7 @@ def to_json(b: Build, base_header: str | None = None) -> dict:
     diff = ""
     if c_text and base_header is not None and base_header != c_text:
         diff = "\n".join(difflib.unified_diff(base_header.splitlines(), c_text.splitlines(), "baseline", "edited", lineterm=""))
+    sugg = suggestions(b)
     constants = []
     for c in b.constants:
         d = derive_constant(b, c.rule.id)
@@ -248,10 +283,12 @@ def to_json(b: Build, base_header: str | None = None) -> dict:
             "tag": _tag(b, c.rule.id),
             "latex": d.lines,
             "sources": [{"name": s.name, "origin": s.origin, "quote": s.quote} for s in c.sources if s.origin != "constant"],
+            "suggest": sugg.get(c.rule.id, []),
         })
     checks = [{
         "id": k.check.id, "block": k.check.block, "describe": k.check.describe, "status": k.status,
         "message": k.message, "latex": derive_check(b, k.check.id).lines,
+        "fix": k.check.fix, "suggest": sugg.get(k.check.id, []),
     } for k in b.checks]
     return {
         "variant": b.variant.name,

@@ -52,10 +52,24 @@
     return '<span class="was">' + esc(DATA.baseline[c.id]) + "</span> → <b>" + esc(c.display) + "</b>";
   }
   function problems(b) {
-    var out = DATA.constants.filter(function (c) { return c.block === b && c.status === "fail"; }).map(function (c) { return c.symbol + ": " + c.message; });
-    out = out.concat(DATA.checks.filter(function (k) { return k.block === b && k.status === "fail"; }).map(function (k) { return k.message; }));
-    if (b === "inv") out = out.concat(DATA.staleness.filter(function (x) { return x.status === "fail"; }).map(function (x) { return x.param + ": " + x.message; }));
+    var out = DATA.constants.filter(function (c) { return c.block === b && c.status === "fail"; })
+      .map(function (c) { return { msg: c.symbol + ": " + c.message, fix: "", suggest: c.suggest || [] }; });
+    out = out.concat(DATA.checks.filter(function (k) { return k.block === b && k.status === "fail"; })
+      .map(function (k) { return { msg: k.message, fix: k.fix || "", suggest: k.suggest || [] }; }));
+    if (b === "inv") out = out.concat(DATA.staleness.filter(function (x) { return x.status === "fail"; })
+      .map(function (x) { return { msg: x.param + ": " + x.message, fix: "Re-tune the loop gains for the new frequency, or set the switching frequency back.", suggest: [] }; }));
     return out;
+  }
+
+  function fixHtml(probs) {
+    var fixes = [], seenFix = {}, sugg = [], seenKey = {};
+    probs.forEach(function (p) {
+      if (p.fix && !seenFix[p.fix]) { seenFix[p.fix] = 1; fixes.push(p.fix); }
+      p.suggest.forEach(function (x) { if (!seenKey[x.key + x.value]) { seenKey[x.key + x.value] = 1; sugg.push(x); } });
+    });
+    if (!fixes.length && !sugg.length) return "";
+    return '<div class="howfix"><b>How to fix</b>' + fixes.map(function (f) { return "<p>" + esc(f) + "</p>"; }).join("") +
+      sugg.map(function (x) { return '<button type="button" class="applyfix" data-k="' + esc(x.key) + '" data-v="' + x.value + '">Apply: ' + esc(x.label) + "</button>"; }).join("") + "</div>";
   }
   function allProblems() {
     var n = 0;
@@ -94,7 +108,7 @@
     var probs = problems(b);
     var probHtml = probs.length && showReasons && !dismissed[b]
       ? '<div class="probs" role="alert"><button type="button" class="probx" data-x="' + b + '" aria-label="Dismiss">×</button><ul>' +
-        probs.map(function (m) { return "<li>" + esc(m) + "</li>"; }).join("") + "</ul></div>" : "";
+        probs.map(function (m) { return "<li>" + esc(m.msg) + "</li>"; }).join("") + "</ul>" + fixHtml(probs) + "</div>" : "";
     return '<div class="fb' + (state.stage === b ? " sel" : "") + (stageBad(b) ? " bad" : "") + (any ? " has-chg" : "") +
       '" data-b="' + b + '" id="stage-' + b + '" role="button" tabindex="0" aria-pressed="' + (state.stage === b) + '"><div class="t">' + esc(DATA.blocks[b]) + "</div>" + summary + rows + probHtml + "</div>";
   }
@@ -127,6 +141,14 @@
     $("flow").querySelectorAll(".probx").forEach(function (x) {
       x.onclick = function (ev) { ev.stopPropagation(); dismissed[x.dataset.x] = true; renderFlow(); };
     });
+    $("flow").querySelectorAll(".applyfix").forEach(function (btn) {
+      btn.onclick = function (ev) {
+        ev.stopPropagation();
+        state.edits[btn.dataset.k] = parseFloat(btn.dataset.v);
+        revealReasonsAfter(300); recompute();
+      };
+    });
+    $("flow").querySelectorAll(".probs").forEach(function (p) { p.onclick = function (ev) { ev.stopPropagation(); }; });
   }
 
   // ---- inputs --------------------------------------------------------------

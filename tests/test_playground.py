@@ -96,3 +96,12 @@ def test_every_consumed_numeric_data_sheet_field_is_editable():
     used = _consumed_ds_fields(load_rules(SPECS / "rules.yaml"))
     numeric = {n for p in ("fa10449", "fa10434", "fa10507") for n, q in load_datasheet(SPECS / "datasheets" / f"{p}.csv").params.items() if n in used and q.numeric}
     assert numeric <= {n for n, *_ in DS_EDITABLE}
+
+
+def test_failure_offers_fix_that_actually_passes():
+    r = run(SPECS, board_rev="B")
+    check = next(k for k in r["checks"] if k["id"] == "iout_sense_range")
+    assert check["status"] == "fail" and "smaller shunt" in check["fix"]
+    for s in check["suggest"]:
+        fixed = run(SPECS, board_rev="B", edits={s["key"]: s["value"]})
+        assert fixed["ok"], (s, fixed["failures"])

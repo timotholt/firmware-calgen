@@ -102,6 +102,7 @@ class Check:
     rhs: str
     describe: str
     block: str
+    fix: str = ""  # how an engineer would resolve a failure
 
 
 @dataclass(frozen=True)
@@ -375,7 +376,7 @@ def load_rules(path: str | Path) -> Rules:
         block = str(c.get("block", ""))
         if block and block not in blocks:
             issues.append(f"{where}: unknown block {block!r}")
-        checks.append(Check(str(c["id"]), str(c["lhs"]), str(c["op"]), str(c["rhs"]), str(c.get("describe", "")), block))
+        checks.append(Check(str(c["id"]), str(c["lhs"]), str(c["op"]), str(c["rhs"]), str(c.get("describe", "")), block, str(c.get("fix", ""))))
     if issues:
         raise SpecError(str(path), issues)
     symbols = data.get("symbols") or {}
