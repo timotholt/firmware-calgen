@@ -800,7 +800,17 @@ def svg_l_vs_i(core: Core, turns: int, i_pk: float, l_req_uh: float | None, stac
              f'<text class="mc-t" x="4" y="{mt + 8}">{l0:.0f} µH</text><text class="mc-t" x="4" y="{mt + ph}">0</text>')
     cap = (f"{core.name}{f' ×{stack}' if stack > 1 else ''}, {turns} turns: {l0:.0f} µH at 0 A; "
            + (f"{l0 * f_pk:.0f} µH ({f_pk * 100:.0f}%) at {i_pk:g} A peak" if f_pk is not None else f"past the data sheet's 50% point at {i_pk:g} A")
-           + (". The drawing specifies inductance at 0 A only, so it doesn't say how much is needed at full current: a question for the designer." if ref_at == "zero" else ".")
-           + (" Solid: Magnetics' catalog curve derated to this part's guaranteed minimums (squares); faint: the catalog's typical curve." if core.fit
-              else " Line: data sheet points joined straight (conservative)."))
-    return f'<figure class="mfig"><svg viewBox="0 0 {W} {H}" role="img" aria-label="Inductance versus current">{"".join(g)}</svg><figcaption>{cap}</figcaption></figure>'
+           + (". The drawing specifies inductance at 0 A only, so it doesn't say how much is needed at full current: a question for the designer." if ref_at == "zero" else "."))
+    sw = lambda body: f'<svg class="mc-sw" viewBox="0 0 22 10" aria-hidden="true">{body}</svg>'  # noqa: E731
+    line = lambda cls: sw(f'<line class="{cls}" x1="1" y1="5" x2="21" y2="5"/>')  # noqa: E731
+    keys = [(line("mc-l"), "derated to this part's guaranteed minimums (used by the checks)" if core.fit
+             else "data sheet points joined straight (conservative; used by the checks)")]
+    if core.fit:
+        keys.append((line("mc-typ"), "Magnetics' catalog typical curve"))
+    keys.append((sw('<rect class="mc-min" x="7.5" y="1.5" width="7" height="7"/>'), "data sheet guaranteed minimum (80%, 50%)"))
+    if l_req_uh:
+        keys.append((line("mc-req"), "required inductance at peak" if ref_at == "peak" else "drawing's inductance (at 0 A)"))
+    keys.append((sw('<line class="mc-pk" x1="11" y1="0" x2="11" y2="10"/>' + ('<circle class="mc-dot" cx="11" cy="5" r="3.5"/>' if f_pk is not None else "")),
+                 "peak current; dot = inductance left at peak" if f_pk is not None else "peak current"))
+    leg = '<div class="mc-leg">' + "".join(f"<span>{s}{t}</span>" for s, t in keys) + "</div>"
+    return f'<figure class="mfig"><svg viewBox="0 0 {W} {H}" role="img" aria-label="Inductance versus current">{"".join(g)}</svg>{leg}<figcaption>{cap}</figcaption></figure>'
