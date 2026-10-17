@@ -253,6 +253,8 @@ def protection(b: Build) -> dict | None:
         "peak_limit": val["iout_pk_limit"].value,
         "sensor_fs": val["iout_fs_pk"].value,
         "headroom": head.value if head is not None else 0.95,
+        "f_hz": val["fout_hz"].value if val.get("fout_hz") is not None and val["fout_hz"].value else 60.0,
+        "overload_delay_s": b.env["design.overload_delay"].value if "design.overload_delay" in b.env else None,
     }
 
 

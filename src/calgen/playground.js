@@ -144,32 +144,68 @@
   }
   function waveSvg(p) {
     if (!p) return "";
-    // Instantaneous current only (an RMS threshold has no meaning on this axis). Scaled to the
-    // hardware limit so the comparison that matters fills the plot.
-    var S = Math.max(p.peak_limit, p.crest_pk) * 1.18, W = 600, M = 80, A = 70;
-    var over = p.peak_limit > p.headroom * p.sensor_fs;
-    function y(a) { return (M - a / S * A).toFixed(1); }
-    function hline(cls, a) { return '<line class="' + cls + '" x1="0" x2="' + W + '" y1="' + y(a) + '" y2="' + y(a) + '"/>'; }
-    function path(fn) { var d = ""; for (var i = 0; i <= 600; i++) { var t = i / 600 * 4 * Math.PI; d += (i ? "L" : "M") + i + " " + y(fn(t)); } return d; }
-    var sw = '<svg class="viz wave" viewBox="0 0 600 160" role="img" aria-label="Instantaneous output current over two cycles: a ' + p.crest +
-      ":1 crest-factor load peaking at " + f1(p.crest_pk) + " A and a linear load peaking at " + f1(p.rated_pk) + " A, both " + f1(p.rated_rms) +
+    // One cycle of instantaneous current (an RMS threshold has no meaning on this axis),
+    // scaled to the hardware limit, with real axes and the headroom the limit leaves.
+    var S = Math.max(p.peak_limit, p.crest_pk) * 1.18, W = 600, H = 210, ml = 44, mr = 12, mt = 10, mb = 26;
+    var pw = W - ml - mr, ph = H - mt - mb, M = mt + ph / 2, A = ph / 2;
+    var over = p.peak_limit > p.headroom * p.sensor_fs, period = 1000 / (p.f_hz || 60);
+    function x(t) { return ml + t / (2 * Math.PI) * pw; }
+    function y(a) { return M - a / S * A; }
+    function hline(cls, a) { return '<line class="' + cls + '" x1="' + ml + '" x2="' + (ml + pw) + '" y1="' + y(a).toFixed(1) + '" y2="' + y(a).toFixed(1) + '"/>'; }
+    function path(fn) { var d = ""; for (var i = 0; i <= 400; i++) { var t = i / 400 * 2 * Math.PI; d += (i ? "L" : "M") + x(t).toFixed(1) + " " + y(fn(t)).toFixed(1); } return d; }
+    var sw = '<svg class="viz wave" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="One cycle of output current: a ' + p.crest +
+      ":1 rectifier load peaking at " + f1(p.crest_pk) + " A and a linear load peaking at " + f1(p.rated_pk) + " A, both " + f1(p.rated_rms) +
       " A RMS, against a " + f1(p.peak_limit) + ' A hardware limit">';
-    if (p.sensor_fs < S) {  // sensor range only drawn when it is inside the plotted range (rev B)
-      sw += '<rect class="w-blind" x="0" y="0" width="' + W + '" height="' + y(p.sensor_fs) + '"/><rect class="w-blind" x="0" y="' + y(-p.sensor_fs) + '" width="' + W + '" height="' + (160 - y(-p.sensor_fs)).toFixed(1) + '"/>';
+    if (p.sensor_fs < S) {  // the sensor's blind range, only when it falls inside the plot (rev B)
+      sw += '<rect class="w-blind" x="' + ml + '" y="' + mt + '" width="' + pw + '" height="' + (y(p.sensor_fs) - mt).toFixed(1) + '"/>' +
+        '<rect class="w-blind" x="' + ml + '" y="' + y(-p.sensor_fs).toFixed(1) + '" width="' + pw + '" height="' + (mt + ph - y(-p.sensor_fs)).toFixed(1) + '"/>';
     }
-    sw += hline("w-axis", 0) + hline("w-lim" + (over ? " bad" : ""), p.peak_limit) + hline("w-lim" + (over ? " bad" : ""), -p.peak_limit);
-    sw += '<text class="g-t" x="' + (W - 4) + '" y="' + (+y(p.peak_limit) - 4) + '" text-anchor="end">peak limit ±' + f1(p.peak_limit) + " A</text>";
+    // axes: current ticks every 10 or 20 A, time ticks at quarter cycles in ms
+    var step = S > 45 ? 20 : 10;
+    for (var a = -Math.floor(S / step) * step; a <= S; a += step) {
+      sw += '<line class="w-grid" x1="' + ml + '" x2="' + (ml + pw) + '" y1="' + y(a).toFixed(1) + '" y2="' + y(a).toFixed(1) + '"/>' +
+        '<text class="g-t" x="' + (ml - 6) + '" y="' + (y(a) + 4).toFixed(1) + '" text-anchor="end">' + a + "</text>";
+    }
+    for (var q = 0; q <= 4; q++) {
+      var tx = ml + q / 4 * pw;
+      sw += '<line class="w-axis" x1="' + tx.toFixed(1) + '" x2="' + tx.toFixed(1) + '" y1="' + (mt + ph) + '" y2="' + (mt + ph + 4) + '"/>' +
+        '<text class="g-t" x="' + tx.toFixed(1) + '" y="' + (mt + ph + 16) + '" text-anchor="' + (q === 0 ? "start" : q === 4 ? "end" : "middle") + '">' + (period * q / 4).toFixed(1) + (q === 4 ? " ms" : "") + "</text>";
+    }
+    sw += '<text class="g-t" x="4" y="' + (mt + 10) + '">A</text>';
+    sw += '<line class="w-axis" x1="' + ml + '" x2="' + ml + '" y1="' + mt + '" y2="' + (mt + ph) + '"/>' + hline("w-axis", 0);
+    sw += hline("w-lim" + (over ? " bad" : ""), p.peak_limit) + hline("w-lim" + (over ? " bad" : ""), -p.peak_limit);
+    sw += '<text class="g-t" x="' + (ml + pw - 4) + '" y="' + (y(p.peak_limit) - 5).toFixed(1) + '" text-anchor="end">hardware limit ±' + f1(p.peak_limit) + " A</text>";
     sw += '<path class="w-sine" d="' + path(function (t) { return p.rated_pk * Math.sin(t); }) + '"/>';
     sw += '<path class="w-load" d="' + path(function (t) { return p.crest_pk * pulse(t, p.crest); }) + '"/>';
-    sw += '<text class="g-t" x="4" y="' + (+y(p.crest_pk) - 4) + '">' + f1(p.crest_pk) + " A</text></svg>";
+    // headroom bracket between the first pulse's peak and the limit
+    var w = 2 * Math.PI / (p.crest * p.crest), tpk = Math.PI / 2 + 0.08 - w / 2, bx = x(tpk) + 26;
+    var y1 = y(p.crest_pk), y2 = y(p.peak_limit), gap = p.peak_limit - p.crest_pk;
+    sw += '<line class="w-br' + (over ? " bad" : "") + '" x1="' + bx.toFixed(1) + '" x2="' + bx.toFixed(1) + '" y1="' + y1.toFixed(1) + '" y2="' + y2.toFixed(1) + '"/>' +
+      '<line class="w-br' + (over ? " bad" : "") + '" x1="' + (bx - 4).toFixed(1) + '" x2="' + (bx + 4).toFixed(1) + '" y1="' + y1.toFixed(1) + '" y2="' + y1.toFixed(1) + '"/>' +
+      '<line class="w-br' + (over ? " bad" : "") + '" x1="' + (bx - 4).toFixed(1) + '" x2="' + (bx + 4).toFixed(1) + '" y1="' + y2.toFixed(1) + '" y2="' + y2.toFixed(1) + '"/>' +
+      '<text class="g-t w-brt' + (over ? " bad" : "") + '" x="' + (bx + 8).toFixed(1) + '" y="' + ((y1 + y2) / 2 + 4).toFixed(1) + '">' +
+      (over ? "limit beyond the sensor's range: it can't fire" : f1(gap) + " A headroom (" + Math.round(gap / p.crest_pk * 100) + "%)") + "</text>";
+    sw += "</svg>";
     var key = '<div class="wkey">' +
-      '<span><i class="k-load"></i>' + p.crest + ":1 rectifier load, " + f1(p.rated_rms) + " A RMS, " + f1(p.crest_pk) + " A peak (illustrative)</span>" +
-      '<span><i class="k-sine"></i>linear load, ' + f1(p.rated_rms) + " A RMS, " + f1(p.rated_pk) + " A peak</span>" +
-      '<span><i class="k-lim' + (over ? " bad" : "") + '"></i>hardware peak limit ±' + f1(p.peak_limit) + " A (instant)</span>" +
-      (p.sensor_fs < S ? '<span><i class="k-blind"></i>beyond the sensor\'s ±' + f1(p.sensor_fs) + " A range</span>" : "") +
-      "</div><p class=\"wnote\">Same RMS current, very different peaks: the hardware limit has to clear the rectifier load's peaks, or a healthy, fully loaded UPS trips. " +
-      "The timed RMS overload (" + f1(p.overload_rms) + " A RMS for 30 s) is a separate, software check and isn't drawn on this instantaneous axis.</p>";
-    return sw + key;
+      '<span><i class="k-load"></i>' + p.crest + ":1 rectifier load: " + f1(p.rated_rms) + " A RMS, " + f1(p.crest_pk) + " A peak (illustrative)</span>" +
+      '<span><i class="k-sine"></i>linear load: ' + f1(p.rated_rms) + " A RMS, " + f1(p.rated_pk) + " A peak</span>" +
+      '<span><i class="k-lim' + (over ? " bad" : "") + '"></i>hardware peak limit: instant</span>' +
+      (p.sensor_fs < S ? '<span><i class="k-blind"></i>beyond the sensor\'s ±' + f1(p.sensor_fs) + " A range</span>" : "") + "</div>";
+    return sw + key + rmsBar(p);
+  }
+  // The other protection layer, in its own units: RMS current against the timed overload trip.
+  function rmsBar(p) {
+    var mx = p.overload_rms * 1.35, W = 600, ml = 44, mr = 12, pw = W - ml - mr;
+    function x(v) { return ml + Math.min(v, mx) / mx * pw; }
+    var s = '<svg class="viz rmsbar" viewBox="0 0 ' + W + ' 54" role="img" aria-label="RMS current ' + f1(p.rated_rms) + " A against the " + f1(p.overload_rms) + ' A timed overload trip">' +
+      '<text class="g-t" x="4" y="25">RMS</text>' +
+      '<rect class="r-bar" x="' + ml + '" y="14" width="' + pw + '" height="16" rx="3"/>' +
+      '<rect class="r-val" x="' + ml + '" y="17" width="' + (x(p.rated_rms) - ml).toFixed(1) + '" height="10" rx="2"/>' +
+      '<line class="r-trip" x1="' + x(p.overload_rms).toFixed(1) + '" x2="' + x(p.overload_rms).toFixed(1) + '" y1="8" y2="36"/>' +
+      '<text class="g-t r-in" x="' + (ml + 6) + '" y="26">either load: ' + f1(p.rated_rms) + ' A RMS</text>' +
+      '<text class="g-t r-tript" x="' + (x(p.overload_rms) - 4).toFixed(1) + '" y="48" text-anchor="end">overload trip ' + f1(p.overload_rms) + " A RMS" +
+      (p.overload_delay_s ? ", after " + p.overload_delay_s + " s" : "") + " (software)</text></svg>";
+    return s + '<p class="wnote">Two protection layers in their own units: the hardware limit acts on every instantaneous peak; the overload acts on RMS current over time.</p>';
   }
 
   // ---- C syntax highlighting (display only; the download is the raw text) ----
