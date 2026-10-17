@@ -39,6 +39,9 @@ def _print_build(b: Build) -> None:
         value = c.enum_ident or (c.encoded.literal if c.encoded else "-")
         note = f"  {c.message}" if c.message else ""
         print(f"  {_tag(c.status)}  {c.rule.symbol:<26} {value:<16}{note}")
+    for d in b.datasheet:
+        tag = {"blocking": _tag(FAIL), "waived": "wavd", "flagged": "flag"}[d.status]
+        print(f"  {tag}  data sheet {', '.join(d.finding.fields):<17} {d.finding.message}")
     for k in b.checks:
         note = f"  {k.message}" if k.message else ""
         print(f"  {_tag(k.status)}  check {k.check.id:<20}{note}")

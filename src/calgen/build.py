@@ -12,12 +12,14 @@ import hashlib
 import operator
 from dataclasses import dataclass, field
 
+from calgen.consistency import ERROR, Finding, check_datasheet
 from calgen.expr import ExprError, Formula, Quantity, evaluate, parse
 from calgen.formats import Encoded, FormatError, encode
 from calgen.spec import Check, Param, Rule, Rules, Variant
 from calgen.units import UnitError, check_compatible, format_dim, from_si, parse_unit
 
 OK, FAIL, SKIPPED = "ok", "fail", "skipped"
+BLOCKING, WAIVED, FLAGGED = "blocking", "waived", "flagged"
 
 @dataclass
 class Source:
@@ -51,17 +53,26 @@ class CheckResult:
     message: str = ""
 
 @dataclass
+class DatasheetFinding:
+    finding: Finding
+    status: str  # blocking | waived | flagged
+    note: str = ""
+
+
+@dataclass
 class Build:
     variant: Variant
     rules: Rules
     constants: list[ConstResult]
     checks: list[CheckResult]
     digest: str
+    datasheet: list[DatasheetFinding] = field(default_factory=list)
 
     @property
     def failures(self) -> list[str]:
         out = [f"{c.rule.symbol}: {c.message}" for c in self.constants if c.status == FAIL]
         out += [f"check {c.check.id}: {c.message}" for c in self.checks if c.status == FAIL]
+        out += [f"data sheet {', '.join(d.finding.fields)}: {d.finding.message}" for d in self.datasheet if d.status == BLOCKING]
         return out
 
     @property
@@ -140,9 +151,36 @@ def build(variant: Variant, rules: Rules) -> Build:
             sources[rule.id] = Source(rule.id, env[rule.id], rule.unit, "constant")
 
     checks = [_check(c, env) for c in rules.checks]
+    findings = _classify(check_datasheet(variant.datasheet), _consumed_ds_fields(rules), variant)
     h = hashlib.sha256(variant.digest().encode())
     h.update(rules.path.read_bytes())
-    return Build(variant, rules, results, checks, h.hexdigest())
+    return Build(variant, rules, results, checks, h.hexdigest(), findings)
+
+
+def _consumed_ds_fields(rules: Rules) -> set[str]:
+    used: set[str] = set()
+    for r in rules.constants:
+        names = [r.formula] if r.kind == "enum" else parse(r.formula).names
+        used |= {n[3:] for n in names if n.startswith("ds.")}
+    return used
+
+
+def _classify(findings: list[Finding], consumed: set[str], variant: Variant) -> list[DatasheetFinding]:
+    """Errors on consumed fields block unless overridden; everything else is reported."""
+    out = []
+    for f in findings:
+        hit = [x for x in f.fields if x in consumed]
+        if f.severity == ERROR and hit:
+            if all(x in variant.overrides for x in hit):
+                note = "; ".join(" ".join(variant.overrides[x].note.split()) for x in hit)
+                out.append(DatasheetFinding(f, WAIVED, f"waived by override: {note}"))
+            else:
+                out.append(DatasheetFinding(f, BLOCKING, "field is used by a rule; fix the transcription or add a reasoned override"))
+        elif f.severity == ERROR:
+            out.append(DatasheetFinding(f, FLAGGED, "field not used by any rule; report to the data sheet owner"))
+        else:
+            out.append(DatasheetFinding(f, FLAGGED, "needs engineer review"))
+    return out
 
 def _enum(rule: Rule, text: dict[str, str], sources: dict[str, Source]) -> ConstResult:
     src = sources.get(rule.formula)
