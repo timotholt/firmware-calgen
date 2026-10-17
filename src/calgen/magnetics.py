@@ -565,10 +565,9 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
                 overflow = len(wires) - i
                 break
             cap = max(1, int(2 * math.pi * layer_r / d))
-            for j in range(cap):
-                if i >= len(wires):
-                    break
-                a = 2 * math.pi * j / cap
+            count = min(cap, len(wires) - i)  # spread each layer evenly around the core, as it is wound
+            for j in range(count):
+                a = 2 * math.pi * j / count - math.pi / 2
                 placed.append((wires[i][0], layer_r * math.cos(a), layer_r * math.sin(a), wires[i][1] / 2))
                 i += 1
         body = (f'<path class="mw-core" fill-rule="evenodd" d="M{-r_out:.2f},0a{r_out:.2f},{r_out:.2f} 0 1,0 {2 * r_out:.2f},0a{r_out:.2f},{r_out:.2f} 0 1,0 {-2 * r_out:.2f},0'

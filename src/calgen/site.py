@@ -31,9 +31,9 @@ from calgen.spec import load_rules, load_variant
 
 REPO = "https://github.com/timotholt/firmware-calgen"
 VARIANTS = ["fa10507", "fa10449", "fa10434", "fa10507_f2803x", "fa10507_revB"]
-NAV = [("index.html", "Overview"), ("magnetics.html", "Magnetics"), ("playground.html", "Firmware playground"),
-       ("audit.html", "Audit"), ("reports/index.html", "Review reports"), ("how.html", "How it works"), ("ai.html", "AI practice"),
-       ("backstory.html", "Tim Otholt · backstory")]
+NAV = [("index.html", "Overview"), ("magnetics.html", "Magnetics"), ("playground.html", "Firmware"),
+       ("audit.html", "Audit"), ("reports/index.html", "Reports"), ("how.html", "How it works"), ("ai.html", "AI practice"),
+       ("backstory.html", "Tim Otholt")]
 
 SITE_CSS = REPORT_CSS + """
 nav{display:flex;flex-wrap:wrap;gap:4px 18px;border-bottom:1px solid var(--line);padding:10px 0;margin-bottom:6px;font-size:14px}
@@ -114,7 +114,7 @@ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/sv
 .cards.outlined .card{background:transparent;border:1px solid var(--line);border-radius:8px;padding:16px}
 .cards.outlined .card h3{font-size:17px;font-weight:600;color:var(--fg);margin:0 0 6px}.cards.outlined .card p{font-size:15px;color:var(--muted)}
 main h2{margin-top:40px}.prose{max-width:75ch}.prose p{margin:0 0 12px}
-.posting{margin:12px 0 16px}.posting .shot{max-height:440px;max-width:760px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;background:#f2f2f2}.posting img{display:block;width:100%;height:auto}.posting figcaption{font-size:12.5px;color:var(--muted);margin-top:6px;max-width:760px}.sblock{border-left:4px solid;border-radius:0 8px 8px 0;padding:14px 18px 2px;margin:0 0 28px}.sblock .slabel{font-size:12px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:6px}.sblock.back{border-color:var(--warn);background:var(--warnbg)}.sblock.back .slabel{color:var(--warn)}.sblock.why{border-color:var(--ok);background:var(--okbg)}.sblock.why .slabel{color:var(--ok)}.sblock.thesis{border-color:var(--acc);background:var(--accbg)}.sblock.thesis .slabel{color:var(--acc)}.story-page.wide{max-width:80ch}.plan td{vertical-align:top}.plan td:first-child{white-space:nowrap;font-family:var(--mono)}.sblock ul{margin:0 0 16px;padding-left:20px}.sblock li{margin:6px 0}.msearch{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:flex-end;margin:18px 0 6px;font-size:13px}.msearch label{display:flex;flex-direction:column;gap:3px;color:var(--muted)}.msearch .grow{flex:1;min-width:180px}.msearch input,.msearch select{font:inherit;height:30px;padding:0 8px;border:1px solid var(--line);border-radius:6px;background-color:var(--bg);color:var(--fg);width:110px;box-sizing:border-box}.msearch .grow input{width:100%}.msearch select{width:140px}.msearch .btn{margin:0;height:30px;cursor:pointer;background:var(--bg);color:var(--fg);font:inherit}.indlink{font-size:11px;margin:0 0 6px;padding:3px 6px;border-radius:4px;border:1px dashed var(--line);line-height:1.35}.indlink a{font-weight:600}.mfigs{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin:8px 0 12px}.mfig{margin:0}.mfig svg{display:block;width:100%;height:auto;max-height:300px}.mfig figcaption{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.4}.mw-core{fill:var(--soft);stroke:var(--muted);stroke-width:.4}.mw-win{fill:var(--bg)}.mw-w0{fill:#c27a3a}.mw-w1{fill:#e3b26b}.mw-cut{stroke:var(--muted);stroke-dasharray:2 2;stroke-width:.3}.mc-ax{stroke:var(--muted)}.mc-l{fill:none;stroke:var(--acc);stroke-width:2}.mc-g{stroke:var(--line);stroke-dasharray:3 3}.mc-req{stroke:var(--warn);stroke-dasharray:6 4;stroke-width:1.5}.mc-pk{stroke:var(--muted);stroke-dasharray:2 3}.mc-dot{fill:var(--acc)}.mc-t{font:11px system-ui,sans-serif;fill:var(--muted)}.mc-reqt{fill:var(--warn)}.sizer{margin-top:28px}.sizer #sz-ret{width:200px}.primary-btn{background:var(--fg)!important;color:var(--bg)!important;font-weight:600}.szt td,.szt th{font-size:12.5px}.szt tr.cand{cursor:pointer}.szt tr.cand:hover{background:var(--soft)}.szt tr.cand.on{background:var(--sel);color:var(--selfg)}.szmath{padding:4px 0 10px}.mlist tr.mrow{cursor:pointer}.mlist tr.mrow:hover{background:var(--soft)}.mlist tr.mrow.on{background:var(--sel);color:var(--selfg)}#m-detail{margin-top:18px;border-top:1px solid var(--line);padding-top:12px}.mdetail{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px}.mdraw img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:6px;background:#fff}.minfo table{font-size:12.5px}.mcheck{border-bottom:1px solid var(--line);padding:6px 0}.mcheck p{margin:4px 0}.msim li{margin:4px 0}@media (max-width:820px){.mdetail{grid-template-columns:1fr}}.story-page{max-width:68ch;margin:56px 0 80px}.story-page h1{font-size:28px;margin:0 0 10px}.prose.roomy{font-size:17px;line-height:1.7}.prose.roomy p{margin:0 0 28px}.more-box{margin-top:40px;border-top:1px solid var(--line);padding-top:12px;font-size:14px}.more-box summary{font-size:15px;color:var(--fg)}
+.posting{margin:12px 0 16px}.posting .shot{max-height:440px;max-width:760px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;background:#f2f2f2}.posting img{display:block;width:100%;height:auto}.posting figcaption{font-size:12.5px;color:var(--muted);margin-top:6px;max-width:760px}.sblock{border-left:4px solid;border-radius:0 8px 8px 0;padding:14px 18px 2px;margin:0 0 28px}.sblock .slabel{font-size:12px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:6px}.sblock.back{border-color:var(--warn);background:var(--warnbg)}.sblock.back .slabel{color:var(--warn)}.sblock.why{border-color:var(--ok);background:var(--okbg)}.sblock.why .slabel{color:var(--ok)}.sblock.thesis{border-color:var(--acc);background:var(--accbg)}.sblock.thesis .slabel{color:var(--acc)}.story-page.wide{max-width:80ch}.plan td{vertical-align:top}.plan td:first-child{white-space:nowrap;font-family:var(--mono)}.sblock ul{margin:0 0 16px;padding-left:20px}.sblock li{margin:6px 0}.msearch{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:flex-end;margin:18px 0 6px;font-size:13px}.msearch label{display:flex;flex-direction:column;gap:3px;color:var(--muted)}.msearch .grow{flex:1;min-width:180px}.msearch input,.msearch select{font:inherit;height:30px;padding:0 8px;border:1px solid var(--line);border-radius:6px;background-color:var(--bg);color:var(--fg);width:110px;box-sizing:border-box}.msearch .grow input{width:100%}.msearch select{width:140px}.msearch .btn{margin:0;height:30px;cursor:pointer;background:var(--bg);color:var(--fg);font:inherit}.indlink{font-size:11px;margin:0 0 6px;padding:3px 6px;border-radius:4px;border:1px dashed var(--line);line-height:1.35}.indlink a{font-weight:600}.mfigs{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin:8px 0 12px}.mfig{margin:0}.mfig svg{display:block;width:100%;height:auto;max-height:300px}.mfig figcaption{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.4}.mw-core{fill:var(--soft);stroke:var(--muted);stroke-width:.4}.mw-win{fill:var(--bg)}.mw-w0{fill:#c27a3a}.mw-w1{fill:#e3b26b}.mw-cut{stroke:var(--muted);stroke-dasharray:2 2;stroke-width:.3}.mc-ax{stroke:var(--muted)}.mc-l{fill:none;stroke:var(--acc);stroke-width:2}.mc-g{stroke:var(--line);stroke-dasharray:3 3}.mc-req{stroke:var(--warn);stroke-dasharray:6 4;stroke-width:1.5}.mc-pk{stroke:var(--muted);stroke-dasharray:2 3}.mc-dot{fill:var(--acc)}.mc-t{font:11px system-ui,sans-serif;fill:var(--muted)}.mc-reqt{fill:var(--warn)}.sizer{margin-top:28px}.sizer #sz-ret{width:200px}.primary-btn{background:var(--fg)!important;color:var(--bg)!important;font-weight:600}.szt td,.szt th{font-size:12.5px}.szt tr.cand{cursor:pointer}.szt tr.cand:hover{background:var(--soft)}.szt tr.cand.on{background:var(--sel);color:var(--selfg)}.szmath{padding:4px 0 10px}.mlist tr.mrow{cursor:pointer}.mlist tr.mrow:hover{background:var(--soft)}.mlist tr.mrow.on{background:var(--sel);color:var(--selfg)}#m-detail{margin-top:18px;border-top:1px solid var(--line);padding-top:12px}.mdetail{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px}.mdraw img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:6px;background:#fff}.minfo table{font-size:12.5px}.mcheck{border-bottom:1px solid var(--line);padding:6px 0}.mcheck p{margin:4px 0}.msim li{margin:4px 0}@media (max-width:820px){.mdetail{grid-template-columns:1fr}}.initiatives{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;margin:8px 0 18px}.init{border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column}.init h2{margin:4px 0 8px;font-size:19px}.kicker{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--acc);font-weight:600}.init p{margin:0 0 10px;color:var(--fg);line-height:1.5}.thumb{display:flex;justify-content:center;align-items:center;min-height:150px;margin:6px 0 10px}.thumb svg{width:150px;height:150px}.miniflow{flex-wrap:wrap;gap:4px;align-content:center}.ministage{border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:12px}.ministage.bad{border-color:var(--bad);color:var(--bad)}.miniarrow{color:var(--muted);margin:0 2px}.mini{list-style:none;padding:0;margin:0 0 12px;font-size:13.5px;color:var(--muted)}.mini li{padding:4px 0;border-bottom:1px solid var(--line)}.mini b{color:var(--fg);font-family:var(--mono)}.init p:last-child{margin-top:auto}.primary-link{display:inline-block;background:var(--fg);color:var(--bg);border-radius:8px;padding:8px 14px;font-weight:600;text-decoration:none;font-size:14px}.connect{border-left:3px solid var(--acc);background:var(--accbg);padding:10px 14px;border-radius:0 8px 8px 0;margin:0 0 18px;line-height:1.5}.key{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:0 0 8px;font-size:13.5px;color:var(--muted)}.key b{display:block;color:var(--fg);font-size:12px;text-transform:uppercase;letter-spacing:.06em}.story-page{max-width:68ch;margin:56px 0 80px}.story-page h1{font-size:28px;margin:0 0 10px}.prose.roomy{font-size:17px;line-height:1.7}.prose.roomy p{margin:0 0 28px}.more-box{margin-top:40px;border-top:1px solid var(--line);padding-top:12px;font-size:14px}.more-box summary{font-size:15px;color:var(--fg)}
 @media (max-width:480px){.proof b{font-size:20px}.proof span{font-size:12px}h1.hero{font-size:24px}.lead{font-size:17px}}
 footer{color:var(--muted);font-size:12px;border-top:1px solid var(--line);margin-top:36px;padding-top:10px}
 """
@@ -153,47 +153,63 @@ def _eqs(lines: list[str]) -> str:
 # ---------------------------------------------------------------------------
 
 
-def page_home(counts: dict[str, int], ai: dict[str, float]) -> str:
-    sample = (
-        "/* Comparator DAC code for the positive hardware peak-current limit\n"
-        " * = round((target.v_ref / 2 + iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)\n"
-        " *   target.v_ref = 3.3 V  [target f28004x.yaml]\n"
-        " *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]\n"
-        " *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]\n"
-        " *   target.dac_max = 4095 counts  [target f28004x.yaml] */\n"
-        "#define UPS_IOUT_PKLIM_DAC_HI      3133u          /* 3133 counts, uint16 */"
-    )
-    body = f"""
-<h1 class="hero">From data sheet to firmware C code: built with AI agents, every constant traced and checked</h1>
-<p class="lead">A working demo for both initiatives in AMETEK IntelliPower's AI Automation Intern posting: generating firmware calibration and configuration constants from engineering specifications, and turning past magnetics designs into checked, searchable data as the first step toward design automation. Runs entirely in your browser.</p>
-<div class="proof">
-<div><b>3</b><span>real IntelliPower data sheets, cited per value</span></div>
-<div><b>{counts['contradicts']} of {counts['total']}</b><span>legacy constants that contradict the data sheet, found by audit (+{counts['differs']} that differ from design values)</span></div>
-<div><b>0</b><span>values written when any gate fails</span></div>
-</div>
-<p class="cta"><a class="primary" href="playground.html">Open the firmware playground →</a><a href="magnetics.html">Magnetics</a><a href="ai.html">AI practice</a><a href="audit.html">Legacy audit</a><a href="reports/index.html">Review reports</a></p>
-<div class="cards outlined">
-<div class="card"><h3>The problem I think you have</h3><p>Calibration gains, limits, and register values are hand-edited in C for each product variant and board revision, from data sheets that don't always agree with themselves.</p></div>
-<div class="card"><h3>What this demo does</h3><p>Generates those constants from the spec with every number traced to its source, audits existing firmware against the spec, and writes nothing when a gate fails.</p></div>
-<div class="card"><h3>What I don't claim</h3><p>Power-electronics design, loop tuning, magnetics, EMI, or certification. Those values come from engineers; the tool carries them safely from spec to source.</p></div>
-</div>
-<h2>Assumptions this demo makes</h2>
-<p class="sub">IntelliPower doesn't publish its firmware or board designs, so these are stated, not known. Values that rest on them are tagged <i>assumption</i> in the playground.</p>
-<ul class="assume">
+ASSUMPTIONS_HTML = """<ul class="assume">
 <li><b>Processor</b>TI C2000-class: F28004x (floating point, 100 MHz, 12-bit comparator DAC) by default; F2803x (no FPU, IQ20 fixed point, 60 MHz, 10-bit DAC) as the legacy port. The pairing with these products is illustrative.</li>
 <li><b>Power stage</b>Double-conversion online UPS: boost PFC rectifier, DC bus, inverter, battery on the bus.</li>
 <li><b>Control board</b>Invented current sensing: 2 mΩ shunt, ×10 amplifier, mid-rail biased into a 3.3 V ADC. Rev B swaps in a ×20 amplifier.</li>
 <li><b>Design choices</b>Invented: 20 kHz switching, 1 µs dead time, 7% bus margin, 95% sensor headroom, peak limit 3.5 × rated current, 30 s overload delay.</li>
 <li><b>Battery</b>LiFePO4 at 2.5 V per cell cutoff and 3.65 V full charge (generic chemistry figures).</li>
 <li><b>Where constants live</b>In C headers as <code>#define</code>s, the form the posting implies; other forms (tables, EEPROM images) would only change the output format.</li>
-</ul>
-<h2>What a generated line looks like</h2>
-<pre>{_e(sample)}</pre>
-<p class="sub">The formula, every input, and the file each came from travel with the constant. The review report typesets the same derivation, and a test checks that the typeset math equals the computed value.</p>
+<li><b>Magnetics</b>Design limits are textbook assumptions (current density, window fill, flux margin); inductor requirements use a 30% ripple assumption and first-order formulas; drawings are synthetic.</li>
+</ul>"""
+
+GENERATED_SAMPLE = (
+    "/* Comparator DAC code for the positive hardware peak-current limit\n"
+    " * = round((target.v_ref / 2 + iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)\n"
+    " *   target.v_ref = 3.3 V  [target f28004x.yaml]\n"
+    " *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]\n"
+    " *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]\n"
+    " *   target.dac_max = 4095 counts  [target f28004x.yaml] */\n"
+    "#define UPS_IOUT_PKLIM_DAC_HI      3133u          /* 3133 counts, uint16 */"
+)
+
+
+def page_home(counts: dict[str, int], ai: dict[str, float], mag: dict) -> str:
+    pfc = mag["pfc"]
+    flow = "".join(f'<span class="ministage{" bad" if s == "AC output" else ""}">{s}</span>' + ('<span class="miniarrow">→</span>' if i < 4 else "")
+                   for i, s in enumerate(["AC input", "Rectifier / PFC", "DC bus", "Inverter", "AC output"]))
+    body = f"""
+<h1 class="hero">Both initiatives from AMETEK IntelliPower's AI Automation Intern posting, worked end to end</h1>
+<p class="lead">Built with AI agents under my direction, with every number traced to its source and checked before it is used. Runs entirely in your browser.</p>
+<div class="initiatives">
+<section class="init">
+<div class="kicker">Initiative 1 · Magnetics design automation</div>
+<h2>Past designs into checked data; requirements into candidate designs</h2>
+<p>The posting asks for an AI tool that speeds up inductor and transformer design using past designs. This builds the step that tool needs first: drawings read into structured records, checked against real core data, and searchable, plus a sizing tool that turns a requirement into checked starting designs.</p>
+<div class="thumb">{mag["thumb"]}</div>
+<ul class="mini"><li><b>{mag["drawings"]}</b> synthetic drawings, read back from PDF</li><li><b>{mag["cores"]}</b> real cores with cited data</li><li>checks agree with the blind key on <b>{mag["agree"]} of {mag["drawings"]}</b></li></ul>
+<p><a class="primary-link" href="magnetics.html">Open Magnetics →</a></p>
+</section>
+<section class="init">
+<div class="kicker">Initiative 2 · Firmware modification and calibration</div>
+<h2>Data sheets into firmware constants, gated</h2>
+<p>Calibration gains, limits, and register values are generated from the product data sheet, the board, and the chip, with every value traced. Gates refuse to write C when anything is inconsistent: try the alternate amplifier on the 1500 VA unit.</p>
+<div class="thumb miniflow">{flow}<div class="sub" style="width:100%;margin-top:6px">Rev B on the 1500 VA unit: the sensor saturates before the peak limit fires, so nothing is written.</div></div>
+<ul class="mini"><li><b>3</b> real IntelliPower data sheets, cited per value</li><li><b>{counts['contradicts']} of {counts['total']}</b> legacy constants contradict the data sheet</li><li><b>0</b> values written when any gate fails</li></ul>
+<p><a class="primary-link" href="playground.html">Open the firmware playground →</a></p>
+</section>
+</div>
+<div class="connect"><b>How they connect.</b> The firmware playground's rectifier stage estimates its PFC inductor (FA10507: ≈ {pfc['l_uh']:.0f} µH at {pfc['i_pk']:.1f} A peak) <span class="miniarrow">→</span> one click sizes it in Magnetics against real cores <span class="miniarrow">→</span> with the closest past designs alongside. Same products, both initiatives.</div>
+<div class="key">
+<div><b>Real</b>IntelliPower product data sheets; Magnetics Inc. and Ferroxcube core data; the posting.</div>
+<div><b>Synthetic</b>The legacy firmware corpus, the magnetics drawings, and their blind answer keys.</div>
+<div><b>Assumed</b>Control board, design choices, inductor ripple, processor pairing. Tagged in the tools; listed in <a href="how.html#assumptions">How it works</a>.</div>
+</div>
+<p class="sub">Not claimed: power-electronics design, loop tuning, finished magnetics designs, EMI, or certification. Engineers own those; these tools carry and check their numbers.</p>
 <details class="more-box" open><summary>The posting, my assumptions, and how I'd check them in week one</summary>
 <figure class="posting"><div class="shot"><a href="assets/ametek_posting.jpg" target="_blank" rel="noopener"><img src="assets/ametek_posting.jpg" alt="Screenshot of the AI Automation Intern posting on AMETEK's careers site: about us, job summary with two initiatives (magnetics design automation; firmware modification and calibration automation), and key responsibilities" loading="lazy" width="1040" height="806"></a></div>
 <figcaption>The posting on AMETEK's careers site, posted Oct 15, 2026, captured Oct 16, 2026 (<span class="mono">jobs.ametek.com/job/Orange-AI-Automation-Intern-CA-92865/1420689600</span>). Scroll inside the box, or click for full size.</figcaption></figure>
-<p>The posting describes six problems: magnetics design iterations, hand-edited firmware constants, specs that aren't machine-usable, provable validation, undocumented process, and responsible AI adoption. This demo addresses the second and supports the next three. It doesn't attempt magnetics; that needs real design data and power-engineering judgment, and a toy would mislead.</p>
+<p>The posting describes six problems: magnetics design iterations, hand-edited firmware constants, specs that aren't machine-usable, provable validation, undocumented process, and responsible AI adoption. This demo addresses the first two (magnetics: the data step and first-pass sizing; firmware constants: end to end) and supports the next four.</p>
 <table><tr><th>#</th><th>Assumption</th><th>Why I think so</th><th>Confidence</th><th>How to check</th></tr>
 <tr><td>A1</td><td>Calibration and config constants live in C source (#defines / const tables)</td><td>The posting says so</td><td>High</td><td>Read one product's source</td></tr>
 <tr><td>A2</td><td>Many constants derive from data sheet ratings</td><td>Data sheet fields map cleanly to limits (1500 VA ÷ 120 V × 1.20 = 15 A)</td><td>Medium</td><td>Trace ten constants to their origin</td></tr>
@@ -201,9 +217,11 @@ def page_home(counts: dict[str, int], ai: dict[str, float]) -> str:
 <tr><td>A4</td><td>The processor is a TI C2000 part</td><td>Posting asks for TI chipsets; public site says DSP firmware</td><td>Medium</td><td>Look at a board</td></tr>
 <tr><td>A5</td><td>Specs are not machine-readable today</td><td>All three data sheets checked contain an internal inconsistency</td><td>Medium</td><td>See the spec source of truth</td></tr>
 <tr><td>A6</td><td>Some calibration is per unit at a test station</td><td>The phrase "calibration gains"</td><td>Low</td><td>Ask production test</td></tr>
+<tr><td>A7</td><td>Past magnetics designs live in drawings and spreadsheets, not a database</td><td>The posting asks for a tool trained on "historical designs"</td><td>Medium</td><td>Ask for ten recent inductor drawings</td></tr>
 </table></details>
+<p class="cta" style="margin-top:28px"><a href="ai.html">AI practice</a><a href="audit.html">Legacy audit</a><a href="reports/index.html">Review reports</a><a href="backstory.html">Tim Otholt · backstory</a></p>
 """
-    return _page("firmware-calgen: data sheet to firmware constants", "index.html", body)
+    return _page("firmware-calgen: two AI automation initiatives", "index.html", body)
 
 
 def page_reports(out: Path, specs: Path, rules) -> str:
@@ -338,6 +356,12 @@ def page_how(specs: Path, rules) -> str:
     body = f"""<h1>How it works</h1>
 <div class="flowmap">{flow}</div>
 <p>Any gate failure stops the line: nothing is written, and the report says which input caused it.</p>
+<h2>What a generated line looks like</h2>
+<pre>{_e(GENERATED_SAMPLE)}</pre>
+<p class="sub">The formula, every input, and the file each came from travel with the constant. The review report typesets the same derivation, and a test checks that the typeset math equals the computed value.</p>
+<h2 id="assumptions">Assumptions this demo makes</h2>
+<p class="sub">IntelliPower doesn't publish its firmware, board, or magnetics designs, so these are stated, not known. Values that rest on them are tagged <i>assumption</i> in the tools.</p>
+{ASSUMPTIONS_HTML}
 <h2>Engineering principles</h2>
 <ol><li><b>Single source of truth.</b> Generated C is never hand-edited; a test fails if it is.</li>
 <li><b>Traceability.</b> Every constant cites its formula and inputs, down to the data sheet quote.</li>
@@ -535,7 +559,6 @@ def build_site(root: Path, out: Path, vendor_cache: Path, download: bool = False
     ai["runs"] = float(len(nano))
     ai["cost"] = sum((x.input_tokens * p["input"] + x.output_tokens * p["output"]) / 1e6 for x in nano) / len(nano) if p and nano else 0.0
     shutil.copyfile(root / "docs" / "img" / "ametek_posting_2026-10-15.jpg", assets / "ametek_posting.jpg")
-    (out / "index.html").write_text(page_home(audit_counts(conf), ai), encoding="utf-8")
     (out / "reports").mkdir(parents=True, exist_ok=True)
     (out / "reports" / "index.html").write_text(page_reports(out, specs, rules), encoding="utf-8")
     (out / "audit.html").write_text(page_audit(root, specs, rules), encoding="utf-8")
@@ -557,6 +580,11 @@ def build_site(root: Path, out: Path, vendor_cache: Path, download: bool = False
         pdf[0].render(scale=1.6).to_pil().convert("L").save(out / "magnetics" / f"{r['id']}.png", optimize=True)
         pdf.close()
     (out / "magnetics.html").write_text(page_magnetics(mdata, (agree, len(mdata["records"]))), encoding="utf-8")
+    thumb_rec = next(r for r in mdata["records"] if r["id"] == "MAG-001")
+    thumb = thumb_rec["figures"][0].split("<figcaption>")[0].replace('<figure class="mfig">', "")
+    pfc = playground.run(specs)["inductors"]["rect"]
+    mag = {"drawings": len(mdata["records"]), "cores": len(mdata["cores"]), "agree": agree, "thumb": thumb, "pfc": pfc}
+    (out / "index.html").write_text(page_home(audit_counts(conf), ai, mag), encoding="utf-8")
     (out / "playground.html").write_text(page_playground(playground.run(specs)), encoding="utf-8")
     (out / ".nojekyll").write_text("", encoding="utf-8")
     shutil.copyfile(root / "LICENSE", out / "LICENSE.txt")
