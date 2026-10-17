@@ -7,6 +7,7 @@
   var OPTS = JSON.parse(document.getElementById("options").textContent);
   var state = { product: "FA10507", board: "A", target: "f28004x", edits: {}, sel: null, block: null, tab: "math" };
   var engine = null;
+  var prev = null; // id -> display from the previous computation, for flashing what just changed
   var FLOW = {
     "in": ["vin_min", "vin_max", "iin_limit"],
     "rect": ["vbus_min"],
@@ -53,7 +54,7 @@
     var title = DATA.blocks[b];
     var rows = FLOW[b].map(function (id) {
       var c = byId(id); if (!c) return "";
-      return '<div class="r' + (changed(id) ? " chg" : "") + '" title="' + esc(c.symbol) + '">' + shown(c) + '<span class="tag tag-' + c.tag + '">' + esc(TAGNAME[c.tag]) + "</span></div>";
+      return '<div class="r' + (changed(id) ? " chg" : "") + '" data-vid="' + esc(id) + '" title="' + esc(c.symbol) + '">' + shown(c) + '<span class="tag tag-' + c.tag + '">' + esc(TAGNAME[c.tag]) + "</span></div>";
     }).join("");
     var summary = DATA.summaries ? '<div class="sum">' + esc(DATA.summaries[b]) + "</div>" : "";
     if (b === "out" && DATA.summaries && DATA.summaries.sense) {
@@ -107,7 +108,12 @@
         if (!(x > 0)) { inp.setCustomValidity("Enter a positive number"); inp.reportValidity(); return; }
         inp.setCustomValidity("");
         state.edits[inp.dataset.k] = x;
-        clearTimeout(timer); timer = setTimeout(recompute, 250);
+        clearTimeout(timer); timer = setTimeout(function () {
+          var key = inp.dataset.k, pos = inp.selectionStart;
+          recompute();
+          var again = document.querySelector('input[data-k="' + key + '"]');
+          if (again) { again.focus(); try { again.setSelectionRange(pos, pos); } catch (e) { /* number inputs */ } }
+        }, 400);
       };
     });
   }
@@ -148,7 +154,7 @@
     list.forEach(function (c) {
       if (c.block !== last) { html += '<div class="blk">' + esc(DATA.blocks[c.block]) + "</div>"; last = c.block; }
       html += '<div class="it' + (c.id === state.sel ? " sel" : "") + '" data-id="' + esc(c.id) + '" role="button" tabindex="0" aria-pressed="' + (c.id === state.sel) + '">' +
-        "<span>" + esc(c.symbol) + '</span><span style="display:flex;gap:6px;align-items:center"><span class="v' + (changed(c.id) ? " chg" : "") + '">' + shown(c) + '</span><span class="dot ' + dot(c.status) + '"></span></span></div>';
+        "<span>" + esc(c.symbol) + '</span><span style="display:flex;gap:6px;align-items:center"><span class="v' + (changed(c.id) ? " chg" : "") + '" data-vid="' + esc(c.id) + '">' + shown(c) + '</span><span class="dot ' + dot(c.status) + '"></span></span></div>';
     });
     $("clist").innerHTML = html;
     $("clist").querySelectorAll(".it").forEach(function (e) {
@@ -194,13 +200,35 @@
     };
   }
 
-  function render() { renderProducts(); renderFlow(); renderInputs(); renderGates(); renderList(); renderDetail(); }
+  function flashChanges() {
+    if (!prev) return;
+    document.querySelectorAll("[data-vid]").forEach(function (el) {
+      var c = byId(el.dataset.vid);
+      if (c && prev[c.id] !== undefined && prev[c.id] !== c.display) {
+        el.classList.remove("flash");
+        void el.offsetWidth; // restart the animation
+        el.classList.add("flash");
+      }
+    });
+    var sense = document.querySelector(".sense");
+    if (sense && prev.__sense !== undefined && prev.__sense !== (DATA.summaries || {}).sense) sense.classList.add("flash");
+  }
+
+  function render() { renderProducts(); renderFlow(); renderInputs(); renderGates(); renderList(); renderDetail(); flashChanges(); }
+
+  function snapshot() {
+    var m = {};
+    DATA.constants.forEach(function (c) { m[c.id] = c.display; });
+    m.__sense = (DATA.summaries || {}).sense;
+    return m;
+  }
 
   function recompute() {
     if (!engine) return;
     $("engine").textContent = "Computing…";
     try {
       var req = JSON.stringify({ product: state.product, board: state.board, target: state.target, edits: state.edits });
+      prev = snapshot();
       DATA = JSON.parse(engine.run_json("/calgen/specs", req));
       if (!DATA.ok) { state.sel = null; state.block = null; }  // jump to the first failure
       $("engine").textContent = "Live: computed in your browser by calgen " + (DATA.ok ? "· all gates pass" : "· gates failed, nothing written");
