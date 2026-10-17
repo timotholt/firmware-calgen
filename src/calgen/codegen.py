@@ -142,8 +142,12 @@ def header(build: Build) -> str:
         f"#ifndef {guard(v.name)}",
         f"#define {guard(v.name)}",
         "",
-        '#include "calgen_types.h"',
     ]
+    fmt = str(v.target.extra.get("default_format", "float32"))
+    if fmt.startswith("iq"):
+        # must precede calgen_types.h, which selects CALGEN_REAL() based on it
+        lines += [f"#define CALGEN_GLOBAL_Q {int(fmt[2:])}  /* fixed-point target: values below are IQ{fmt[2:]} integers */"]
+    lines += ['#include "calgen_types.h"']
     for block_id, title in build.rules.blocks.items():
         if block_id not in secs:
             continue
