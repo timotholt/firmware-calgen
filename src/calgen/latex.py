@@ -169,10 +169,10 @@ def derive_constant(build, rule_id: str) -> Derivation:
     if r.kind == "enum":
         src = c.sources[0].value if c.sources else "?"
         return Derivation([rf"\text{{{r.symbol}}} = \text{{{c.enum_ident or 'n/a'}}} \quad (\text{{data sheet: {src}}})"], None)
-    if c.status != "ok":
-        return _symbolic_only(build, r)
+    if c.status != "ok" and c.value is None:
+        return _symbolic_only(build, r)  # could not be computed at all
     rd = render(r.formula, _symbols_for(build), build.env, build.units)
-    value = from_si(rd.value, r.unit)
+    value = from_si(rd.value, r.unit)  # computed, possibly failed to encode or out of range
     tree = parse(r.formula).tree
     head = rf"{r.latex} = {rd.symbolic}"
     if r.supplied:

@@ -13,8 +13,9 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.13"
-      - name: Python tests
+      - name: Fetch and verify pinned site assets
+        run: uv run calgen vendor
+      - name: Python tests (includes generated-file freshness and recorded AI replay)
         run: uv run pytest
-      - name: Firmware build and known-answer test
-        if: hashFiles('firmware/Makefile') != ''
+      - name: Firmware build and known-answer test (gcc stands in for TI Code Composer Studio)
         run: make -C firmware test CC=gcc

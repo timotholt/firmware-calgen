@@ -21,3 +21,7 @@ ti-sdk/
 firmware/build/
 site/_build/
 out/
+
+# downloaded third-party assets (verified by calgen vendor)
+vendor/
+_site/

@@ -101,7 +101,7 @@ def _diff_html(old: str, new: str, name: str) -> str:
     return "<pre>" + "\n".join(rows) + "</pre>"
 
 
-def render_report(b: Build, previous_header: str = "", katex_path: str = "assets/katex") -> str:
+def render_report(b: Build, previous_header: str = "", katex_path: str = "assets/katex", back: str = "") -> str:
     v, ds = b.variant, b.variant.datasheet
     n_ok = sum(c.status == OK for c in b.constants)
     n_fail = sum(c.status == FAIL for c in b.constants)
@@ -177,7 +177,7 @@ def render_report(b: Build, previous_header: str = "", katex_path: str = "assets
     title = f"Review: {v.name}"
     doc = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{_e(title)}</title><link rel="stylesheet" href="{katex_path}/katex.min.css"><style>{CSS}</style></head><body><main>
-<div class="notice">{NOTICE}</div>
+{f'<p class="sub"><a href="{back}">← All review reports</a></p>' if back else ''}<div class="notice">{NOTICE}</div>
 <h1>{_e(title)}</h1>
 <div class="sub">{_e(ds.part)} · {_e(ds.params['model_string'].value)} · board {_e(v.board.name)} rev {_e(v.board.extra.get('rev', '?'))} · target {_e(v.target.name)} ({_e(v.target.extra.get('default_format', 'float32'))})</div>
 <div class="sub mono">inputs sha256 {_e(b.digest)}</div>
@@ -196,10 +196,10 @@ def render_report(b: Build, previous_header: str = "", katex_path: str = "assets
     return doc
 
 
-def write_report(b: Build, out_dir: Path, previous_header: str = "", katex_path: str = "assets/katex") -> Path:
+def write_report(b: Build, out_dir: Path, previous_header: str = "", katex_path: str = "assets/katex", back: str = "") -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"{b.variant.name}.html"
-    path.write_text(render_report(b, previous_header, katex_path), encoding="utf-8")
+    path.write_text(render_report(b, previous_header, katex_path, back), encoding="utf-8")
     return path
 
 

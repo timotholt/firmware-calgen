@@ -123,7 +123,7 @@ def _symbols(variant: Variant) -> tuple[dict[str, Quantity], dict[str, str], dic
         add("ds", p, p.source, override=True)
     for kind, ps in (("board", variant.board), ("target", variant.target), ("design", variant.design)):
         for p in ps.params.values():
-            add(kind, p, f"{kind} {ps.path.name}", p.note)
+            add(kind, p, p.source, p.note)
     return numeric, text, sources
 
 def _resolve_format(rule: Rule, variant: Variant) -> str:

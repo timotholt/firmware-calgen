@@ -179,6 +179,22 @@ def cmd_report(args: argparse.Namespace) -> int:
     return 0 if b.ok else 1
 
 
+def cmd_site(args: argparse.Namespace) -> int:
+    from calgen.site import build_site
+
+    out = build_site(Path(args.root), Path(args.out), Path(args.vendor), download=args.download)
+    print(f"wrote site to {out}")
+    return 0
+
+
+def cmd_vendor(args: argparse.Namespace) -> int:
+    from calgen.vendor import fetch
+
+    for name, path in fetch(Path(args.vendor), download=True).items():
+        print(f"verified {name}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="calgen",
@@ -221,6 +237,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--ai", default="replay", help="backend: replay[:file] | openai:<model> | anthropic:<model> | none")
     p.add_argument("--record", help="save responses for offline replay")
     p.set_defaults(func=cmd_eval)
+
+    p = sub.add_parser("vendor", help="download and verify the site's pinned third-party assets")
+    p.add_argument("--vendor", default="vendor", help="cache directory")
+    p.set_defaults(func=cmd_vendor)
+
+    p = sub.add_parser("site", help="build the self-contained static demo site")
+    p.add_argument("--root", default=".", help="repository root")
+    p.add_argument("--out", default="out/site", help="output directory")
+    p.add_argument("--vendor", default="vendor", help="verified asset cache (see `calgen vendor`)")
+    p.add_argument("--download", action="store_true", help="download missing assets")
+    p.set_defaults(func=cmd_site)
     return parser
 
 
