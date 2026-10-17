@@ -11,21 +11,21 @@ def test_shipped_product_has_no_changes_and_readable_summaries():
     r = run(SPECS, product="FA10449")
     assert r["ok"] and r["changed"] == []
     assert r["summaries"]["in"] == "90–138 V AC 1φ* · 60 Hz ±5.0 Hz · ≤ 7.9 A"
-    assert r["summaries"]["out"].endswith("trip 6.23 A (115%) · shutdown")
+    assert "overload 6.23 A RMS (115%) for 30 s → shutdown · peak limit 19.0 A" in r["summaries"]["out"]
     assert "implied" in r["footnote"]
 
 
 def test_alternate_amplifier_changes_exactly_the_current_sense_chain():
     r = run(SPECS, product="FA10507", board_rev="B")
     assert not r["ok"]
-    assert set(r["changed"]) == {"iout_fs_pk", "iout_trip_dac_hi", "iout_trip_dac_lo"}
-    assert r["baseline"]["iout_trip_dac_hi"] == "3364"
+    assert set(r["changed"]) == {"iout_fs_pk", "iout_pklim_dac_hi", "iout_pklim_dac_lo"}
+    assert r["baseline"]["iout_pklim_dac_hi"] == "3133"
 
 
 def test_target_switch_ignores_quantization_noise():
     r = run(SPECS, product="FA10449", target="f2803x")
     assert "iout_alarm" not in r["changed"]  # 5.6875 vs 5.68749996 is not a change
-    assert {"pwm_period", "iout_trip_dac_hi"} <= set(r["changed"])
+    assert {"pwm_period", "iout_pklim_dac_hi"} <= set(r["changed"])
 
 
 def test_margin_change_can_round_to_same_setpoint():
@@ -43,18 +43,18 @@ def test_frequency_edit_regenerates_pwm_and_flags_stale_gains():
 
 def test_shunt_change_is_visible_in_sensor_line():
     base = run(SPECS)["summaries"]["sense"]
-    r = run(SPECS, edits={"board.r_shunt": 6})
-    assert base.startswith("Current sensor ±33.0 A peak") and "uses 64%" in base
-    assert "±27.5 A" in r["summaries"]["sense"] and "uses 77%" in r["summaries"]["sense"]
-    assert {"iout_fs_pk", "iout_trip_dac_hi"} <= set(r["changed"])
+    r = run(SPECS, edits={"board.r_shunt": 3})
+    assert base.startswith("Current sensor ±82.5 A peak") and "uses 53%" in base
+    assert "±55.0 A" in r["summaries"]["sense"] and "uses 80%" in r["summaries"]["sense"]
+    assert {"iout_fs_pk", "iout_pklim_dac_hi"} <= set(r["changed"])
 
 
 def test_product_what_if_overrides_data_sheet_and_is_marked():
     ok = run(SPECS, edits={"ds.power_va": 2000})
     assert ok["ok"] and "OVERRIDE ds.power_va: what-if in playground: data sheet says 1500 VA" in ok["header"]
     assert next(c for c in ok["constants"] if c["id"] == "iout_rated")["display"] == "16.67 A"
-    too_big = run(SPECS, edits={"ds.power_va": 2500})
-    assert not too_big["ok"] and "SATURATES before trip" in too_big["summaries"]["sense"]
+    too_big = run(SPECS, edits={"ds.power_va": 3000})  # 3.5 x 25 A = 87.5 A peak limit > 95% of 82.5 A
+    assert not too_big["ok"] and "SATURATES" in too_big["summaries"]["sense"]
 
 
 def test_input_voltage_what_if_moves_the_bus():
@@ -69,7 +69,7 @@ def test_tags_trace_values_to_their_weakest_root():
     assert tags["vbat_cutoff"] == "assumption"  # uses a generic LiFePO4 ratio
     assert tags["iout_trip"] == "derived"  # data sheet values only
     assert tags["vbus_set"] == "assumption"  # invented bus margin
-    assert tags["iout_trip_dac_hi"] == "assumption"  # invented shunt and amplifier
+    assert tags["iout_pklim_dac_hi"] == "assumption"  # invented shunt and amplifier
     assert tags["vloop_kp"] == "design"
     what_if = {c["id"]: c["tag"] for c in run(SPECS, edits={"ds.power_va": 2000})["constants"]}
     assert what_if["iout_rated"] == "assumption"  # now rests on an override

@@ -14,7 +14,7 @@
     "rect": ["vbus_min"],
     "bus": ["vbus_set", "vbus_fs"],
     "inv": ["vout_set", "fout_mode", "pwm_period"],
-    "out": ["iout_rated", "iout_trip", "iout_fs_pk", "iout_trip_dac_hi"],
+    "out": ["iout_rated", "iout_trip", "iout_pk_limit", "iout_fs_pk", "iout_pklim_dac_hi"],
     "batt": ["vbat_nom", "vbat_cutoff"]
   };
   var TAGNAME = { datasheet: "data sheet", derived: "derived", assumption: "assumption", design: "design", override: "what-if" };

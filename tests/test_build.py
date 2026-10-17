@@ -30,16 +30,18 @@ def test_fa10507_known_answers():
     assert x.ok, x.failures
     assert value(x, "iout_rated") == pytest.approx(1500 / 120)  # 12.5 A
     assert value(x, "iout_trip") == pytest.approx(12.5 * 1.20)  # 15.0 A
-    assert value(x, "iout_trip_pk") == pytest.approx(15.0 * 2**0.5, rel=1e-6)  # 21.2132 A
-    assert value(x, "iout_fs_pk") == pytest.approx(1.65 / (0.005 * 10))  # 33 A
-    # (1.65 V + 21.2132 A * 0.05 V/A) / 3.3 V * 4095 = 3363.68 -> 3364
-    assert value(x, "iout_trip_dac_hi") == 3364
-    # (1.65 V - 1.06066 V) / 3.3 V * 4095 = 731.32 -> 731
-    assert value(x, "iout_trip_dac_lo") == 731
+    assert value(x, "iout_pk_limit") == pytest.approx(3.5 * 12.5)  # 43.75 A hardware peak limit
+    assert value(x, "iout_fs_pk") == pytest.approx(1.65 / (0.002 * 10))  # 82.5 A
+    # (1.65 V + 43.75 A * 0.02 V/A) / 3.3 V * 4095 = 3133.30 -> 3133
+    assert value(x, "iout_pklim_dac_hi") == 3133
+    # (1.65 V - 0.875 V) / 3.3 V * 4095 = 961.70 -> 962
+    assert value(x, "iout_pklim_dac_lo") == 962
+    assert value(x, "overload_delay") == 30000  # 30 s, invented design value
     assert value(x, "vbus_min") == pytest.approx(265 * 2**0.5, rel=1e-6)  # 374.77 V
     assert value(x, "vbus_set") == 410  # ceil(374.77 * 1.07 / 10) * 10
-    assert value(x, "pwm_period") == 5000  # 100 MHz / 20 kHz
-    assert value(x, "pwm_deadband") == 30  # 300 ns * 100 MHz
+    assert value(x, "pwm_period") == 2500  # 100 MHz / (2 * 20 kHz), up-down count
+    assert value(x, "pwm_deadband") == 100  # 1 us * 100 MHz
+    assert value(x, "vbat_cutoff") == pytest.approx(70.0)  # 28 cells * 2.5 V
     assert value(x, "fout_mode") == "UPS_FOUT_CHANGER"
     assert value(x, "overload_action") == "UPS_OL_SHUTDOWN"
     assert x.constant("iout_alarm").status == SKIPPED  # FA10507 sheet gives no alarm level
@@ -78,7 +80,7 @@ def test_rev_b_alternate_amplifier_breaks_only_the_big_unit():
     assert not big.ok
     failed = {c.check.id for c in big.checks if c.status == FAIL}
     assert {"iout_sense_range", "dac_hi_in_range"} <= failed
-    assert big.constant("iout_trip_dac_lo").status == FAIL  # negative code -> uint16 underflow
+    assert big.constant("iout_pklim_dac_lo").status == FAIL  # negative code -> uint16 underflow
 
 
 def test_legacy_target_uses_iq20_and_10bit_dac():
@@ -86,9 +88,9 @@ def test_legacy_target_uses_iq20_and_10bit_dac():
     assert x.ok, x.failures
     c = x.constant("vbus_set")
     assert c.fmt == "iq20" and c.encoded.code == 410 * (1 << 20)
-    assert value(x, "pwm_period") == 3000  # 60 MHz / 20 kHz
-    # (1.65 + 1.06066) / 3.3 * 1023 = 840.3 -> 840
-    assert value(x, "iout_trip_dac_hi") == 840
+    assert value(x, "pwm_period") == 1500  # 60 MHz / (2 * 20 kHz)
+    # (1.65 + 0.875) / 3.3 * 1023 = 782.75 -> 783
+    assert value(x, "iout_pklim_dac_hi") == 783
 
 
 def test_legacy_target_with_iq24_overflows_volt_scaled_constants():

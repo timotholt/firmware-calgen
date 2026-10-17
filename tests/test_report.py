@@ -30,8 +30,8 @@ def test_every_constant_has_a_list_item_and_a_pane():
 def test_failing_build_shows_why_and_no_header():
     html = page("fa10507_revB")
     assert "Nothing written (fail closed)" in html
-    assert "sensor saturates before the trip fires" in html
-    assert 'class="it start" data-id="iout_trip_dac_lo"' in html  # opens on the first failure
+    assert "sensor saturates before the limit fires" in html
+    assert 'class="it start" data-id="iout_pklim_dac_lo"' in html  # opens on the first failure
 
 
 def test_self_contained_no_external_urls():

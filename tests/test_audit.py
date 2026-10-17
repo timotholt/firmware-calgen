@@ -13,7 +13,7 @@ LEGACY = """\
 #define TRIP_I        14.0f   /* amps */
 #define VBUS_FS       498.3f
 #define VBUS_PER_CNT  (VBUS_FS / 4095.0f)  // derived
-#define PWM_PRD       (5000u)
+#define PWM_PRD       (2500u)
 #define UART_BAUD     115200
 /* a multi-line comment with numbers 42 and 3.14
    that must not be scanned 99 */
@@ -39,7 +39,7 @@ def test_scan_defines_consts_and_inline(cands):
     assert {"TRIP_I", "VBUS_FS", "VBUS_PER_CNT", "PWM_PRD", "UART_BAUD", "K_VS", "TBL[]", "<inline>"} <= syms
     assert cands[("TRIP_I", 2)].value == 14.0 and cands[("TRIP_I", 2)].typed
     assert cands[("TRIP_I", 2)].comment == "amps"
-    assert cands[("PWM_PRD", 5)].value == 5000 and cands[("PWM_PRD", 5)].typed
+    assert cands[("PWM_PRD", 5)].value == 2500 and cands[("PWM_PRD", 5)].typed
 
 
 def test_derived_macro_is_evaluated_and_marked_derived(cands):

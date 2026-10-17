@@ -7,10 +7,10 @@
 **What it does differently.**
 - Every number shows where it came from, down to the quoted data sheet line, and the math can be checked on paper.
 - It checks the data sheet against itself first. All three public data sheets used here had an inconsistency.
-- It catches the dangerous cases automatically: a substituted sensor amplifier that would let current exceed the sensor's range before protection trips; tuning values whose design basis has changed.
-- It can audit existing firmware read-only, which is how adoption would start: the demo's legacy code had 6 values out of 33 that disagreed with the spec.
+- It catches the dangerous cases automatically: a substituted sensor amplifier that would let current exceed the sensor's range before the hardware peak limit fires; tuning values whose design basis has changed.
+- It can audit existing firmware read-only, which is how adoption would start: the demo's legacy code had 3 of 33 values that contradict the data sheet, 9 that differ from design values, and a fast-trip level that would shut down a fully loaded unit.
 
-**Where AI fits.** A low-cost model drafts what unexplained legacy constants mean; a person approves. Scored against a blind answer key: 91% category, 97% units, 100% rule mapping, about half a cent per run. The firmware itself is never written by AI. On controlled data, the AI step uses an approved internal model or is turned off.
+**Where AI fits.** A low-cost model drafts what unexplained legacy constants mean; a person approves. Scored against a blind answer key over three runs, the cheapest model maps constants to the right rule 98% of the time, but its category labels (85%) miss the bar I set in advance, so I report it as below the bar. About half a cent per run. The firmware itself is never written by AI. On controlled data, the AI step uses an approved internal model or is turned off.
 
 **What it is not.** It doesn't design power stages, tune control loops, or replace certification. It removes transcription and bookkeeping errors and leaves a review record.
 

@@ -282,3 +282,24 @@ def _check(check: Check, env: dict[str, Quantity]) -> CheckResult:
     shown = f"{lhs.value:.6g} {check.op} {rhs.value:.6g}" + ("" if unit == "1" else f" {unit}")
     msg = "" if passed else f"{shown} is false: {check.describe}"
     return CheckResult(check, OK if passed else FAIL, lhs.value, rhs.value, unit, msg)
+
+
+def roots(build: Build, rule_id: str, _seen: set[str] | None = None) -> set[str]:
+    """Input kinds a constant ultimately rests on: ds, override, board, target, design (transitively)."""
+    seen = _seen if _seen is not None else set()
+    c = build.constant(rule_id)
+    names = [c.rule.formula] if c.rule.kind == "enum" else parse(c.rule.formula).names
+    out: set[str] = set()
+    for n in names:
+        if "." in n:
+            kind = n.split(".", 1)[0]
+            out.add("override" if kind == "ds" and n[3:] in build.variant.overrides else kind)
+        elif n not in seen:
+            seen.add(n)
+            out |= roots(build, n, seen)
+    return out
+
+
+def rests_on_data_sheet_only(build: Build, rule_id: str) -> bool:
+    """True when a constant follows from the data sheet and public chip facts alone (no invented values)."""
+    return roots(build, rule_id) <= {"ds", "target"}

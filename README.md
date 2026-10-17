@@ -47,21 +47,21 @@ Any gate failure stops the line: nothing is written, and the report says which i
 | Input | Who owns it | Example | Real or invented |
 |---|---|---|---|
 | `specs/datasheets/*.csv` | product / data sheet | FA10507: 1500 VA, 120 V, "Shutdown at 20% Overload" | **Real**, transcribed verbatim with page citations ([sources](specs/datasheets/SOURCES.md)) |
-| `specs/boards/*.yaml` | hardware engineer | 5 mΩ shunt, ×10 amplifier; rev B has an alternate ×20 part | Invented |
+| `specs/boards/*.yaml` | hardware engineer | 2 mΩ shunt, ×10 amplifier; rev B has an alternate ×20 part | Invented |
 | `specs/targets/*.yaml` | processor | F28004x-class float32; F2803x-class IQ20, 10-bit comparator DAC | Public TI data sheet facts; pairing illustrative |
 | `specs/variants/*.yaml` | power engineer | 20 kHz switching, loop gains tuned *at* 20 kHz | Invented |
 | `specs/rules.yaml` | firmware engineer | `iout_trip = iout_rated * ds.overload_trip_pct` | Textbook relations |
 
 ## What it catches (real output)
 
-**An alternate component that silently breaks protection.** Rev B's replacement amplifier doubles the current-sense gain. For the 1500 VA product the trip current no longer fits the sensor:
+**An alternate component that silently breaks protection.** Current protection has two layers, as in real inverters: a *timed RMS overload* in software (the data sheet's "Shutdown at 20% Overload", acting after a delay) and a *hardware peak-current limit* on the comparator for short circuits, set at 3.5 × rated RMS so 3:1 crest-factor loads such as computer power supplies don't trip it. Rev B's replacement amplifier doubles the current-sense gain, and for the 1500 VA product the hardware limit no longer fits the sensor:
 
 ```
 $ calgen check specs/variants/fa10507_revB.yaml
-  FAIL  UPS_IOUT_TRIP_DAC_LO       uint16: -585 out of range [0, 65535]
-  FAIL  check iout_sense_range      21.2132 <= 15.675 A is false: Peak trip current must sit inside the
-                                    current sensor's range, or the sensor saturates before the trip fires
-  FAIL  check dac_hi_in_range       4680 <= 4095 is false: Positive trip DAC code must exist on this chip's comparator DAC
+  FAIL  UPS_IOUT_PKLIM_DAC_LO      uint16: -124 out of range [0, 65535]
+  FAIL  check iout_sense_range      43.75 <= 39.1875 A is false: Hardware peak limit must sit inside the
+                                    current sensor's range, or the sensor saturates before the limit fires
+  FAIL  check dac_hi_in_range       4219 <= 4095 is false: Positive peak-limit DAC code must exist on this chip's comparator DAC
 3 failure(s); nothing written
 ```
 
@@ -71,51 +71,57 @@ The same board passes for the 650 VA product.
 
 **Stale engineer-supplied values.** Loop gains record what they were designed against. Change the switching frequency and the PWM period regenerates cleanly, but the gains block generation until an engineer re-tunes or re-approves them.
 
-**Legacy firmware that drifted from the spec.** A read-only audit of a synthetic legacy codebase:
+**Legacy firmware that drifted from the spec.** A read-only audit of a synthetic legacy codebase separates values that contradict the data sheet from values that only differ from this demo's (invented) design choices:
 
 ```
 $ calgen audit corpus/legacy_ups --variant specs/variants/fa10507.yaml --map corpus/legacy_ups/calgen_map.yaml
-  FAIL  ups_config.h:29  VO_NOM         220.0f       spec says 120 (vout_set)
-  FAIL  ups_config.h:33  I_TRIP_RMS     14.0f        spec says 15 (iout_trip)
-  FAIL  ups_config.h:36  TMR_LD         6000         spec says 5000 (pwm_period)
+  FAIL  ups_config.h:29  VO_NOM         220.0f       contradicts data sheet: 120 (vout_set)
+  FAIL  ups_config.h:33  I_TRIP_RMS     14.0f        contradicts data sheet: 15 (iout_trip)
+  diff  ups_config.h:26  VBUS_REF       400.0f       differs from design value: 410 (vbus_set)
+  diff  protect.c:34     <inline>       21.2f        differs from design value: 43.75 (iout_pk_limit)
   ...
-16 match, 6 mismatch, 11 unexplained
+11 match, 3 contradict the data sheet, 9 differ from design values, 10 unexplained
 ```
+
+The `protect.c:34` line is the interesting one: the legacy fast trip sits at the *peak of the RMS overload level*, so a fully loaded unit feeding crest-factor loads would trip.
 
 ## Every number is traceable
 
 Each generated line carries its formula and inputs, down to the data sheet quote:
 
 ```c
-/* Comparator DAC code for the positive overcurrent trip
- * = round((target.v_ref / 2 + iout_trip_pk * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
+/* Comparator DAC code for the positive hardware peak-current limit
+ * = round((target.v_ref / 2 + iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
  *   target.v_ref = 3.3 V  [target f28004x.yaml]
- *   board.r_shunt = 5 mohm  [board ups_ctrl_revA.yaml]
+ *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
  *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]
  *   target.dac_max = 4095 counts  [target f28004x.yaml] */
-#define UPS_IOUT_TRIP_DAC_HI       3364u          /* 3364 counts, uint16 */
+#define UPS_IOUT_PKLIM_DAC_HI      3133u          /* 3133 counts, uint16 */
 ```
 
 Worked by hand (the review report and site typeset this from the same syntax tree the evaluator runs; a test checks they agree):
 
-$$I_\text{rated} = \frac{S}{V_\text{out}} = \frac{1500\ \text{VA}}{120\ \text{V}} = 12.5\ \text{A} \qquad I_\text{trip} = 12.5\ \text{A} \times 1.20 = 15\ \text{A} \qquad I_\text{trip,pk} = \sqrt{2}\cdot 15\ \text{A} = 21.21\ \text{A}$$
+$$I_\text{rated} = \frac{S}{V_\text{out}} = \frac{1500\ \text{VA}}{120\ \text{V}} = 12.5\ \text{A} \qquad I_\text{OL} = 12.5\ \text{A} \times 1.20 = 15\ \text{A RMS (timed)} \qquad I_\text{pk,lim} = 3.5 \times 12.5\ \text{A} = 43.75\ \text{A}$$
 
-$$N_\text{DAC,hi} = \mathrm{round}\!\left(\frac{\tfrac{3.3}{2}\ \text{V} + 21.21\ \text{A}\cdot 5\ \text{m}\Omega \cdot 10}{3.3\ \text{V}}\cdot 4095\right) = \mathrm{round}(3363.68) = 3364$$
+$$N_\text{DAC,hi} = \mathrm{round}\!\left(\frac{\tfrac{3.3}{2}\ \text{V} + 43.75\ \text{A}\cdot 2\ \text{m}\Omega \cdot 10}{3.3\ \text{V}}\cdot 4095\right) = \mathrm{round}(3133.30) = 3133$$
 
 ## Where AI is used, and where it is not
 
 - The firmware path (spec → constants → gates → C) **never calls a model**.
+- Why not a spreadsheet? About a third of the constants restate the data sheet; the value is not the arithmetic but the gates (consistency, range, overflow, staleness, fail-closed), the per-line provenance, and running it in CI across a catalog of variants.
 - AI drafts one thing: what each unexplained legacy constant *is* (category, units, typed vs derived, which rule it corresponds to). One file per call, strict JSON schema, every answer validated, output is a draft for review.
 - It's **measured**: a separate agent wrote the synthetic legacy corpus and a blind answer key under clean-room rules; the bar (≥ 90% category, ≥ 85% units) was set before any model ran; the cheapest model that passes is the default.
 - Recorded responses are replayed in CI and on the site, so neither needs a key or the network.
 - On controlled data (vendor-confidential, CUI, ITAR), point the same interface at an approved internal or local model, or run with `--ai none`. Everything else still works.
 
-| Model | Category | Units | Typed vs derived | Rule mapping | Cost / run |
-|---|---|---|---|---|---|
-| gpt-5.4-nano | 91% | 97% | 100% | 100% | $0.0043 |
-| claude-haiku-5-5, claude-sonnet-5-5 | not recorded yet | | | | |
+| Model | Runs | Category (mean, range) | Units | Typed vs derived | Rule mapping | Cost / run | Verdict |
+|---|---|---|---|---|---|---|---|
+| gpt-5.4-nano | 3 | 85% (79–88) | 96% | 100% | 98% | $0.0044 | below the category bar |
+| claude-haiku-5-5, claude-sonnet-5-5 | – | not recorded yet | | | | | |
 
-Honest history: the first recorded run scored 39% on category because of two bugs in my harness (a dropped id suffix; per-file ids colliding in scoring). Both are fixed and tested; the first run is kept in [`corpus/legacy_ups/ai_runs/history/`](corpus/legacy_ups/ai_runs/history/).
+The cheapest model maps legacy constants to the right rule almost every time, which is what the audit needs, but its category labels disagree with the key on borderline cases often enough to miss the bar I set in advance. I report that rather than move the bar; the next step would be a stronger model. The corpus is also friendlier than real legacy firmware (most constants have comments), which flatters these numbers.
+
+History: an earlier single run scored 91% on category with a different rule set, and the very first run scored 39% because of two bugs in my harness (a dropped id suffix; per-file ids colliding in scoring), both fixed and tested. Every run is kept in [`corpus/legacy_ups/ai_runs/`](corpus/legacy_ups/ai_runs/).
 
 ## Usage
 
@@ -126,8 +132,8 @@ calgen build specs/variants/fa10507.yaml --dry-run          # unified diff of th
 calgen build specs/variants/fa10507.yaml                    # write firmware/include/calgen_fa10507.h
 calgen build specs/variants/fa10507.yaml --patch firmware/src/board.h   # rewrite only CALGEN-marked blocks
 calgen report specs/variants/fa10507_revB.yaml              # HTML review report (also for failing builds)
-calgen audit corpus/legacy_ups --variant specs/variants/fa10507.yaml --map corpus/legacy_ups/calgen_map.yaml --ai replay:corpus/legacy_ups/ai_runs/openai__gpt-5.4-nano.json
-calgen eval corpus/legacy_ups --key corpus/legacy_ups/ANSWER_KEY.yaml --ai replay:corpus/legacy_ups/ai_runs/openai__gpt-5.4-nano.json
+calgen audit corpus/legacy_ups --variant specs/variants/fa10507.yaml --map corpus/legacy_ups/calgen_map.yaml --ai replay:corpus/legacy_ups/ai_runs/openai__gpt-5.4-nano__run1.json
+calgen eval corpus/legacy_ups --key corpus/legacy_ups/ANSWER_KEY.yaml --ai replay:corpus/legacy_ups/ai_runs/openai__gpt-5.4-nano__run1.json
 calgen vendor && calgen site                                # build the self-contained demo site into out/site
 ```
 
@@ -136,9 +142,13 @@ Development: `uv run pytest` (144 tests, including generated-file freshness and 
 ## Limitations
 
 - **No TI hardware or TI compiler was used.** gcc (CI) and clang (local) stand in for Code Composer Studio; they prove valid C99 under strict warnings, not a C2000 build, and cannot catch C28x issues such as 16-bit `char`.
+- Sensing is simplified: dividers and the current shunt are drawn referenced to the controller. On an isolated unit (FA10507) a real design senses on the primary side or through isolation amplifiers or current transformers; the scale-factor math is the same.
+- One rule set assumes a boost-PFC, DC-bus, inverter topology. A real catalog spans topologies and would need rule sets per platform.
+- Direction of truth: at a real company, firmware limits probably live in a design or change database and the data sheet is written from it. The tool would read whichever is the source of truth; public data sheets are used here because they're what's public.
+- PWM uses up-down (center-aligned) counting; dead-time limits come from each chip profile. EPWM clock = SYSCLK is assumed per target and flagged.
 - Product ratings are public; every circuit value, gain, firmware name, and the legacy code are invented. Formulas are textbook relations, not IntelliPower's design rules.
 - Loop gains and compensator coefficients are carried and staleness-tracked, never computed. TI's own tools (powerSUITE) generate such coefficients; this tool's value is linking constants to the product spec, with traceability and gates around tools like that.
-- "Shutdown at 20% Overload" is read as a trip at 120% of rated. FA10434's swapped rows are resolved by a written override a reviewer must confirm.
+- "Shutdown at 20% Overload" is read as a timed RMS trip at 120% of rated; the 30 s delay and the 3.5× hardware peak-limit factor are invented design values. FA10434's swapped rows are resolved by a written override a reviewer must confirm.
 - The AI eval uses a synthetic corpus; it measures the pipeline, not real-world accuracy.
 - Per-unit calibration (test-station trims stored in EEPROM or flash) is a separate path, not built here.
 - Changing processors: the chip is an independent input, so a port is "swap the target profile, regenerate, diff". The F2803x-class profile regenerates FA10507 in IQ20 fixed point, and an IQ24 overflow of the 265 V limit is caught as an error. Real ports also move pins and peripherals, which this demo does not model.

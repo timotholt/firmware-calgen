@@ -5,7 +5,7 @@
  *           ratings from DS-10507 Rev.101119 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f2803x (default format iq20)
- * inputs  : sha256 07dfebfda2f57905cd50c3814082662ebbfc80b9c025f0cbbc672a8bdc7fe73b
+ * inputs  : sha256 745519ae4bed2e86d6d32599a9b88f59bf138bfec508f28b5564bb165479564e
  *
  * SYNTHETIC DEMO: firmware names and circuit values are invented; product ratings
  * come from the public data sheet cited above. Not from any vendor SDK.
@@ -60,7 +60,7 @@
 
 /* ==== Inverter ============================================================== */
 
-/* Output voltage setpoint (RMS)
+/* Output voltage setpoint (RMS); for units with a selectable output, one header is generated per option
  * = ds.vout_nom
  *   ds.vout_nom = 120 V  [DS-10507 Rev.101119 p2: "120VAC, (+/-3%) Selectable (Optional 240VAC Output)"] */
 #define UPS_VOUT_SET_V             125829120L     /* 120 V, iq20 */
@@ -92,17 +92,17 @@
  *   ds.fout_mode = changer  [DS-10507 Rev.101119 p2: "60 Hz, Changer"] */
 #define UPS_FOUT_MODE              UPS_FOUT_CHANGER
 
-/* PWM period register (up-count mode)
- * = round(target.f_pwmclk / design.f_sw)
+/* PWM period register, up-down (center-aligned) count mode as usual for inverters (TBPRD = f_clk / (2 f_sw))
+ * = round(target.f_pwmclk / (2 * design.f_sw))
  *   target.f_pwmclk = 60 MHz  [target f2803x.yaml]
  *   design.f_sw = 20 kHz  [design fa10507_f2803x.yaml] */
-#define UPS_PWM_PERIOD_CNT         3000u          /* 3000 counts, uint16 */
+#define UPS_PWM_PERIOD_CNT         1500u          /* 1500 counts, uint16 */
 
 /* Dead-time register
  * = round(design.t_deadband * target.f_pwmclk)
- *   design.t_deadband = 300 ns  [design fa10507_f2803x.yaml]
+ *   design.t_deadband = 1 us  [design fa10507_f2803x.yaml]
  *   target.f_pwmclk = 60 MHz  [target f2803x.yaml] */
-#define UPS_PWM_DEADBAND_CNT       18u            /* 18 counts, uint16 */
+#define UPS_PWM_DEADBAND_CNT       60u            /* 60 counts, uint16 */
 
 /* ==== AC output ============================================================= */
 
@@ -116,39 +116,45 @@
  * = iout_rated * ds.overload_alarm_pct
  *   NOT GENERATED: input ds.overload_alarm_pct not in data sheet */
 
-/* Overload trip current (RMS)
+/* Software overload trip level (RMS, timed; acts after UPS_OVERLOAD_DELAY_MS above this level)
  * = iout_rated * ds.overload_trip_pct
  *   ds.overload_trip_pct = 120 %  [DS-10507 Rev.101119 p2 (read as 120% of rated): "Shutdown at 20% Overload"] */
 #define UPS_IOUT_TRIP_A            15728640L      /* 15 A, iq20 */
 
-/* Instantaneous current at the RMS trip level (sine), what a hardware comparator sees
- * = sqrt(2) * iout_trip */
-#define UPS_IOUT_TRIP_PK_A         22243656L      /* 21.2132 A, iq20, err 2.6e-08% */
+/* Time above the RMS trip level before the overload action (the data sheet gives no time)
+ * = design.overload_delay
+ *   design.overload_delay = 30 s  [design fa10507_f2803x.yaml] */
+#define UPS_OVERLOAD_DELAY_MS      30000u         /* 30000 ms, uint32 */
+
+/* Hardware peak-current limit (fast comparator, short-circuit protection); must clear the crest factor of rated nonlinear loads
+ * = design.pk_limit_factor * iout_rated
+ *   design.pk_limit_factor = 3.5 ratio  [design fa10507_f2803x.yaml] */
+#define UPS_IOUT_PK_LIMIT_A        45875200L      /* 43.75 A, iq20 */
 
 /* Peak current at the edge of the mid-rail-biased current-sense range
  * = target.v_ref / 2 / (board.r_shunt * board.g_amp)
  *   target.v_ref = 3.3 V  [target f2803x.yaml]
- *   board.r_shunt = 5 mohm  [board ups_ctrl_revA.yaml]
+ *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
  *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml] */
-#define UPS_IOUT_FS_PK_A           34603008L      /* 33 A, iq20, err 2.2e-14% */
+#define UPS_IOUT_FS_PK_A           86507520L      /* 82.5 A, iq20 */
 
-/* Comparator DAC code for the positive overcurrent trip
- * = round((target.v_ref / 2 + iout_trip_pk * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
+/* Comparator DAC code for the positive hardware peak-current limit
+ * = round((target.v_ref / 2 + iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
  *   target.v_ref = 3.3 V  [target f2803x.yaml]
- *   board.r_shunt = 5 mohm  [board ups_ctrl_revA.yaml]
+ *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
  *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]
  *   target.dac_max = 1023 counts  [target f2803x.yaml] */
-#define UPS_IOUT_TRIP_DAC_HI       840u           /* 840 counts, uint16 */
+#define UPS_IOUT_PKLIM_DAC_HI      783u           /* 783 counts, uint16 */
 
-/* Comparator DAC code for the negative overcurrent trip
- * = round((target.v_ref / 2 - iout_trip_pk * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
+/* Comparator DAC code for the negative hardware peak-current limit
+ * = round((target.v_ref / 2 - iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
  *   target.v_ref = 3.3 V  [target f2803x.yaml]
- *   board.r_shunt = 5 mohm  [board ups_ctrl_revA.yaml]
+ *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
  *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]
  *   target.dac_max = 1023 counts  [target f2803x.yaml] */
-#define UPS_IOUT_TRIP_DAC_LO       183u           /* 183 counts, uint16 */
+#define UPS_IOUT_PKLIM_DAC_LO      240u           /* 240 counts, uint16 */
 
-/* What the unit does when the trip level is exceeded
+/* What the unit does when the RMS overload persists past the delay
  * = ds.overload_action
  *   ds.overload_action = shutdown  [DS-10507 Rev.101119 p2: "Shutdown at 20% Overload"] */
 #define UPS_OVERLOAD_ACTION        UPS_OL_SHUTDOWN
@@ -161,9 +167,10 @@
 #define UPS_VBAT_NOM_V             93952410L      /* 89.6 V, iq20, err 4.3e-07% */
 
 /* Low-battery shutdown voltage
- * = vbat_nom * design.batt_cutoff_ratio
- *   design.batt_cutoff_ratio = 0.78 ratio  [design fa10507_f2803x.yaml] */
-#define UPS_VBAT_CUTOFF_V          73282880L      /* 69.888 V, iq20, err 2.7e-07% */
+ * = ds.batt_series_cells * design.cell_cutoff_v
+ *   ds.batt_series_cells = 28 counts  [DS-10507 Rev.101119 p2 ("28SIP" read as 28S1P): "28SIP"]
+ *   design.cell_cutoff_v = 2.5 V  [design fa10507_f2803x.yaml] */
+#define UPS_VBAT_CUTOFF_V          73400320L      /* 70 V, iq20 */
 
 /* Battery voltage at ADC full scale
  * = target.v_ref * (board.vbat_r_top + board.vbat_r_bot) / board.vbat_r_bot

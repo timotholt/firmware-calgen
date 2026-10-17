@@ -1,0 +1,333 @@
+{
+  "backend": "openai",
+  "model": "gpt-5.4-nano",
+  "responses": {
+    "379b8c72396736b86c520795bd6677dff0ba665c56c3c2d0652f04cd07a3203f": {
+      "file": "sense_scale.h",
+      "input_tokens": 1896,
+      "latency_s": 4.77,
+      "output_tokens": 715,
+      "raw": {
+        "items": [
+          {
+            "category": "other",
+            "confidence": "high",
+            "id": "c1",
+            "maps_to_rule": null,
+            "reason": "sense_scale.h:9 defines ADC_FULL=4095.0f as the full-scale count for a 12-bit ADC; used as ADC full-scale in the scaling expression K_VS.",
+            "typed": true,
+            "units": "counts"
+          },
+          {
+            "category": "other",
+            "confidence": "high",
+            "id": "c2",
+            "maps_to_rule": null,
+            "reason": "sense_scale.h:10 defines DAC_FULL=4095 as the full-scale code/reference count for the comparator DAC; used to derive CMP_DAC_LO.",
+            "typed": true,
+            "units": "counts"
+          },
+          {
+            "category": "sense_full_scale",
+            "confidence": "high",
+            "id": "c3",
+            "maps_to_rule": "vbus_fs",
+            "reason": "sense_scale.h:13 defines VBUS_FS=498.3f as 'V at ADC full scale' for the DC bus sense chain, i.e., bus voltage at ADC full scale.",
+            "typed": true,
+            "units": "V"
+          },
+          {
+            "category": "sense_scale_factor",
+            "confidence": "high",
+            "id": "c4",
+            "maps_to_rule": "vbus_scale",
+            "reason": "sense_scale.h:14 defines K_VS=(VBUS_FS / ADC_FULL) with comment 'V per count'; this is the volts-of-bus-per-ADC-count scaling factor.",
+            "typed": false,
+            "units": "V/count"
+          },
+          {
+            "category": "sense_full_scale",
+            "confidence": "medium",
+            "id": "c5",
+            "maps_to_rule": "vbat_fs",
+            "reason": "sense_scale.h:17 defines VBAT_FS=168.0f as 'V at ADC full scale' for battery sensing; corresponds to battery ADC full-scale voltage rule vbat_fs.",
+            "typed": true,
+            "units": "V"
+          },
+          {
+            "category": "sense_full_scale",
+            "confidence": "medium",
+            "id": "c6",
+            "maps_to_rule": "vout_fs_pk",
+            "reason": "sense_scale.h:20 defines VO_FS_PK=501.6f as 'peak V at +/- half scale' for mid-rail biased output-voltage sensing; matches the idea of peak output voltage at the edge of the mid-rail biased sense range (vout_fs_pk).",
+            "typed": true,
+            "units": "V"
+          },
+          {
+            "category": "sense_full_scale",
+            "confidence": "medium",
+            "id": "c7",
+            "maps_to_rule": "iout_fs_pk",
+            "reason": "sense_scale.h:23 defines IO_FS_PK=33.0f as 'peak A at +/- half scale' for mid-rail biased output-current sensing; matches the idea of peak output current at the edge of the mid-rail biased current-sense range (iout_fs_pk).",
+            "typed": true,
+            "units": "A"
+          },
+          {
+            "category": "trip_limit",
+            "confidence": "high",
+            "id": "c8",
+            "maps_to_rule": "iout_pklim_dac_hi",
+            "reason": "sense_scale.h:24 defines CMP_DAC_HI=3364 as the 'positive overcurrent trip code' for the comparator DAC; used as the positive hardware peak-current comparator limit DAC code.",
+            "typed": true,
+            "units": "counts"
+          },
+          {
+            "category": "trip_limit",
+            "confidence": "high",
+            "id": "c9",
+            "maps_to_rule": "iout_pklim_dac_lo",
+            "reason": "sense_scale.h:25 defines CMP_DAC_LO=(DAC_FULL - CMP_DAC_HI) 'negative' comparator trip code, complementing CMP_DAC_HI; corresponds to the negative hardware peak-current comparator DAC code (iout_pklim_dac_lo).",
+            "typed": false,
+            "units": "counts"
+          }
+        ]
+      }
+    },
+    "39205f388935c0a22a168227226229f4a08483a5c67bba6997e817e2a8a94eb4": {
+      "file": "ups_config.h",
+      "input_tokens": 2441,
+      "latency_s": 6.85,
+      "output_tokens": 1031,
+      "raw": {
+        "items": [
+          {
+            "category": "version_or_id",
+            "confidence": "high",
+            "id": "c1",
+            "maps_to_rule": null,
+            "reason": "FW_VER_MAJ (line 19) is a firmware major version identifier.",
+            "typed": true,
+            "units": "none"
+          },
+          {
+            "category": "protection_threshold",
+            "confidence": "high",
+            "id": "c2",
+            "maps_to_rule": "vin_min",
+            "reason": "VIN_LO_XFER (line 22) is the AC input window lower transfer threshold: \"go to battery below this\" in Vrms.",
+            "typed": true,
+            "units": "V"
+          },
+          {
+            "category": "protection_threshold",
+            "confidence": "high",
+            "id": "c3",
+            "maps_to_rule": "vin_max",
+            "reason": "VIN_HI_XFER (line 23) is the AC input window upper transfer threshold: \"go to battery above this\" in Vrms.",
+            "typed": true,
+            "units": "V"
+          },
+          {
+            "category": "setpoint",
+            "confidence": "medium",
+            "id": "c4",
+            "maps_to_rule": "vbus_set",
+            "reason": "VBUS_REF (line 26) is the PFC regulation target bus voltage. This corresponds to the DC-bus setpoint (rule vbus_set) but the rounding/margin-to-10 V detail is not shown.",
+            "typed": true,
+            "units": "V"
+          },
+          {
+            "category": "setpoint",
+            "confidence": "high",
+            "id": "c5",
+            "maps_to_rule": "vout_set",
+            "reason": "VO_NOM (line 29) is labeled \"output, Vrms\" and is the nominal output voltage setpoint.",
+            "typed": true,
+            "units": "V"
+          },
+          {
+            "category": "protection_threshold",
+            "confidence": "high",
+            "id": "c6",
+            "maps_to_rule": null,
+            "reason": "VO_TOL (line 30) is the regulation tolerance band width (\u00b1 VO_TOL). It defines the band edges but is itself not one of the band-edge rule values.",
+            "typed": true,
+            "units": "ratio"
+          },
+          {
+            "category": "protection_threshold",
+            "confidence": "high",
+            "id": "c7",
+            "maps_to_rule": "vout_hi",
+            "reason": "VO_HI (line 31) computes the upper edge of the output regulation band as VO_NOM * (1.0 + VO_TOL). This is vout_hi.",
+            "typed": false,
+            "units": "V"
+          },
+          {
+            "category": "other",
+            "confidence": "high",
+            "id": "c8",
+            "maps_to_rule": "iout_rated",
+            "reason": "IO_RATED (line 32) is \"A rms\" (1500 VA / 120 V) and is the rated output current.",
+            "typed": true,
+            "units": "A"
+          },
+          {
+            "category": "trip_limit",
+            "confidence": "high",
+            "id": "c9",
+            "maps_to_rule": "iout_trip",
+            "reason": "I_TRIP_RMS (line 33) is \"overload shutdown\" level in A rms, i.e., the software overload trip threshold.",
+            "typed": true,
+            "units": "A"
+          },
+          {
+            "category": "timing",
+            "confidence": "high",
+            "id": "c10",
+            "maps_to_rule": "pwm_period",
+            "reason": "TMR_LD (line 36) is the PWM period register setting; comment states \"PWM period\" and \"25 kHz carrier\" (register value is counts).",
+            "typed": true,
+            "units": "counts"
+          },
+          {
+            "category": "timing",
+            "confidence": "high",
+            "id": "c11",
+            "maps_to_rule": "pwm_deadband",
+            "reason": "DB_CNT (line 37) is the dead-time register count value; comment states \"300 us dead time\" but the constant itself is the register count (counts).",
+            "typed": true,
+            "units": "counts"
+          },
+          {
+            "category": "control_gain",
+            "confidence": "high",
+            "id": "c12",
+            "maps_to_rule": "vloop_kp",
+            "reason": "K_P (line 40) is the voltage loop proportional gain constant.",
+            "typed": true,
+            "units": "ratio"
+          },
+          {
+            "category": "control_gain",
+            "confidence": "high",
+            "id": "c13",
+            "maps_to_rule": "vloop_ki",
+            "reason": "K_I (line 41) is the voltage loop integral gain per control ISR.",
+            "typed": true,
+            "units": "ratio"
+          },
+          {
+            "category": "battery",
+            "confidence": "high",
+            "id": "c14",
+            "maps_to_rule": "vbat_nom",
+            "reason": "VBAT_NOM (line 44) is the battery string nominal voltage.",
+            "typed": true,
+            "units": "V"
+          },
+          {
+            "category": "battery",
+            "confidence": "high",
+            "id": "c15",
+            "maps_to_rule": "vbat_cutoff",
+            "reason": "VBAT_CUT (line 45) is the end-of-discharge / low-battery cutoff voltage.",
+            "typed": true,
+            "units": "V"
+          },
+          {
+            "category": "comms_or_buffer",
+            "confidence": "high",
+            "id": "c16",
+            "maps_to_rule": null,
+            "reason": "UART_BAUD (line 48) is the front-panel / RS-232 UART baud rate.",
+            "typed": true,
+            "units": "baud"
+          },
+          {
+            "category": "pin_map",
+            "confidence": "high",
+            "id": "c17",
+            "maps_to_rule": null,
+            "reason": "PIN_BYP_RELAY (line 49) is a GPIO pin assignment for the static bypass relay drive.",
+            "typed": true,
+            "units": "none"
+          }
+        ]
+      }
+    },
+    "cce087670536d6e226e175359728a3580d416271d37d80004b3e4026c6c0b8cb": {
+      "file": "protect.c",
+      "input_tokens": 2124,
+      "latency_s": 5.2,
+      "output_tokens": 735,
+      "raw": {
+        "items": [
+          {
+            "category": "other",
+            "confidence": "high",
+            "id": "c1",
+            "maps_to_rule": null,
+            "reason": "protect.c line 9: #define FLT_LOG_LEN 16. Used as the length of flt_log and in log_fault() indexing: flt_log[flt_idx++ & (FLT_LOG_LEN - 1)]. This is a fault log buffer length in entries (counts).",
+            "typed": true,
+            "units": "counts"
+          },
+          {
+            "category": "trip_limit",
+            "confidence": "high",
+            "id": "c2",
+            "maps_to_rule": "iout_trip",
+            "reason": "protect.c line 13: static const float k_trip_a = 15.0f; comment says \u201cA rms, overload trip\u201d. prot_slow() compares i_rms > k_trip_a and then after ol_hold_ms turns inverter off and logs FLT_OL, so it is the software overload trip RMS threshold (iout_trip).",
+            "typed": true,
+            "units": "A"
+          },
+          {
+            "category": "timing",
+            "confidence": "high",
+            "id": "c3",
+            "maps_to_rule": "overload_delay",
+            "reason": "protect.c line 14: static const unsigned short ol_hold_ms = 5000; comment \u201coverload ride-through\u201d. In prot_slow(), ol_ms increments each call when i_rms > k_trip_a and if ++ol_ms >= ol_hold_ms it trips (inv_off and FLT_OL). Thus it is the overload time delay/holdoff duration before trip (overload_delay).",
+            "typed": true,
+            "units": "ms"
+          },
+          {
+            "category": "trip_limit",
+            "confidence": "medium",
+            "id": "c4",
+            "maps_to_rule": "iout_pk_limit",
+            "reason": "protect.c line 34: if (a > 21.2f) where a = abs(i_pk) computed from prot_fast(float i_pk). This is a peak-current protection trip threshold using i_pk; it turns inverter off and logs FLT_OC. It matches the role of the fast/peak current trip (iout_pk_limit), but the exact correspondence to the spec rule depends on whether i_pk is the same quantity/range as iout_pk_limit; confidence is therefore medium.",
+            "typed": true,
+            "units": "A"
+          },
+          {
+            "category": "protection_threshold",
+            "confidence": "high",
+            "id": "c5",
+            "maps_to_rule": null,
+            "reason": "protect.c line 49: if (vo_rms < 0.9f * VO_NOM) log_fault(FLT_BRN); The literal 0.9f is a dimensionless multiplier defining a voltage brownout threshold relative to VO_NOM. It is not itself a named setpoint/band edge rule value; it defines an operating trip boundary, so category is protection_threshold (relative ratio), not directly vout_lo/vout_hi/setpoint.",
+            "typed": true,
+            "units": "ratio"
+          },
+          {
+            "category": "other",
+            "confidence": "high",
+            "id": "c6",
+            "maps_to_rule": null,
+            "reason": "protect.c line 54: if (retry < 3) { ... retry++; ... } \u201c3\u201d is the maximum number of restart attempts before further suppression. This is a control/retry count, not a regulated physical threshold.",
+            "typed": true,
+            "units": "counts"
+          },
+          {
+            "category": "timing",
+            "confidence": "high",
+            "id": "c7",
+            "maps_to_rule": null,
+            "reason": "protect.c line 55: delay_ms(500). This 500 is an explicit restart delay time before inv_on(). It is timing but does not correspond to any specific spec rule id (no rule provided for restart delay), so maps_to_rule=null.",
+            "typed": true,
+            "units": "ms"
+          }
+        ]
+      }
+    }
+  }
+}

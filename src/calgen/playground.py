@@ -15,6 +15,7 @@ import json
 from pathlib import Path
 
 from calgen.build import FAIL, OK, Build, build
+from calgen.build import roots as build_roots
 from calgen.codegen import GateError, header
 from calgen.expr import dotted_name, parse
 from calgen.latex import derive_check, derive_constant
@@ -53,26 +54,10 @@ def _with_params(ps: ParamSet, edits: dict[str, float]) -> ParamSet:
     return dataclasses.replace(ps, params=params)
 
 
-def _roots(b: Build, rule_id: str, seen: set[str] | None = None) -> set[str]:
-    """Input kinds a constant ultimately depends on: ds, board, target, design (transitively)."""
-    seen = seen or set()
-    c = b.constant(rule_id)
-    names = [c.rule.formula] if c.rule.kind == "enum" else parse(c.rule.formula).names
-    out: set[str] = set()
-    for n in names:
-        kind = n.split(".", 1)[0] if "." in n else None
-        if kind:
-            out.add("override" if kind == "ds" and n[3:] in b.variant.overrides else kind)
-        elif n not in seen:
-            seen.add(n)
-            out |= _roots(b, n, seen)
-    return out
-
-
 def _tag(b: Build, rule_id: str) -> str:
     """data sheet | derived (from data sheet and public chip facts only) | assumption | design | what-if."""
     c = b.constant(rule_id)
-    roots = _roots(b, rule_id)
+    roots = build_roots(b, rule_id)
     direct = dotted_name(parse(c.rule.formula).tree) if c.rule.kind == "numeric" else c.rule.formula
     if "override" in roots and direct and direct.startswith("ds."):
         return "override"
@@ -171,20 +156,20 @@ def summaries(b: Build) -> dict[str, str]:
         "rect": f"Boost PFC · bus ≥ √2 × {v('vin_max')} V = {v('vbus_min')} V",
         "bus": f"{v('vbus_set')} V DC setpoint · sensor full scale {v('vbus_fs')} V",
         "inv": f"{v('vout_set')} V AC ±{g('ds.vout_tol_pct', '%') or 0:g}% · {v('fout_hz')} Hz {mode} · PWM {g('design.f_sw', 'kHz') or 0:g} kHz",
-        "out": f"{g('ds.power_va', 'VA') or 0:g} VA · {v('iout_rated', '{:.2f}')} A rated · trip {v('iout_trip', '{:.2f}')} A ({trip_pct or 0:g}%) · {action}",
+        "out": f"{g('ds.power_va', 'VA') or 0:g} VA · {v('iout_rated', '{:.2f}')} A rated · overload {v('iout_trip', '{:.2f}')} A RMS ({trip_pct or 0:g}%) for {(g('design.overload_delay', 's') or 0):g} s → {action} · peak limit {v('iout_pk_limit', '{:.1f}')} A",
         "sense": _sense_line(val, g("design.sense_headroom", "%")),
         "batt": f"{v('vbat_nom', '{:.1f}')} V {chem} · cutoff {v('vbat_cutoff', '{:.1f}')} V",
     }
 
 
 def _sense_line(val: dict, headroom_pct: float | None) -> str:
-    pk, fs = val.get("iout_trip_pk"), val.get("iout_fs_pk")
+    pk, fs = val.get("iout_pk_limit"), val.get("iout_fs_pk")
     if not pk or not fs or pk.value is None or fs.value is None:
         return ""
     used = 100 * pk.value / fs.value
     limit = headroom_pct or 95
-    verdict = "OK" if used <= limit else "SATURATES before trip"
-    return f"Current sensor ±{fs.value:.1f} A peak · trip peak {pk.value:.1f} A uses {used:.0f}% (limit {limit:g}%) · {verdict}"
+    verdict = "OK" if used <= limit else "SATURATES before the limit fires"
+    return f"Current sensor ±{fs.value:.1f} A peak · hardware peak limit {pk.value:.1f} A uses {used:.0f}% (max {limit:g}%) · {verdict}"
 
 
 def to_json(b: Build, base_header: str | None = None) -> dict:

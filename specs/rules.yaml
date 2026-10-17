@@ -38,8 +38,12 @@ symbols:
   design.t_deadband: 't_{\text{DB}}'
   design.vbus_margin: 'm_{\text{bus}}'
   design.sense_headroom: 'h'
-  design.batt_cutoff_ratio: 'r_{\text{cut}}'
-  design.batt_max_ratio: 'r_{\text{full}}'
+  design.cell_cutoff_v: 'V_{\text{cell,cut}}'
+  design.cell_full_v: 'V_{\text{cell,full}}'
+  ds.batt_series_cells: 'n_{\text{cells}}'
+  design.pk_limit_factor: 'k_{\text{pk}}'
+  design.overload_delay: 't_{\text{OL}}'
+  target.db_max: 'N_{\text{DB,max}}'
   design.vloop_kp: 'K_P'
   design.vloop_ki: 'K_I'
 
@@ -135,7 +139,7 @@ constants:
   # --- Inverter -----------------------------------------------------------
   - id: vout_set
     symbol: UPS_VOUT_SET_V
-    describe: Output voltage setpoint (RMS)
+    describe: Output voltage setpoint (RMS); for units with a selectable output, one header is generated per option
     formula: ds.vout_nom
     unit: V
     format: target
@@ -192,8 +196,8 @@ constants:
 
   - id: pwm_period
     symbol: UPS_PWM_PERIOD_CNT
-    describe: PWM period register (up-count mode)
-    formula: round(target.f_pwmclk / design.f_sw)
+    describe: PWM period register, up-down (center-aligned) count mode as usual for inverters (TBPRD = f_clk / (2 f_sw))
+    formula: round(target.f_pwmclk / (2 * design.f_sw))
     unit: counts
     format: uint16
     block: inv
@@ -209,7 +213,6 @@ constants:
     block: inv
     latex: 'N_{\text{DB}}'
     min: 1
-    max: 1023
 
   # --- AC output ----------------------------------------------------------
   - id: iout_rated
@@ -235,21 +238,32 @@ constants:
 
   - id: iout_trip
     symbol: UPS_IOUT_TRIP_A
-    describe: Overload trip current (RMS)
+    describe: Software overload trip level (RMS, timed; acts after UPS_OVERLOAD_DELAY_MS above this level)
     formula: iout_rated * ds.overload_trip_pct
     unit: A
     format: target
     block: out
     latex: 'I_{\text{trip}}'
 
-  - id: iout_trip_pk
-    symbol: UPS_IOUT_TRIP_PK_A
-    describe: Instantaneous current at the RMS trip level (sine), what a hardware comparator sees
-    formula: sqrt(2) * iout_trip
+  - id: overload_delay
+    symbol: UPS_OVERLOAD_DELAY_MS
+    describe: Time above the RMS trip level before the overload action (the data sheet gives no time)
+    formula: design.overload_delay
+    unit: ms
+    format: uint32
+    block: out
+    latex: 't_{\text{OL}}'
+    min: 100
+    max: 600000
+
+  - id: iout_pk_limit
+    symbol: UPS_IOUT_PK_LIMIT_A
+    describe: Hardware peak-current limit (fast comparator, short-circuit protection); must clear the crest factor of rated nonlinear loads
+    formula: design.pk_limit_factor * iout_rated
     unit: A
     format: target
     block: out
-    latex: 'I_{\text{trip,pk}}'
+    latex: 'I_{\text{pk,lim}}'
 
   - id: iout_fs_pk
     symbol: UPS_IOUT_FS_PK_A
@@ -260,19 +274,19 @@ constants:
     block: out
     latex: 'I_{\text{FS}}'
 
-  - id: iout_trip_dac_hi
-    symbol: UPS_IOUT_TRIP_DAC_HI
-    describe: Comparator DAC code for the positive overcurrent trip
-    formula: round((target.v_ref / 2 + iout_trip_pk * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
+  - id: iout_pklim_dac_hi
+    symbol: UPS_IOUT_PKLIM_DAC_HI
+    describe: Comparator DAC code for the positive hardware peak-current limit
+    formula: round((target.v_ref / 2 + iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
     unit: counts
     format: uint16
     block: out
     latex: 'N_{\text{DAC,hi}}'
 
-  - id: iout_trip_dac_lo
-    symbol: UPS_IOUT_TRIP_DAC_LO
-    describe: Comparator DAC code for the negative overcurrent trip
-    formula: round((target.v_ref / 2 - iout_trip_pk * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
+  - id: iout_pklim_dac_lo
+    symbol: UPS_IOUT_PKLIM_DAC_LO
+    describe: Comparator DAC code for the negative hardware peak-current limit
+    formula: round((target.v_ref / 2 - iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
     unit: counts
     format: uint16
     block: out
@@ -281,7 +295,7 @@ constants:
   - id: overload_action
     kind: enum
     symbol: UPS_OVERLOAD_ACTION
-    describe: What the unit does when the trip level is exceeded
+    describe: What the unit does when the RMS overload persists past the delay
     source: ds.overload_action
     choices: {shutdown: UPS_OL_SHUTDOWN, bypass: UPS_OL_BYPASS}
     block: out
@@ -301,7 +315,7 @@ constants:
   - id: vbat_cutoff
     symbol: UPS_VBAT_CUTOFF_V
     describe: Low-battery shutdown voltage
-    formula: vbat_nom * design.batt_cutoff_ratio
+    formula: ds.batt_series_cells * design.cell_cutoff_v
     unit: V
     format: target
     block: batt
@@ -364,18 +378,32 @@ checks:
     block: inv
 
   - id: iout_sense_range
-    describe: Peak trip current must sit inside the current sensor's range, or the sensor saturates before the trip fires
-    lhs: iout_trip_pk
+    describe: Hardware peak limit must sit inside the current sensor's range, or the sensor saturates before the limit fires
+    lhs: iout_pk_limit
     op: "<="
     rhs: design.sense_headroom * iout_fs_pk
     block: out
 
+  - id: overload_below_pk_limit
+    describe: The timed RMS overload must act before the hardware limit, so normal overloads don't trip the fast protection
+    lhs: sqrt(2) * iout_trip
+    op: "<"
+    rhs: iout_pk_limit
+    block: out
+
   - id: dac_hi_in_range
-    describe: Positive trip DAC code must exist on this chip's comparator DAC
-    lhs: iout_trip_dac_hi
+    describe: Positive peak-limit DAC code must exist on this chip's comparator DAC
+    lhs: iout_pklim_dac_hi
     op: "<="
     rhs: target.dac_max
     block: out
+
+  - id: deadband_in_range
+    describe: Dead-time count must fit this chip's dead-band counter
+    lhs: pwm_deadband
+    op: "<="
+    rhs: target.db_max
+    block: inv
 
   - id: alarm_below_trip
     describe: Overload alarm must come before the trip
@@ -386,7 +414,7 @@ checks:
 
   - id: vbat_sense_range
     describe: A fully charged battery must sit inside the battery sensor's range
-    lhs: vbat_nom * design.batt_max_ratio
+    lhs: ds.batt_series_cells * design.cell_full_v
     op: "<="
     rhs: design.sense_headroom * vbat_fs
     block: batt

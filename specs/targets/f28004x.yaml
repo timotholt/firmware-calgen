@@ -9,3 +9,4 @@ params:
   adc_max:   {value: 4095, unit: counts, note: 12-bit ADC}
   dac_max:   {value: 4095, unit: counts, note: 12-bit comparator (CMPSS) DAC}
   v_ref:     {value: 3.3, unit: V, note: internal 3.3 V ADC range selected}
+  db_max:    {value: 16383, unit: counts, note: 14-bit dead-band counter}

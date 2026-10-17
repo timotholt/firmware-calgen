@@ -11,3 +11,4 @@ params:
   adc_max:   {value: 4095, unit: counts, note: 12-bit ADC}
   dac_max:   {value: 1023, unit: counts, note: 10-bit comparator DAC}
   v_ref:     {value: 3.3, unit: V, note: fixed 0-3.3 V internal reference}
+  db_max:    {value: 1023, unit: counts, note: 10-bit dead-band counter}

@@ -21,7 +21,8 @@ map:
   - {file: sense_scale.h, symbol: "VBAT_FS", rule: vbat_fs, scale: 1.0, reviewed_by: demo-author}
   - {file: sense_scale.h, symbol: "VO_FS_PK", rule: vout_fs_pk, scale: 1.0, reviewed_by: demo-author}
   - {file: sense_scale.h, symbol: "IO_FS_PK", rule: iout_fs_pk, scale: 1.0, reviewed_by: demo-author}
-  - {file: sense_scale.h, symbol: "CMP_DAC_HI", rule: iout_trip_dac_hi, scale: 1.0, reviewed_by: demo-author}
-  - {file: sense_scale.h, symbol: "CMP_DAC_LO", rule: iout_trip_dac_lo, scale: 1.0, reviewed_by: demo-author}
+  - {file: sense_scale.h, symbol: "CMP_DAC_HI", rule: iout_pklim_dac_hi, scale: 1.0, reviewed_by: demo-author}
+  - {file: sense_scale.h, symbol: "CMP_DAC_LO", rule: iout_pklim_dac_lo, scale: 1.0, reviewed_by: demo-author}
   - {file: protect.c, symbol: "k_trip_a", rule: iout_trip, scale: 1.0, reviewed_by: demo-author}
-  - {file: protect.c, symbol: "<inline>", line: 34, rule: iout_trip_pk, scale: 1.0, reviewed_by: demo-author}
+  - {file: protect.c, symbol: "<inline>", line: 34, rule: iout_pk_limit, scale: 1.0, reviewed_by: demo-author}
+  - {file: protect.c, symbol: "ol_hold_ms", rule: overload_delay, scale: 1.0, reviewed_by: demo-author}

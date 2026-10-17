@@ -17,12 +17,13 @@ typedef struct {
 } ups_pwm_cfg_t;
 
 typedef struct {
-    uint16_t hi;  /* comparator DAC code, positive trip */
-    uint16_t lo;  /* comparator DAC code, negative trip */
+    uint16_t hi;  /* comparator DAC code, positive hardware peak-current limit */
+    uint16_t lo;  /* comparator DAC code, negative hardware peak-current limit */
 } ups_trip_cfg_t;
 
 float ups_vbus_volts(uint16_t adc_counts);
 ups_ol_state_t ups_overload_state(float iout_rms);
+ups_ol_state_t ups_overload_update(float iout_rms, uint32_t dt_ms, uint32_t *over_ms);
 int ups_vout_in_band(float vout_rms);
 int ups_battery_low(float vbat);
 ups_pwm_cfg_t ups_pwm_config(void);

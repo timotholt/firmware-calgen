@@ -32,6 +32,19 @@ ups_ol_state_t ups_overload_state(float iout_rms)
     return UPS_OL_NORMAL;
 }
 
+/* Software overload: RMS current above the trip level for longer than
+ * UPS_OVERLOAD_DELAY_MS triggers the overload action. The hardware peak-current
+ * limit (comparator, see ups_trip_config) is separate and much faster. */
+ups_ol_state_t ups_overload_update(float iout_rms, uint32_t dt_ms, uint32_t *over_ms)
+{
+    if (iout_rms >= CALGEN_REAL(UPS_IOUT_TRIP_A)) {
+        *over_ms += dt_ms;
+        return *over_ms >= (uint32_t)UPS_OVERLOAD_DELAY_MS ? UPS_OL_TRIP : UPS_OL_ALARM;
+    }
+    *over_ms = 0u;
+    return ups_overload_state(iout_rms) == UPS_OL_ALARM ? UPS_OL_ALARM : UPS_OL_NORMAL;
+}
+
 int ups_vout_in_band(float vout_rms)
 {
     return vout_rms >= CALGEN_REAL(UPS_VOUT_LO_V) && vout_rms <= CALGEN_REAL(UPS_VOUT_HI_V);
@@ -53,8 +66,8 @@ ups_pwm_cfg_t ups_pwm_config(void)
 ups_trip_cfg_t ups_trip_config(void)
 {
     ups_trip_cfg_t cfg;
-    cfg.hi = (uint16_t)UPS_IOUT_TRIP_DAC_HI;
-    cfg.lo = (uint16_t)UPS_IOUT_TRIP_DAC_LO;
+    cfg.hi = (uint16_t)UPS_IOUT_PKLIM_DAC_HI;
+    cfg.lo = (uint16_t)UPS_IOUT_PKLIM_DAC_LO;
     return cfg;
 }
 

@@ -51,7 +51,7 @@ def test_playground_default_data_parses(site):
     html = (site / "playground.html").read_text()
     raw = re.search(r'<script id="default-data" type="application/json">(.*?)</script>', html, re.S).group(1)
     data = json.loads(raw)
-    assert data["ok"] and data["variant"].startswith("fa10507") and len(data["constants"]) == 28
+    assert data["ok"] and data["variant"].startswith("fa10507") and len(data["constants"]) == 29
 
 
 @needs_vendor

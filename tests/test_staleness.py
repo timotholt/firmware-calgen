@@ -27,7 +27,7 @@ def test_changing_switching_frequency_makes_gains_stale(tmp_path):
     stale = [s for s in b.staleness if s.status == FAIL]
     assert {s.param for s in stale} == {"design.vloop_kp", "design.vloop_ki"}
     assert "now 25 kHz" in stale[0].message
-    assert b.constant("pwm_period").encoded.code == 4000  # the period itself regenerates fine
+    assert b.constant("pwm_period").encoded.code == 2000  # 100 MHz / (2 * 25 kHz)  # the period itself regenerates fine
     try:
         header(b)
     except GateError as exc:

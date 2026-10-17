@@ -1,6 +1,10 @@
 # Blind answer key for corpus/legacy_ups (SYNTHETIC). Never show to the classifier.
 # correct_value = FA10507 / ups_ctrl rev A / f28004x values from
 # firmware/include/calgen_fa10507.h. match = within 0.5% (or 1 count for integers).
+# 2026-10-16: correct_value/expected_conformance recomputed after the protection
+# model was corrected (timed RMS overload + separate hardware peak limit, 2 mOhm
+# shunt, up-down PWM, 1 us dead time); categories and units unchanged; three
+# rule ids renamed (iout_trip_pk -> iout_pk_limit, iout_trip_dac_* -> iout_pklim_dac_*).
 # ---------------- ups_config.h ----------------
 - file: ups_config.h
   line: 19
@@ -25,7 +29,7 @@
   typed: true
   maps_to_rule: vin_min
   expected_conformance: match
-  correct_value: 85.0
+  correct_value: 85
   notes: "low-line transfer to battery = data sheet min input"
 
 - file: ups_config.h
@@ -38,7 +42,7 @@
   typed: true
   maps_to_rule: vin_max
   expected_conformance: match
-  correct_value: 265.0
+  correct_value: 265
   notes: "high-line transfer = data sheet max input"
 
 - file: ups_config.h
@@ -51,7 +55,7 @@
   typed: true
   maps_to_rule: vbus_set
   expected_conformance: mismatch
-  correct_value: 410.0
+  correct_value: 410
   notes: "seeded: round-number bus setpoint from the export board; spec is ceil(sqrt2*265*1.07/10)*10 = 410 V (-2.4%)"
 
 - file: ups_config.h
@@ -64,7 +68,7 @@
   typed: true
   maps_to_rule: vout_set
   expected_conformance: mismatch
-  correct_value: 120.0
+  correct_value: 120
   notes: "seeded: export-model 220 Vrms never changed for the 120 V domestic build (IO_RATED comment even says 120 V)"
 
 - file: ups_config.h
@@ -116,7 +120,7 @@
   typed: true
   maps_to_rule: iout_trip
   expected_conformance: mismatch
-  correct_value: 15.0
+  correct_value: 15
   notes: "seeded: stale overload trip; duplicated in protect.c as k_trip_a = 15.0f (that copy is correct)"
 
 - file: ups_config.h
@@ -129,7 +133,7 @@
   typed: true
   maps_to_rule: pwm_period
   expected_conformance: mismatch
-  correct_value: 5000
+  correct_value: 2500
   notes: "seeded + stale comment: comment says 25 kHz (true only for a 150 MHz clock); at 100 MHz 6000 counts = 16.67 kHz; spec is 20 kHz -> 5000"
 
 - file: ups_config.h
@@ -141,8 +145,8 @@
   units: counts
   typed: true
   maps_to_rule: pwm_deadband
-  expected_conformance: match
-  correct_value: 30
+  expected_conformance: mismatch
+  correct_value: 100
   notes: "value correct; seeded wrong unit in comment ('300 us' should be 300 ns: 30 counts at 100 MHz)"
 
 - file: ups_config.h
@@ -194,7 +198,7 @@
   typed: true
   maps_to_rule: vbat_cutoff
   expected_conformance: mismatch
-  correct_value: 69.888
+  correct_value: 70
   notes: "seeded: lead-acid end-of-discharge ratio 1.75/2.00 = 0.875 x 89.6 left over from the lead-acid build; LiFePO4 ratio 0.78 gives 69.888 V (+12.2%)"
 
 - file: ups_config.h
@@ -273,7 +277,7 @@
   typed: false
   maps_to_rule: vbus_scale
   expected_conformance: match
-  correct_value: 0.121684976
+  correct_value: 0.121685
   notes: "cryptic name; derived 498.3/4095"
 
 - file: sense_scale.h
@@ -311,8 +315,8 @@
   units: A
   typed: true
   maps_to_rule: iout_fs_pk
-  expected_conformance: match
-  correct_value: 33.0
+  expected_conformance: mismatch
+  correct_value: 82.5
   notes: "1.65 V / (5 mOhm * 10)"
 
 - file: sense_scale.h
@@ -323,9 +327,9 @@
   category: trip_limit
   units: counts
   typed: true
-  maps_to_rule: iout_trip_dac_hi
-  expected_conformance: match
-  correct_value: 3364
+  maps_to_rule: iout_pklim_dac_hi
+  expected_conformance: mismatch
+  correct_value: 3133
   notes: "matches the 15 A trip (not the 14 A I_TRIP_RMS)"
 
 - file: sense_scale.h
@@ -336,9 +340,9 @@
   category: trip_limit
   units: counts
   typed: false
-  maps_to_rule: iout_trip_dac_lo
-  expected_conformance: match
-  correct_value: 731
+  maps_to_rule: iout_pklim_dac_lo
+  expected_conformance: mismatch
+  correct_value: 962
   notes: "derived by symmetry about mid-rail: 4095 - 3364 = 731"
 
 # ---------------- protect.c ----------------
@@ -365,7 +369,7 @@
   typed: true
   maps_to_rule: iout_trip
   expected_conformance: match
-  correct_value: 15.0
+  correct_value: 15
   notes: "duplicate of I_TRIP_RMS (ups_config.h, 14.0f) with a different value; this copy is the one the code uses and it is correct"
 
 - file: protect.c
@@ -376,10 +380,10 @@
   category: timing
   units: ms
   typed: true
-  maps_to_rule: null
-  expected_conformance: not_applicable
-  correct_value: null
-  notes: "overload ride-through time in ms; trap: numerically equals the correct PWM period (5000 counts) but is unrelated"
+  maps_to_rule: overload_delay
+  expected_conformance: mismatch
+  correct_value: 30000
+  notes: "2026-10-16: maps to overload_delay, a rule added after the key was written (legacy 5 s vs design 30 s); overload ride-through time in ms; trap: numerically equals the correct PWM period (5000 counts) but is unrelated"
 
 - file: protect.c
   line: 34
@@ -389,9 +393,9 @@
   category: trip_limit
   units: A
   typed: true
-  maps_to_rule: iout_trip_pk
-  expected_conformance: match
-  correct_value: 21.213203
+  maps_to_rule: iout_pk_limit
+  expected_conformance: mismatch
+  correct_value: 43.75
   notes: "magic number: sqrt(2)*15 A peak; -0.06%"
 
 - file: protect.c

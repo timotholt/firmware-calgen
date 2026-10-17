@@ -28,10 +28,10 @@ def test_rendered_value_equals_evaluated_value_for_every_constant(name):
 
 def test_trip_dac_derivation_reads_like_hand_math():
     b = build(load_variant(SPECS / "variants" / "fa10507.yaml"), RULES)
-    lines = derive_constant(b, "iout_trip_dac_hi").lines
+    lines = derive_constant(b, "iout_pklim_dac_hi").lines
     assert lines[0].startswith(r"N_{\text{DAC,hi}} = \operatorname{round}")
     assert r"\frac{V_{\text{ref}}}{2}" in lines[0]
-    assert "3363.68" in lines[2] and lines[2].endswith("3364")
+    assert "3133.3" in lines[2] and lines[2].endswith("3133")
 
 
 def test_render_fraction_and_parentheses():
@@ -42,7 +42,7 @@ def test_render_fraction_and_parentheses():
 def test_failed_check_is_marked():
     b = build(load_variant(SPECS / "variants" / "fa10507_revB.yaml"), RULES)
     d = derive_check(b, "iout_sense_range")
-    assert r"\times" in d.lines[-1] and "21.2132" in d.lines[-1]
+    assert r"\times" in d.lines[-1] and "43.75" in d.lines[-1]
 
 
 def test_enum_and_supplied():

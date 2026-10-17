@@ -116,10 +116,13 @@ def cmd_audit(args: argparse.Namespace) -> int:
         if r.status == MATCH:
             print(f"  {_tag(OK)}  {where:<16} {c.symbol:<14} {c.literal:<12} = {r.rule}")
         elif r.status == MISMATCH:
-            print(f"  {_tag(FAIL)}  {where:<16} {c.symbol:<14} {c.literal:<12} spec says {r.expected:.6g} ({r.rule})")
+            tag = _tag(FAIL) if r.basis == "data sheet" else _tag(SKIPPED).replace("n/a ", "diff")
+            print(f"  {tag}  {where:<16} {c.symbol:<14} {c.literal:<12} {r.verdict}: {r.expected:.6g} ({r.rule})")
     unmapped = [r.candidate for r in results if r.status == UNMAPPED]
     n_mis = sum(r.status == MISMATCH for r in results)
-    print(f"{sum(r.status == MATCH for r in results)} match, {n_mis} mismatch, {len(unmapped)} unexplained")
+    n_ds = sum(r.status == MISMATCH and r.basis == "data sheet" for r in results)
+    print(f"{sum(r.status == MATCH for r in results)} match, {n_ds} contradict the data sheet, "
+          f"{n_mis - n_ds} differ from design values, {len(unmapped)} unexplained")
     if args.ai and unmapped:
         from calgen import ai
 

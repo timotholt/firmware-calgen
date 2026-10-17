@@ -20,7 +20,7 @@ from pathlib import Path
 
 import yaml
 
-from calgen.build import OK, Build
+from calgen.build import OK, Build, rests_on_data_sheet_only
 from calgen.expr import ExprError, Quantity, evaluate, parse
 
 MATCH, MISMATCH, UNMAPPED, NO_VALUE = "match", "mismatch", "unmapped", "no_value"
@@ -173,6 +173,13 @@ class Conformance:
     legacy: float | None = None
     rel_diff: float | None = None
     note: str = ""
+    basis: str = ""  # "data sheet" (rule rests on data sheet + chip facts) or "design" (rests on invented values)
+
+    @property
+    def verdict(self) -> str:
+        if self.status != MISMATCH:
+            return self.status
+        return "contradicts data sheet" if self.basis == "data sheet" else "differs from design value"
 
 
 def load_map(path: Path) -> list[MapEntry]:
@@ -215,5 +222,6 @@ def conform(candidates: list[Candidate], mapping: list[MapEntry], build: Build, 
         diff = abs(legacy - expected)
         rel = diff / abs(expected) if expected else (0.0 if diff == 0 else float("inf"))
         ok = diff <= 1.0 if is_int else rel <= rel_tol
-        out.append(Conformance(c, MATCH if ok else MISMATCH, m.rule, expected, legacy, rel, m.note))
+        basis = "data sheet" if rests_on_data_sheet_only(build, m.rule) else "design"
+        out.append(Conformance(c, MATCH if ok else MISMATCH, m.rule, expected, legacy, rel, m.note, basis))
     return out

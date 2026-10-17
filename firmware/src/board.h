@@ -47,39 +47,45 @@
  * = iout_rated * ds.overload_alarm_pct
  *   NOT GENERATED: input ds.overload_alarm_pct not in data sheet */
 
-/* Overload trip current (RMS)
+/* Software overload trip level (RMS, timed; acts after UPS_OVERLOAD_DELAY_MS above this level)
  * = iout_rated * ds.overload_trip_pct
  *   ds.overload_trip_pct = 120 %  [DS-10507 Rev.101119 p2 (read as 120% of rated): "Shutdown at 20% Overload"] */
 #define UPS_IOUT_TRIP_A            15.0f          /* 15 A */
 
-/* Instantaneous current at the RMS trip level (sine), what a hardware comparator sees
- * = sqrt(2) * iout_trip */
-#define UPS_IOUT_TRIP_PK_A         21.213203f     /* 21.2132 A */
+/* Time above the RMS trip level before the overload action (the data sheet gives no time)
+ * = design.overload_delay
+ *   design.overload_delay = 30 s  [design fa10507.yaml] */
+#define UPS_OVERLOAD_DELAY_MS      30000u         /* 30000 ms, uint32 */
+
+/* Hardware peak-current limit (fast comparator, short-circuit protection); must clear the crest factor of rated nonlinear loads
+ * = design.pk_limit_factor * iout_rated
+ *   design.pk_limit_factor = 3.5 ratio  [design fa10507.yaml] */
+#define UPS_IOUT_PK_LIMIT_A        43.75f         /* 43.75 A */
 
 /* Peak current at the edge of the mid-rail-biased current-sense range
  * = target.v_ref / 2 / (board.r_shunt * board.g_amp)
  *   target.v_ref = 3.3 V  [target f28004x.yaml]
- *   board.r_shunt = 5 mohm  [board ups_ctrl_revA.yaml]
+ *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
  *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml] */
-#define UPS_IOUT_FS_PK_A           33.0f          /* 33 A */
+#define UPS_IOUT_FS_PK_A           82.5f          /* 82.5 A */
 
-/* Comparator DAC code for the positive overcurrent trip
- * = round((target.v_ref / 2 + iout_trip_pk * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
+/* Comparator DAC code for the positive hardware peak-current limit
+ * = round((target.v_ref / 2 + iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
  *   target.v_ref = 3.3 V  [target f28004x.yaml]
- *   board.r_shunt = 5 mohm  [board ups_ctrl_revA.yaml]
+ *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
  *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]
  *   target.dac_max = 4095 counts  [target f28004x.yaml] */
-#define UPS_IOUT_TRIP_DAC_HI       3364u          /* 3364 counts, uint16 */
+#define UPS_IOUT_PKLIM_DAC_HI      3133u          /* 3133 counts, uint16 */
 
-/* Comparator DAC code for the negative overcurrent trip
- * = round((target.v_ref / 2 - iout_trip_pk * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
+/* Comparator DAC code for the negative hardware peak-current limit
+ * = round((target.v_ref / 2 - iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
  *   target.v_ref = 3.3 V  [target f28004x.yaml]
- *   board.r_shunt = 5 mohm  [board ups_ctrl_revA.yaml]
+ *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
  *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]
  *   target.dac_max = 4095 counts  [target f28004x.yaml] */
-#define UPS_IOUT_TRIP_DAC_LO       731u           /* 731 counts, uint16 */
+#define UPS_IOUT_PKLIM_DAC_LO      962u           /* 962 counts, uint16 */
 
-/* What the unit does when the trip level is exceeded
+/* What the unit does when the RMS overload persists past the delay
  * = ds.overload_action
  *   ds.overload_action = shutdown  [DS-10507 Rev.101119 p2: "Shutdown at 20% Overload"] */
 #define UPS_OVERLOAD_ACTION        UPS_OL_SHUTDOWN

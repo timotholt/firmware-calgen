@@ -5,12 +5,16 @@
  *           ratings from DS-10434 Rev.09172021 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f28004x (default format float32)
- * inputs  : sha256 e14ecd9b7b0419572b62ea09d3520bc25cea7a700857fd0f7fbf5aa8c4ba9497
+ * inputs  : sha256 deb90fec4d9a7e224abb4f92e084d57723539393767ebf7108a8d0b776b7eaeb
  *
  * OVERRIDE ds.iin_max: DS-10434 Rev.09172021 prints "7.4 Amps @90VAC Input,
  *   560W Output" in the Input Frequency row and "50 or 60 Hz" in the Input Max
  *   Current row; the labels are swapped. Value taken from the Input Frequency
  *   row. Reviewer must confirm with the data sheet owner.
+ * OVERRIDE ds.batt_series_cells: DS-10434 lists three 12 V LiFePO4 modules in
+ *   one string but not the cell count; 12 V LiFePO4 modules are normally 4
+ *   cells in series, so 3 x 4 = 12. Assumption for the demo; confirm with the
+ *   battery supplier.
  *
  * SYNTHETIC DEMO: firmware names and circuit values are invented; product ratings
  * come from the public data sheet cited above. Not from any vendor SDK.
@@ -64,7 +68,7 @@
 
 /* ==== Inverter ============================================================== */
 
-/* Output voltage setpoint (RMS)
+/* Output voltage setpoint (RMS); for units with a selectable output, one header is generated per option
  * = ds.vout_nom
  *   ds.vout_nom = 120 V  [DS-10434 Rev.09172021 p1: "120 VAC, (+/-3%)"] */
 #define UPS_VOUT_SET_V             120.0f         /* 120 V */
@@ -96,17 +100,17 @@
  *   ds.fout_mode = changer  [DS-10434 Rev.09172021 p2: "60 Hz +/- 1.5Hz, Changer"] */
 #define UPS_FOUT_MODE              UPS_FOUT_CHANGER
 
-/* PWM period register (up-count mode)
- * = round(target.f_pwmclk / design.f_sw)
+/* PWM period register, up-down (center-aligned) count mode as usual for inverters (TBPRD = f_clk / (2 f_sw))
+ * = round(target.f_pwmclk / (2 * design.f_sw))
  *   target.f_pwmclk = 100 MHz  [target f28004x.yaml]
  *   design.f_sw = 20 kHz  [design fa10434.yaml] */
-#define UPS_PWM_PERIOD_CNT         5000u          /* 5000 counts, uint16 */
+#define UPS_PWM_PERIOD_CNT         2500u          /* 2500 counts, uint16 */
 
 /* Dead-time register
  * = round(design.t_deadband * target.f_pwmclk)
- *   design.t_deadband = 300 ns  [design fa10434.yaml]
+ *   design.t_deadband = 1 us  [design fa10434.yaml]
  *   target.f_pwmclk = 100 MHz  [target f28004x.yaml] */
-#define UPS_PWM_DEADBAND_CNT       30u            /* 30 counts, uint16 */
+#define UPS_PWM_DEADBAND_CNT       100u           /* 100 counts, uint16 */
 
 /* ==== AC output ============================================================= */
 
@@ -121,39 +125,45 @@
  *   ds.overload_alarm_pct = 105 %  [DS-10434 Rev.09172021 p2: "Alarm at 105%, Bypass at 115% of Full Load"] */
 #define UPS_IOUT_ALARM_A           7.0f           /* 7 A */
 
-/* Overload trip current (RMS)
+/* Software overload trip level (RMS, timed; acts after UPS_OVERLOAD_DELAY_MS above this level)
  * = iout_rated * ds.overload_trip_pct
  *   ds.overload_trip_pct = 115 %  [DS-10434 Rev.09172021 p2: "Alarm at 105%, Bypass at 115% of Full Load"] */
 #define UPS_IOUT_TRIP_A            7.6666665f     /* 7.66667 A */
 
-/* Instantaneous current at the RMS trip level (sine), what a hardware comparator sees
- * = sqrt(2) * iout_trip */
-#define UPS_IOUT_TRIP_PK_A         10.842304f     /* 10.8423 A */
+/* Time above the RMS trip level before the overload action (the data sheet gives no time)
+ * = design.overload_delay
+ *   design.overload_delay = 30 s  [design fa10434.yaml] */
+#define UPS_OVERLOAD_DELAY_MS      30000u         /* 30000 ms, uint32 */
+
+/* Hardware peak-current limit (fast comparator, short-circuit protection); must clear the crest factor of rated nonlinear loads
+ * = design.pk_limit_factor * iout_rated
+ *   design.pk_limit_factor = 3.5 ratio  [design fa10434.yaml] */
+#define UPS_IOUT_PK_LIMIT_A        23.333332f     /* 23.3333 A */
 
 /* Peak current at the edge of the mid-rail-biased current-sense range
  * = target.v_ref / 2 / (board.r_shunt * board.g_amp)
  *   target.v_ref = 3.3 V  [target f28004x.yaml]
- *   board.r_shunt = 5 mohm  [board ups_ctrl_revA.yaml]
+ *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
  *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml] */
-#define UPS_IOUT_FS_PK_A           33.0f          /* 33 A */
+#define UPS_IOUT_FS_PK_A           82.5f          /* 82.5 A */
 
-/* Comparator DAC code for the positive overcurrent trip
- * = round((target.v_ref / 2 + iout_trip_pk * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
+/* Comparator DAC code for the positive hardware peak-current limit
+ * = round((target.v_ref / 2 + iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
  *   target.v_ref = 3.3 V  [target f28004x.yaml]
- *   board.r_shunt = 5 mohm  [board ups_ctrl_revA.yaml]
+ *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
  *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]
  *   target.dac_max = 4095 counts  [target f28004x.yaml] */
-#define UPS_IOUT_TRIP_DAC_HI       2720u          /* 2720 counts, uint16 */
+#define UPS_IOUT_PKLIM_DAC_HI      2627u          /* 2627 counts, uint16 */
 
-/* Comparator DAC code for the negative overcurrent trip
- * = round((target.v_ref / 2 - iout_trip_pk * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
+/* Comparator DAC code for the negative hardware peak-current limit
+ * = round((target.v_ref / 2 - iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
  *   target.v_ref = 3.3 V  [target f28004x.yaml]
- *   board.r_shunt = 5 mohm  [board ups_ctrl_revA.yaml]
+ *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
  *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]
  *   target.dac_max = 4095 counts  [target f28004x.yaml] */
-#define UPS_IOUT_TRIP_DAC_LO       1375u          /* 1375 counts, uint16 */
+#define UPS_IOUT_PKLIM_DAC_LO      1468u          /* 1468 counts, uint16 */
 
-/* What the unit does when the trip level is exceeded
+/* What the unit does when the RMS overload persists past the delay
  * = ds.overload_action
  *   ds.overload_action = bypass  [DS-10434 Rev.09172021 p2: "Alarm at 105%, Bypass at 115% of Full Load"] */
 #define UPS_OVERLOAD_ACTION        UPS_OL_BYPASS
@@ -166,9 +176,10 @@
 #define UPS_VBAT_NOM_V             36.0f          /* 36 V */
 
 /* Low-battery shutdown voltage
- * = vbat_nom * design.batt_cutoff_ratio
- *   design.batt_cutoff_ratio = 0.78 ratio  [design fa10434.yaml] */
-#define UPS_VBAT_CUTOFF_V          28.08f         /* 28.08 V */
+ * = ds.batt_series_cells * design.cell_cutoff_v
+ *   ds.batt_series_cells = 12 counts  [OVERRIDE in fa10434.yaml (reason in header)]
+ *   design.cell_cutoff_v = 2.5 V  [design fa10434.yaml] */
+#define UPS_VBAT_CUTOFF_V          30.0f          /* 30 V */
 
 /* Battery voltage at ADC full scale
  * = target.v_ref * (board.vbat_r_top + board.vbat_r_bot) / board.vbat_r_bot

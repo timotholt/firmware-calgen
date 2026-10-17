@@ -118,22 +118,22 @@ def _eqs(lines: list[str]) -> str:
 # ---------------------------------------------------------------------------
 
 
-def page_home() -> str:
+def page_home(counts: dict[str, int], ai: dict[str, float]) -> str:
     sample = (
-        "/* Comparator DAC code for the positive overcurrent trip\n"
-        " * = round((target.v_ref / 2 + iout_trip_pk * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)\n"
+        "/* Comparator DAC code for the positive hardware peak-current limit\n"
+        " * = round((target.v_ref / 2 + iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)\n"
         " *   target.v_ref = 3.3 V  [target f28004x.yaml]\n"
-        " *   board.r_shunt = 5 mohm  [board ups_ctrl_revA.yaml]\n"
+        " *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]\n"
         " *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]\n"
         " *   target.dac_max = 4095 counts  [target f28004x.yaml] */\n"
-        "#define UPS_IOUT_TRIP_DAC_HI       3364u          /* 3364 counts, uint16 */"
+        "#define UPS_IOUT_PKLIM_DAC_HI      3133u          /* 3133 counts, uint16 */"
     )
     body = f"""
-<h1 class="hero">Firmware constants, generated from the data sheet and proven before they reach C</h1>
+<h1 class="hero">Firmware constants, generated from the data sheet and checked before they reach C</h1>
 <p class="lead">A working demo for AMETEK IntelliPower's AI Automation Intern posting, initiative 2: automate firmware calibration and configuration constants from engineering specifications. Runs entirely in your browser.</p>
 <div class="proof">
 <div><b>3</b><span>real IntelliPower data sheets, cited per value</span></div>
-<div><b>6 of 33</b><span>legacy constants that disagree with the spec, found by audit</span></div>
+<div><b>{counts['contradicts']} of {counts['total']}</b><span>legacy constants that contradict the data sheet, found by audit (+{counts['differs']} that differ from design values)</span></div>
 <div><b>0</b><span>values written when any gate fails</span></div>
 </div>
 <p class="cta"><a class="primary" href="playground.html">Open the playground →</a><a href="audit.html">Legacy audit</a><a href="reports/index.html">Review reports</a></p>
@@ -148,7 +148,7 @@ def page_home() -> str:
 <h2>Backstory and thesis</h2>
 <div class="prose">
 <p><b>Backstory.</b> I wrote C firmware and BIOS code at Phoenix Technologies, Quantum, AMD, and VM Labs, where constants had to be exactly right for each specific board. I've come back to engineering through an A.A.S. in AI software engineering, and this posting described a problem I recognized: numbers hand-edited in C source that should come from the spec. I built this demo to show how I'd approach it, before asking for the job.</p>
-<p><b>Thesis.</b> IntelliPower publicly describes thousands of configure-to-order variants built from shared designs, and its engineering postings mention keeping legacy boards alive with alternate components. Every variant's ratings and every board's measurement chain must end up as correct constants in firmware; I assume much of that is done by hand today, from data sheets that aren't always consistent (all three I transcribed contain an inconsistency). The right tool makes that path deterministic, traceable, and gated. AI belongs only where the input is messy: here it drafts what each unexplained legacy constant is, scored 91% on category and 97% on units against a blind answer key, and a person reviews every draft. AI never writes firmware.</p>
+<p><b>Thesis.</b> IntelliPower publicly describes thousands of configure-to-order variants built from shared designs, and its engineering postings mention keeping legacy boards alive with alternate components. Every variant's ratings and every board's measurement chain must end up as correct constants in firmware; I assume much of that is done by hand today, from data sheets that aren't always consistent (all three I transcribed contain an inconsistency). The right tool makes that path deterministic, traceable, and gated. AI belongs only where the input is messy: here it drafts what each legacy constant is, and a person reviews every draft. Measured against a blind answer key, the cheapest model maps constants to the right rule {ai['rule']:.0f}% of the time but its category labels reach only {ai['category']:.0f}%, below the bar I set in advance, and I report that rather than move the bar. AI never writes firmware.</p>
 </div>
 <details class="more-box"><summary>The posting, my assumptions, and how I'd check them in week one</summary>
 <p>The posting describes six problems: magnetics design iterations, hand-edited firmware constants, specs that aren't machine-usable, provable validation, undocumented process, and responsible AI adoption. This demo addresses the second and supports the next three. It doesn't attempt magnetics; that needs real design data and power-engineering judgment, and a toy would mislead.</p>
@@ -180,33 +180,68 @@ def page_reports(out: Path, specs: Path, rules) -> str:
     return _page("Review reports", "reports/index.html", body, depth=1)
 
 
-def page_audit(root: Path, specs: Path, rules) -> str:
+BAR_CATEGORY, BAR_UNITS = 90.0, 85.0
+
+
+def audit_results(root: Path, specs: Path, rules):
     corpus = root / "corpus" / "legacy_ups"
     cands = scan(corpus)
     b = build(load_variant(specs / "variants" / "fa10507.yaml"), rules)
-    conf = conform(cands, load_map(corpus / "calgen_map.yaml"), b)
-    recs = sorted((corpus / "ai_runs").glob("*.json"))
-    rows = []
-    ai_rows = []
-    key = load_key(corpus / "ANSWER_KEY.yaml")
-    import yaml
+    return corpus, cands, conform(cands, load_map(corpus / "calgen_map.yaml"), b)
 
-    prices = yaml.safe_load((corpus / "ai_runs" / "prices.yaml").read_text()) if (corpus / "ai_runs" / "prices.yaml").exists() else {}
-    answers = {}
-    for rec in recs:
+
+def audit_counts(conf) -> dict[str, int]:
+    return {
+        "total": len(conf),
+        "match": sum(r.status == MATCH for r in conf),
+        "contradicts": sum(r.status == MISMATCH and r.basis == "data sheet" for r in conf),
+        "differs": sum(r.status == MISMATCH and r.basis != "data sheet" for r in conf),
+        "unexplained": sum(r.status == UNMAPPED for r in conf),
+    }
+
+
+def model_runs(corpus: Path, cands, rules) -> dict[str, list]:
+    """model -> list of (score, results) over recorded runs."""
+    key = load_key(corpus / "ANSWER_KEY.yaml")
+    out: dict[str, list] = {}
+    for rec in sorted((corpus / "ai_runs").glob("*.json")):
         backend = ReplayBackend(rec)
         res = classify(corpus, cands, rules, backend)
-        s = score(backend.model, cands, key, res)
-        p = prices.get(s.model)
-        cost = f"${(s.input_tokens * p['input'] + s.output_tokens * p['output']) / 1e6:.4f}" if p else "—"
-        ai_rows.append(f"<tr><td class='mono'>{_e(s.model)}</td><td>{s.pct(s.category):.0f}%</td><td>{s.pct(s.units):.0f}%</td><td>{s.pct(s.typed):.0f}%</td><td>{s.pct(s.rule):.0f}%</td><td>{s.answered}/{s.n}</td><td>{cost}</td><td>{s.latency_s:.0f} s</td></tr>")
-        if not answers:
-            for r in res:
-                for item in r.items:
-                    answers[(r.file, item.id)] = item
+        out.setdefault(backend.model, []).append((score(backend.model, cands, key, res), res))
+    return out
+
+
+def page_audit(root: Path, specs: Path, rules) -> str:
+    import yaml
+
     from calgen.ai import candidate_id
 
-    per_file: dict[str, int] = {}
+    corpus, cands, conf = audit_results(root, specs, rules)
+    counts = audit_counts(conf)
+    prices_file = corpus / "ai_runs" / "prices.yaml"
+    prices = yaml.safe_load(prices_file.read_text()) if prices_file.exists() else {}
+    runs = model_runs(corpus, cands, rules)
+    ai_rows, answers = [], {}
+    for model, rr in runs.items():
+        sc = [x[0] for x in rr]
+
+        def stat(f):
+            vals = [x.pct(f(x)) for x in sc]
+            mean = sum(vals) / len(vals)
+            return f"{mean:.0f}%" + (f" <span class='sub'>({min(vals):.0f}–{max(vals):.0f})</span>" if len(vals) > 1 else "")
+
+        cat_mean = sum(x.pct(x.category) for x in sc) / len(sc)
+        unit_mean = sum(x.pct(x.units) for x in sc) / len(sc)
+        passes = cat_mean >= BAR_CATEGORY and unit_mean >= BAR_UNITS
+        p = prices.get(model)
+        cost = f"${sum((x.input_tokens * p['input'] + x.output_tokens * p['output']) / 1e6 for x in sc) / len(sc):.4f}" if p else "—"
+        verdict = '<span class="pill ok">passes</span>' if passes else '<span class="pill warn">below bar</span>'
+        ai_rows.append(f"<tr><td class='mono'>{_e(model)}</td><td>{len(sc)}</td><td>{stat(lambda x: x.category)}</td><td>{stat(lambda x: x.units)}</td><td>{stat(lambda x: x.typed)}</td><td>{stat(lambda x: x.rule)}</td><td>{cost}</td><td>{verdict}</td></tr>")
+        if not answers:
+            for r in rr[0][1]:
+                for item in r.items:
+                    answers[(r.file, item.id)] = item
+    rows, per_file = [], {}
     for r in conf:
         c = r.candidate
         n = per_file.get(c.file, 0)
@@ -215,33 +250,33 @@ def page_audit(root: Path, specs: Path, rules) -> str:
         ai_txt = f"{_e(a.category)} · {_e(a.units)} · {_e(a.maps_to_rule or 'no rule')}<br><span class='sub'>{_e(a.reason)}</span>" if a else "—"
         if r.status == MATCH:
             verdict = f'<span class="pill ok">match</span><br><span class="sub mono">{_e(r.rule)}</span>'
+        elif r.status == MISMATCH and r.basis == "data sheet":
+            verdict = f'<span class="pill bad">contradicts data sheet</span><br><span class="sub">data sheet gives {r.expected:.6g} ({_e(r.rule)})</span>'
         elif r.status == MISMATCH:
-            verdict = f'<span class="pill bad">mismatch</span><br><span class="sub">spec: {r.expected:.6g} ({_e(r.rule)})</span>'
+            verdict = f'<span class="pill warn">differs from design value</span><br><span class="sub">current design: {r.expected:.6g} ({_e(r.rule)})</span>'
         else:
             verdict = '<span class="pill na">not in spec</span>'
         rows.append(f"<tr><td class='mono'>{_e(c.file)}:{c.line}</td><td class='mono'>{_e(c.symbol)}</td><td class='mono'>{_e(c.literal)}</td><td>{verdict}</td><td>{ai_txt}</td></tr>")
-    n_match = sum(r.status == MATCH for r in conf)
-    n_mis = sum(r.status == MISMATCH for r in conf)
-    n_un = sum(r.status == UNMAPPED for r in conf)
     files = "".join(
         f"<details><summary>{_e(f.name)} ({len(f.read_text().splitlines())} lines)</summary><pre>{_e(chr(10).join(f'{i:3d}  {x}' for i, x in enumerate(f.read_text().splitlines(), 1)))}</pre></details>"
         for f in sorted(corpus.glob("*.[ch]"))
     )
     body = f"""<h1>Audit: legacy firmware against the spec</h1>
-<p class="sub">The realistic week-one task: before generating anything, read the firmware that exists and compare it to the data sheet. Read-only; nothing is changed.</p>
-<div class="cards"><div class="card"><h3>Constants found</h3><p style="font-size:22px">{len(cands)}</p></div><div class="card"><h3>Match the spec</h3><p style="font-size:22px">{n_match}</p></div>
-<div class="card"><h3>Disagree with the spec</h3><p style="font-size:22px;color:var(--bad)">{n_mis}</p></div><div class="card"><h3>Not covered by a rule</h3><p style="font-size:22px">{n_un}</p></div></div>
-<p>The legacy code below is <b>synthetic</b>: written for this demo by a separate agent under clean-room rules, with seeded mistakes, traps (a 5000&nbsp;ms timeout that equals the correct 5000-count PWM period), and an answer key the classifier never sees. Note the duplicate the audit surfaces: <span class="mono">I_TRIP_RMS = 14.0</span> in one file and <span class="mono">k_trip_a = 15.0</span> in another.</p>
+<p class="sub">The realistic week-one task: before generating anything, read the firmware that exists and compare it to the spec. Read-only; nothing is changed.</p>
+<div class="cards"><div class="card"><h3>Constants found</h3><p style="font-size:22px">{counts['total']}</p></div><div class="card"><h3>Match the spec</h3><p style="font-size:22px">{counts['match']}</p></div>
+<div class="card"><h3>Contradict the data sheet</h3><p style="font-size:22px;color:var(--bad)">{counts['contradicts']}</p></div><div class="card"><h3>Differ from a design value</h3><p style="font-size:22px;color:var(--warn)">{counts['differs']}</p></div><div class="card"><h3>Not covered by a rule</h3><p style="font-size:22px">{counts['unexplained']}</p></div></div>
+<p><b>Two kinds of disagreement.</b> A value that <span class="pill bad">contradicts the data sheet</span> is wrong for the product (here: a 220 V output on a 120 V unit, a 14 A overload on a 15 A rating). A value that <span class="pill warn">differs from a design value</span> only disagrees with this demo's invented board and design choices (shunt, bus margin, dead time); it needs a conversation, not a fix. The most important one here: the legacy fast trip at <span class="mono">21.2 A</span> peak sits at the peak of the <i>RMS overload</i> level, so a fully loaded unit feeding 3:1 crest-factor loads would trip; the current design puts the hardware limit at 43.75&nbsp;A and handles overload with a timed RMS check.</p>
+<p>The legacy code is <b>synthetic</b>: written for this demo by a separate agent under clean-room rules, with seeded mistakes, traps, and an answer key the classifier never sees. It is also friendlier than real legacy firmware (most constants have comments), which flatters the AI scores below.</p>
 {files}
 <h2>Every constant</h2>
-<p class="sub">Verdict is deterministic (no AI). The last column is the AI draft: what a model thinks each number is, for a reviewer to accept or correct.</p>
-<table><tr><th>Where</th><th>Symbol</th><th>Value</th><th>Spec verdict</th><th>AI draft (recorded)</th></tr>{''.join(rows)}</table>
+<p class="sub">Verdicts are deterministic (no AI). The last column is the AI draft: what a model thinks each number is, for a reviewer to accept or correct.</p>
+<table><tr><th>Where</th><th>Symbol</th><th>Value</th><th>Verdict</th><th>AI draft (recorded)</th></tr>{''.join(rows)}</table>
 <h2>AI model comparison</h2>
-<p class="sub">Scored against the blind answer key. Bar set before any model ran: ≥ 90% category and ≥ 85% units. Default model is the cheapest that passes. Recorded runs are replayed here; no model is called from this page.</p>
-<table><tr><th>Model</th><th>Category</th><th>Units</th><th>Typed vs derived</th><th>Rule mapping</th><th>Valid answers</th><th>Cost / run</th><th>Latency</th></tr>{''.join(ai_rows)}
+<p class="sub">Scored against the blind answer key; mean (min–max) over recorded runs. Bar set before any model ran: mean ≥ {BAR_CATEGORY:.0f}% category and ≥ {BAR_UNITS:.0f}% units. Recorded runs are replayed here; no model is called from this page.</p>
+<table><tr><th>Model</th><th>Runs</th><th>Category</th><th>Units</th><th>Typed vs derived</th><th>Rule mapping</th><th>Cost / run</th><th>Verdict</th></tr>{''.join(ai_rows)}
 <tr><td class="mono">claude-haiku-5-5</td><td colspan="7" class="sub">not recorded yet (no Anthropic API key available at recording time)</td></tr>
 <tr><td class="mono">claude-sonnet-5-5</td><td colspan="7" class="sub">not recorded yet</td></tr></table>
-<p class="sub">Honest history: the first recorded run scored 39% on category. Two bugs in my harness caused it: the model dropped an id suffix, and per-file ids collided during scoring. Both are fixed and covered by tests; ids are now constrained by the output schema. The first run is kept in the repository.</p>
+<p class="sub">What this means: the cheapest model maps legacy constants to the right rule almost every time, which is what the audit needs, but its category labels disagree with the key on borderline cases (is a 4095 ADC count "sense full scale" or "other"?) often enough to miss the bar. Under the rule set in advance, no recorded model passes yet; the next step would be a stronger model, not a looser bar. History: an earlier single run scored 91% on category with a different rule set, and the very first run scored 39% because of two harness bugs (fixed and tested). All runs are kept in the repository.</p>
 <h2>How the AI is used, and where it is not</h2>
 <ul><li>The model sees one file at a time and answers in a strict JSON schema; every answer is validated.</li>
 <li>Its output is a draft mapping for review. It never edits firmware or specs.</li>
@@ -252,9 +287,9 @@ def page_audit(root: Path, specs: Path, rules) -> str:
 
 def page_how(specs: Path, rules) -> str:
     b = build(load_variant(specs / "variants" / "fa10507.yaml"), rules)
-    steps = ["iout_rated", "iout_trip", "iout_trip_pk", "iout_fs_pk", "iout_trip_dac_hi"]
+    steps = ["iout_rated", "iout_trip", "iout_pk_limit", "iout_fs_pk", "iout_pklim_dac_hi"]
     worked = "".join(f"<h3 class='mono' style='font-size:13px'>{_e(b.constant(s).rule.symbol)}</h3>{_eqs(derive_constant(b, s).lines)}" for s in steps)
-    worked += f"<h3 class='mono' style='font-size:13px'>check iout_sense_range</h3>{_eqs(derive_check(b, 'iout_sense_range').lines)}"
+    worked += "".join(f"<h3 class='mono' style='font-size:13px'>check {k}</h3>{_eqs(derive_check(b, k).lines)}" for k in ("overload_below_pk_limit", "iout_sense_range"))
     flow = "".join(
         f'<span class="step">{_e(s)}</span>' + ('<span class="arrow">→</span>' if i < 6 else "")
         for i, s in enumerate(["Data sheet (CSV, cited)", "Consistency gate", "Board + chip + design", "Rules → constants", "Range, overflow, staleness, checks", "C header or marked-block patch", "Compile + known-answer test → review report"])
@@ -273,14 +308,16 @@ def page_how(specs: Path, rules) -> str:
 <li><b>Evidence, not assertion.</b> Hand-worked known answers are checked in C on every build.</li>
 <li><b>Human authority.</b> AI drafts; people approve.</li>
 <li><b>Stated limits.</b> See below.</li></ol>
-<h2>Worked example: FA10507 overcurrent trip, data sheet to register</h2>
-<p class="sub">Inputs: 1500 VA and "Shutdown at 20% Overload" from the public data sheet; shunt and amplifier from the (invented) board; reference and DAC width from the chip profile. Check it on paper.</p>
+<h2>Worked example: FA10507 current protection, data sheet to register</h2>
+<p class="sub">Two layers, as in real inverters. The data sheet's "Shutdown at 20% Overload" is a <b>timed RMS overload</b> handled in software (the delay is a design value; the sheet gives none). Separately, a <b>hardware peak-current limit</b> on the comparator protects against short circuits; it must sit well above rated peak current so 3:1 crest-factor loads such as computer power supplies don't trip it, and below the sensor's range. Inputs: 1500 VA and the overload level from the public data sheet; the peak-limit factor, shunt, and amplifier are invented design values; reference and DAC width come from the chip profile. Check it on paper.</p>
 {worked}
 <h2>Limitations</h2>
-<ul><li>No TI hardware or TI compiler was used. The host C compiler (gcc in CI, clang locally) stands in for Code Composer Studio; it cannot catch C28x issues such as 16-bit <span class="mono">char</span>.</li>
+<ul><li>Sensing is simplified: dividers and the current shunt are drawn referenced to the controller. On an isolated unit a real design senses on the primary side or through isolation amplifiers or current transformers; the scale-factor math is the same.</li>
+<li>One rule set assumes a boost-PFC, DC-bus, inverter topology. Real catalogs span topologies (isolated DC-DC stages, different battery paths) and would need rule sets per platform.</li>
+<li>No TI hardware or TI compiler was used. The host C compiler (gcc in CI, clang locally) stands in for Code Composer Studio; it cannot catch C28x issues such as 16-bit <span class="mono">char</span>.</li>
 <li>Product ratings are public; every circuit value, gain, firmware name, and the legacy code are invented.</li>
 <li>Formulas are textbook relations, not IntelliPower's design rules. Loop gains are carried, never computed.</li>
-<li>"Shutdown at 20% Overload" is read as a trip at 120% of rated; FA10434's swapped labels are resolved by a written override that a reviewer must confirm.</li>
+<li>"Shutdown at 20% Overload" is read as a timed RMS trip at 120% of rated; its delay and the hardware peak-limit factor are invented. FA10434's swapped labels are resolved by a written override that a reviewer must confirm.</li>
 <li>The AI eval runs on a synthetic corpus; it measures the pipeline, not real-world accuracy.</li>
 <li>Per-unit calibration (test-station trims stored in EEPROM or flash) is a separate path not built here.</li></ul>
 <h2>Extension: changing processors</h2>
@@ -329,7 +366,10 @@ def build_site(root: Path, out: Path, vendor_cache: Path, download: bool = False
     (assets / "site.css").write_text(SITE_CSS, encoding="utf-8")
     shutil.copyfile(Path(__file__).with_name("playground.js"), assets / "playground.js")
     (assets / "calgen_bundle.json").write_text(json.dumps(bundle(root)), encoding="utf-8")
-    (out / "index.html").write_text(page_home(), encoding="utf-8")
+    corpus, cands, conf = audit_results(root, specs, rules)
+    nano = [x[0] for x in model_runs(corpus, cands, rules).get("gpt-5.4-nano", [])]
+    ai = {k: (sum(x.pct(getattr(x, k)) for x in nano) / len(nano) if nano else 0.0) for k in ("rule", "category", "units")}
+    (out / "index.html").write_text(page_home(audit_counts(conf), ai), encoding="utf-8")
     (out / "reports").mkdir(parents=True, exist_ok=True)
     (out / "reports" / "index.html").write_text(page_reports(out, specs, rules), encoding="utf-8")
     (out / "audit.html").write_text(page_audit(root, specs, rules), encoding="utf-8")
