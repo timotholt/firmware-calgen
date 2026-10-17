@@ -209,3 +209,12 @@ def test_transformer_build_includes_bobbin_margins_and_tape():
     assert all(b["y0"] <= y - r and y + r <= b["y1"] + 1e-9 for _, _, y, r in b["conductors"])  # no wire in the margins
     tight = dict(LIMITS, margin_mm=6.0)  # bigger margins push the same winding out of the window
     assert not mg.bobbin_build(CORES[d.core], [(w.name, w.turns, w.strands, w.awg) for w in d.windings], tight)["fits"]
+
+
+
+def test_transformer_layers_are_balanced_and_spread():
+    d = {x.id: x for x in DESIGNS}["XFMR-001"]
+    b = mg.bobbin_build(CORES[d.core], [(w.name, w.turns, w.strands, w.awg) for w in d.windings], LIMITS)
+    assert [cnt for _, _, cnt in b["layers"]] == [12, 12, 6, 6]  # 24 primary turns as 12 + 12; 12 secondary conductors as 6 + 6
+    first = sorted(y for k, x, y, r in b["conductors"] if k == 0 and x < b["conductors"][0][1] + 1e-9)
+    assert first[0] > b["y0"] and first[-1] < b["y1"] and (first[-1] - first[0]) > 0.8 * (b["y1"] - b["y0"])  # spans the breadth

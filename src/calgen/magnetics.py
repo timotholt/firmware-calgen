@@ -207,9 +207,10 @@ def _transformer_checks(d: Design, core: Core, limits: dict) -> list[Check]:
 
 
 def bobbin_build(core: Core, windings: list[tuple[str, int, int, int]], limits: dict) -> dict:
-    """Lay the windings out on an E-core bobbin, to scale: 1 conductor per wire, turns per layer
-    limited by the breadth between the margin tapes, layers stacking outward from the bobbin
-    wall, tape between windings and over the outside. Shared by the check and the drawing."""
+    """Lay the windings out on an E-core bobbin, to scale: turns per layer limited by the breadth
+    between the margin tapes, layers balanced and space-wound across that breadth, stacking
+    outward from the bobbin wall, tape between windings and over the outside. Shared by the
+    check and the drawing."""
     w_win, h_win = core.wa_mm2 / (2 * core.ht_mm), 2 * core.ht_mm  # one window of the pair (bare)
     wall, margin, tape = limits["bobbin_wall_mm"], limits["margin_mm"], limits["tape_layer_mm"]
     y0, y1 = wall + margin, h_win - wall - margin
@@ -218,13 +219,16 @@ def bobbin_build(core: Core, windings: list[tuple[str, int, int, int]], limits: 
         d = _wire_od(awg)
         per = max(1, int((y1 - y0) // d))
         n = turns * strands
-        x_start, left = x, n
-        while left > 0:
-            cnt = min(per, left)
+        # Balanced layers, each spread evenly across the breadth (space-wound), as good practice
+        # winds them: 24 turns on a 16-turn layer go on as 12 + 12, not 16 + 8.
+        n_layers = -(-n // per)
+        x_start = x
+        for layer in range(n_layers):
+            cnt = n // n_layers + (1 if layer < n % n_layers else 0)
+            pitch = (y1 - y0) / cnt
             for j in range(cnt):
-                conductors.append((k, x + d / 2, y0 + d / 2 + j * d, d / 2))
+                conductors.append((k, x + d / 2, y0 + pitch * (j + 0.5), d / 2))
             layers.append((name, d, cnt))
-            left -= cnt
             x += d
         spans.append((k, x_start, x))
         t = tape * (limits["tape_layers_between"] if k < len(windings) - 1 else limits["tape_layers_outer"])
