@@ -331,7 +331,13 @@
     var tabs = [["c", "Generated C"], ["math", "Derivations"], ["diff", "Diff vs shipped"]];
     $("fhead").textContent = state.tab === "math" ? "Derivations · " + DATA.blocks[state.stage] + " (click a stage to switch)" : "Output";
     $("tabs").innerHTML = tabs.map(function (t) { return '<span class="pill tab' + (state.tab === t[0] ? " on" : "") + '" data-t="' + t[0] + '" role="button" tabindex="0">' + t[1] + "</span>"; }).join("");
-    $("tabs").querySelectorAll(".tab").forEach(function (e) { keyed(e, function () { state.tab = e.dataset.t; renderFormulas(); }); });
+    $("tabs").querySelectorAll(".tab").forEach(function (e) {
+      keyed(e, function () {
+        // keep the panel at least as tall as before, so a short tab can't shrink the page and jump the scroll
+        var f = $("formulas"); f.style.minHeight = Math.max(f.offsetHeight, parseFloat(f.style.minHeight) || 0) + "px";
+        state.tab = e.dataset.t; renderFormulas();
+      });
+    });
     var out = "";
     if (state.tab === "math") {
       var list = DATA.constants.filter(function (c) { return c.block === state.stage; });
