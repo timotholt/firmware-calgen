@@ -32,7 +32,7 @@ from calgen.spec import load_rules, load_variant
 REPO = "https://github.com/timotholt/firmware-calgen"
 VARIANTS = ["fa10507", "fa10449", "fa10434", "fa10507_f2803x", "fa10507_revB"]
 NAV = [("index.html", "Overview"), ("playground.html", "Playground"), ("reports/index.html", "Review reports"),
-       ("audit.html", "Audit"), ("how.html", "How it works"), ("backstory.html", "Tim Otholt · backstory")]
+       ("audit.html", "Audit"), ("how.html", "How it works"), ("ai.html", "AI practice"), ("backstory.html", "Tim Otholt · backstory")]
 
 SITE_CSS = REPORT_CSS + """
 nav{display:flex;flex-wrap:wrap;gap:4px 18px;border-bottom:1px solid var(--line);padding:10px 0;margin-bottom:6px;font-size:14px}
@@ -113,7 +113,7 @@ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/sv
 .cards.outlined .card{background:transparent;border:1px solid var(--line);border-radius:8px;padding:16px}
 .cards.outlined .card h3{font-size:17px;font-weight:600;color:var(--fg);margin:0 0 6px}.cards.outlined .card p{font-size:15px;color:var(--muted)}
 main h2{margin-top:40px}.prose{max-width:75ch}.prose p{margin:0 0 12px}
-.posting{margin:12px 0 16px}.posting .shot{max-height:440px;max-width:760px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;background:#f2f2f2}.posting img{display:block;width:100%;height:auto}.posting figcaption{font-size:12.5px;color:var(--muted);margin-top:6px;max-width:760px}.sblock{border-left:4px solid;border-radius:0 8px 8px 0;padding:14px 18px 2px;margin:0 0 28px}.sblock .slabel{font-size:12px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:6px}.sblock.back{border-color:var(--warn);background:var(--warnbg)}.sblock.back .slabel{color:var(--warn)}.sblock.why{border-color:var(--ok);background:var(--okbg)}.sblock.why .slabel{color:var(--ok)}.sblock.thesis{border-color:var(--acc);background:var(--accbg)}.sblock.thesis .slabel{color:var(--acc)}.story-page{max-width:68ch;margin:56px 0 80px}.story-page h1{font-size:28px;margin:0 0 10px}.prose.roomy{font-size:17px;line-height:1.7}.prose.roomy p{margin:0 0 28px}.more-box{margin-top:40px;border-top:1px solid var(--line);padding-top:12px;font-size:14px}.more-box summary{font-size:15px;color:var(--fg)}
+.posting{margin:12px 0 16px}.posting .shot{max-height:440px;max-width:760px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;background:#f2f2f2}.posting img{display:block;width:100%;height:auto}.posting figcaption{font-size:12.5px;color:var(--muted);margin-top:6px;max-width:760px}.sblock{border-left:4px solid;border-radius:0 8px 8px 0;padding:14px 18px 2px;margin:0 0 28px}.sblock .slabel{font-size:12px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:6px}.sblock.back{border-color:var(--warn);background:var(--warnbg)}.sblock.back .slabel{color:var(--warn)}.sblock.why{border-color:var(--ok);background:var(--okbg)}.sblock.why .slabel{color:var(--ok)}.sblock.thesis{border-color:var(--acc);background:var(--accbg)}.sblock.thesis .slabel{color:var(--acc)}.story-page.wide{max-width:80ch}.plan td{vertical-align:top}.plan td:first-child{white-space:nowrap;font-family:var(--mono)}.sblock ul{margin:0 0 16px;padding-left:20px}.sblock li{margin:6px 0}.story-page{max-width:68ch;margin:56px 0 80px}.story-page h1{font-size:28px;margin:0 0 10px}.prose.roomy{font-size:17px;line-height:1.7}.prose.roomy p{margin:0 0 28px}.more-box{margin-top:40px;border-top:1px solid var(--line);padding-top:12px;font-size:14px}.more-box summary{font-size:15px;color:var(--fg)}
 @media (max-width:480px){.proof b{font-size:20px}.proof span{font-size:12px}h1.hero{font-size:24px}.lead{font-size:17px}}
 footer{color:var(--muted);font-size:12px;border-top:1px solid var(--line);margin-top:36px;padding-top:10px}
 """
@@ -163,14 +163,14 @@ def page_home(counts: dict[str, int], ai: dict[str, float]) -> str:
         "#define UPS_IOUT_PKLIM_DAC_HI      3133u          /* 3133 counts, uint16 */"
     )
     body = f"""
-<h1 class="hero">From data sheet to firmware C code, with every constant traced and checked</h1>
+<h1 class="hero">From data sheet to firmware C code: built with AI agents, every constant traced and checked</h1>
 <p class="lead">A working demo for AMETEK IntelliPower's AI Automation Intern posting, initiative 2: automate firmware calibration and configuration constants from engineering specifications. Runs entirely in your browser.</p>
 <div class="proof">
 <div><b>3</b><span>real IntelliPower data sheets, cited per value</span></div>
 <div><b>{counts['contradicts']} of {counts['total']}</b><span>legacy constants that contradict the data sheet, found by audit (+{counts['differs']} that differ from design values)</span></div>
 <div><b>0</b><span>values written when any gate fails</span></div>
 </div>
-<p class="cta"><a class="primary" href="playground.html">Open the playground →</a><a href="audit.html">Legacy audit</a><a href="reports/index.html">Review reports</a></p>
+<p class="cta"><a class="primary" href="playground.html">Open the playground →</a><a href="ai.html">AI practice</a><a href="audit.html">Legacy audit</a><a href="reports/index.html">Review reports</a></p>
 <div class="cards outlined">
 <div class="card"><h3>The problem I think you have</h3><p>Calibration gains, limits, and register values are hand-edited in C for each product variant and board revision, from data sheets that don't always agree with themselves.</p></div>
 <div class="card"><h3>What this demo does</h3><p>Generates those constants from the spec with every number traced to its source, audits existing firmware against the spec, and writes nothing when a gate fails.</p></div>
@@ -365,6 +365,43 @@ def page_how(specs: Path, rules) -> str:
     return _page("How it works", "how.html", body)
 
 
+def page_ai(ai: dict[str, float]) -> str:
+    cost = f"${ai['cost']:.4f}" if ai.get("cost") else "under a cent"
+    body = f"""<div class="story-page wide">
+<h1>AI practice</h1>
+<p class="lead">The posting asks for more than two tools: AI best practices across the organization, AI agents and productivity tools, and results presented to business and technical leaders. This page shows how I already work that way, and how I'd run it at IntelliPower.</p>
+
+<section class="sblock thesis"><div class="slabel">1 · This demo was built with AI agents</div>
+<p><b>Spec first.</b> A written plan (<span class="mono">docs/PLAN.md</span>) was approved before any code. Claude Code then built the tool in milestones over about a day of directed sessions, each step a small commit with its own tests. I chose the problem, approved the plan, and reviewed and redirected the work; the AI wrote most of the code.</p>
+<p><b>Gates on AI output.</b> Every change passes the test suite before it ships: generated files must match a fresh generation, typeset math must equal the computed values, and the generated C must build and pass known-answer tests. One early commit went out with stale generated headers; the freshness test caught it, and since then every commit waits for the test run.</p>
+<p><b>AI reviewing AI.</b> An AI reviewer, prompted to act as a power-electronics firmware lead, found a real physics error: the timed RMS overload was wired to the fast hardware comparator. A second review found five more issues (a 60 Hz-only input window on a 50/60 Hz unit, "fixed-point" code doing float math, an include-order hazard, stale corpus notes, overstated AI wording). All were fixed, and each code fix got a test so it can't come back.</p>
+</section>
+
+<section class="sblock why"><div class="slabel">2 · AI inside the tool, measured</div>
+<p><b>Where it's used.</b> Drafting what each unexplained constant in legacy firmware is: its category, units, whether it's typed or derived, and which spec rule it corresponds to. A person reviews every draft. Generating firmware never calls a model.</p>
+<p><b>Measured before trusted.</b> A blind answer key and a bar set before any model ran (≥ 90% category, ≥ 85% units). Over {ai.get('runs', 3):.0f} recorded runs, gpt-5.4-nano mapped constants to the right rule {ai['rule']:.0f}% of the time and got units right {ai['units']:.0f}% of the time, but category only {ai['category']:.0f}%: below the bar, reported as is. About {cost} per run. The very first run scored 39% because of two bugs in my harness, found by reading the raw responses before trusting the score.</p>
+<p><b>Data sheets.</b> AI read the three data sheet PDFs and drafted the structured rows, each with its page citation. The consistency gate then flagged an inconsistency in every one of the three sheets. Details are on the <a href="audit.html">Audit</a> page.</p>
+</section>
+
+<section class="sblock back"><div class="slabel">3 · Proposed: a 90-day AI pilot plan</div>
+<p>A proposal from the outside. The first month exists to replace my guesses with your data.</p>
+<table class="plan"><tr><th>Days</th><th>Work</th><th>Result</th></tr>
+<tr><td>1–30</td><td><b>Map.</b> Interview teams; list repetitive, document-heavy work with rough hours and risk. Classify data (public, proprietary, export-controlled or defense, vendor-confidential) and decide which models may touch which.</td><td>Workflow map, data rules, ranked pilot list</td></tr>
+<tr><td>31–60</td><td><b>Pilot.</b> Run about three pilots, each with a success measure set before it starts and a person approving every output.</td><td>Measured results; each pilot kept or stopped</td></tr>
+<tr><td>61–90</td><td><b>Scale or stop.</b> Turn what worked into documented tools with owners and training; write the AI best-practice guide.</td><td>Playbook and a results presentation</td></tr>
+</table>
+<p><b>Candidate pilots</b> (to confirm in the first month):</p>
+<ul>
+<li><b>Engineering:</b> firmware constants from specs (this demo); data sheet consistency checks; paperwork for qualifying alternate parts.</li>
+<li><b>Operations:</b> summaries and trend flags from test reports; keeping specs and procedures in sync across versions.</li>
+<li><b>Business:</b> first drafts of quotes and RFQ answers from the product catalog; searchable answers from internal documents.</li>
+</ul>
+<p><b>Guardrails:</b> classify data before choosing tools; defense, export-controlled, and vendor-confidential data only on approved or local models; a person reviews every AI output; every pilot is measured against a bar set in advance; costs are tracked.</p>
+</section>
+</div>"""
+    return _page("AI practice", "ai.html", body)
+
+
 def page_backstory(ai: dict[str, float]) -> str:
     body = f"""<div class="story-page">
 <h1>Tim Otholt</h1>
@@ -408,6 +445,8 @@ def bundle(root: Path) -> dict[str, str]:
 
 
 def build_site(root: Path, out: Path, vendor_cache: Path, download: bool = False) -> Path:
+    import yaml
+
     from calgen.vendor import stage
 
     specs = root / "specs"
@@ -426,6 +465,10 @@ def build_site(root: Path, out: Path, vendor_cache: Path, download: bool = False
     corpus, cands, conf = audit_results(root, specs, rules)
     nano = [x[0] for x in model_runs(corpus, cands, rules).get("gpt-5.4-nano", [])]
     ai = {k: (sum(x.pct(getattr(x, k)) for x in nano) / len(nano) if nano else 0.0) for k in ("rule", "category", "units")}
+    prices = yaml.safe_load((corpus / "ai_runs" / "prices.yaml").read_text()) if (corpus / "ai_runs" / "prices.yaml").exists() else {}
+    p = prices.get("gpt-5.4-nano")
+    ai["runs"] = float(len(nano))
+    ai["cost"] = sum((x.input_tokens * p["input"] + x.output_tokens * p["output"]) / 1e6 for x in nano) / len(nano) if p and nano else 0.0
     shutil.copyfile(root / "docs" / "img" / "ametek_posting_2026-10-15.jpg", assets / "ametek_posting.jpg")
     (out / "index.html").write_text(page_home(audit_counts(conf), ai), encoding="utf-8")
     (out / "reports").mkdir(parents=True, exist_ok=True)
@@ -433,6 +476,7 @@ def build_site(root: Path, out: Path, vendor_cache: Path, download: bool = False
     (out / "audit.html").write_text(page_audit(root, specs, rules), encoding="utf-8")
     (out / "how.html").write_text(page_how(specs, rules), encoding="utf-8")
     (out / "backstory.html").write_text(page_backstory(ai), encoding="utf-8")
+    (out / "ai.html").write_text(page_ai(ai), encoding="utf-8")
     (out / "playground.html").write_text(page_playground(playground.run(specs)), encoding="utf-8")
     (out / ".nojekyll").write_text("", encoding="utf-8")
     shutil.copyfile(root / "LICENSE", out / "LICENSE.txt")
