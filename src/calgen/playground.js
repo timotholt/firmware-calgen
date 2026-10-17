@@ -156,9 +156,9 @@
     var v = e.key in state.edits ? state.edits[e.key] : DATA.inputs[e.key];
     var unit = e.unit === "ratio" ? "V/V" : e.unit === "mohm" ? "mΩ" : e.unit === "counts" ? "" : e.unit;
     var edited = e.key in state.edits || (state.preset && e.key.indexOf("ds.") === 0 && DATA.inputs[e.key] !== DATA.shipped_inputs[e.key]);
-    return '<label class="inp' + (edited ? " edited" : "") + '"><span>' + esc(e.label) + (unit ? ' <i>' + esc(unit) + "</i>" : "") + "</span>" +
+    return '<label class="inp' + (edited ? " edited" : "") + '"><span>' + esc(e.label) + "</span>" +
       '<input type="number" step="any" min="0" data-k="' + esc(e.key) + '" value="' + (v == null ? "" : esc(v)) + '"' +
-      (v == null ? ' placeholder="not in data sheet"' : "") + dis + "></label>";
+      (v == null ? ' placeholder="n/a" title="not in data sheet"' : "") + dis + '><i class="u">' + esc(unit) + "</i></label>";
   }
 
   function renderInputs() {
