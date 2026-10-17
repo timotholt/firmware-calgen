@@ -113,7 +113,7 @@ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/sv
 .cards.outlined .card{background:transparent;border:1px solid var(--line);border-radius:8px;padding:16px}
 .cards.outlined .card h3{font-size:17px;font-weight:600;color:var(--fg);margin:0 0 6px}.cards.outlined .card p{font-size:15px;color:var(--muted)}
 main h2{margin-top:40px}.prose{max-width:75ch}.prose p{margin:0 0 12px}
-.more-box{margin-top:40px;border-top:1px solid var(--line);padding-top:12px;font-size:14px}.more-box summary{font-size:15px;color:var(--fg)}
+.posting{margin:12px 0 16px}.posting .shot{max-height:440px;max-width:760px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;background:#f2f2f2}.posting img{display:block;width:100%;height:auto}.posting figcaption{font-size:12.5px;color:var(--muted);margin-top:6px;max-width:760px}.more-box{margin-top:40px;border-top:1px solid var(--line);padding-top:12px;font-size:14px}.more-box summary{font-size:15px;color:var(--fg)}
 @media (max-width:480px){.proof b{font-size:20px}.proof span{font-size:12px}h1.hero{font-size:24px}.lead{font-size:17px}}
 footer{color:var(--muted);font-size:12px;border-top:1px solid var(--line);margin-top:36px;padding-top:10px}
 """
@@ -194,7 +194,9 @@ def page_home(counts: dict[str, int], ai: dict[str, float]) -> str:
 <p><b>Backstory.</b> I wrote C firmware and BIOS code at Phoenix Technologies, Quantum, AMD, and VM Labs, where constants had to be exactly right for each specific board. I've come back to engineering through an A.A.S. in AI software engineering, and this posting described a problem I recognized: numbers hand-edited in C source that should come from the spec. I built this demo to show how I'd approach it, before asking for the job.</p>
 <p><b>Thesis.</b> IntelliPower publicly describes thousands of configure-to-order variants built from shared designs, and its engineering postings mention keeping legacy boards alive with alternate components. Every variant's ratings and every board's measurement chain must end up as correct constants in firmware; I assume much of that is done by hand today, from data sheets that aren't always consistent (all three I transcribed contain an inconsistency). The right tool makes that path deterministic, traceable, and gated. AI belongs only where the input is messy: here it drafts what each legacy constant is, and a person reviews every draft. Measured on a 33-constant synthetic set against a blind answer key, a low-cost model (gpt-5.4-nano) maps constants to the right rule {ai['rule']:.0f}% of the time but its category labels reach only {ai['category']:.0f}%, below the bar I set in advance, and I report that rather than move the bar. AI never writes firmware.</p>
 </div>
-<details class="more-box"><summary>The posting, my assumptions, and how I'd check them in week one</summary>
+<details class="more-box" open><summary>The posting, my assumptions, and how I'd check them in week one</summary>
+<figure class="posting"><div class="shot"><a href="assets/ametek_posting.jpg" target="_blank" rel="noopener"><img src="assets/ametek_posting.jpg" alt="Screenshot of the AI Automation Intern posting on AMETEK's careers site: about us, job summary with two initiatives (magnetics design automation; firmware modification and calibration automation), key responsibilities, minimum and desired qualifications" loading="lazy" width="1040" height="1900"></a></div>
+<figcaption>The posting on AMETEK's careers site, posted Oct 15, 2026, captured Oct 16, 2026 (<span class="mono">jobs.ametek.com/job/Orange-AI-Automation-Intern-CA-92865/1420689600</span>). Scroll inside the box, or click for full size.</figcaption></figure>
 <p>The posting describes six problems: magnetics design iterations, hand-edited firmware constants, specs that aren't machine-usable, provable validation, undocumented process, and responsible AI adoption. This demo addresses the second and supports the next three. It doesn't attempt magnetics; that needs real design data and power-engineering judgment, and a toy would mislead.</p>
 <table><tr><th>#</th><th>Assumption</th><th>Why I think so</th><th>Confidence</th><th>How to check</th></tr>
 <tr><td>A1</td><td>Calibration and config constants live in C source (#defines / const tables)</td><td>The posting says so</td><td>High</td><td>Read one product's source</td></tr>
@@ -416,6 +418,7 @@ def build_site(root: Path, out: Path, vendor_cache: Path, download: bool = False
     corpus, cands, conf = audit_results(root, specs, rules)
     nano = [x[0] for x in model_runs(corpus, cands, rules).get("gpt-5.4-nano", [])]
     ai = {k: (sum(x.pct(getattr(x, k)) for x in nano) / len(nano) if nano else 0.0) for k in ("rule", "category", "units")}
+    shutil.copyfile(root / "docs" / "img" / "ametek_posting_2026-10-15.jpg", assets / "ametek_posting.jpg")
     (out / "index.html").write_text(page_home(audit_counts(conf), ai), encoding="utf-8")
     (out / "reports").mkdir(parents=True, exist_ok=True)
     (out / "reports" / "index.html").write_text(page_reports(out, specs, rules), encoding="utf-8")
