@@ -280,7 +280,7 @@
         return "<tr><td class='mono'>" + esc(s.name) + "</td><td>" + esc(s.origin) + "</td><td>" + esc(s.quote) + "</td></tr>"; }).join("") + "</table>" : "");
   }
 
-  function isOpen(c) { return state.open[c.id] !== undefined ? state.open[c.id] : (c.status === "fail" || changed(c.id)); }
+  function isOpen(c) { return state.open[c.id] !== undefined ? state.open[c.id] : c.status === "fail"; } // changed rows show old -> new in the row itself
 
   function renderFormulas() {
     var tabs = [["c", "Generated C"], ["math", "Derivations"], ["diff", "Diff vs shipped"]];

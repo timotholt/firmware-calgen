@@ -94,7 +94,10 @@ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/sv
 .frow{border-bottom:1px solid var(--line)}.frow>button{all:unset;box-sizing:border-box;display:flex;width:100%;gap:8px;align-items:center;padding:8px 4px;cursor:pointer;font-family:var(--mono);font-size:12.5px}
 .frow>button:focus-visible{outline:2px solid var(--fg)}.frow .chev{width:12px;color:var(--muted)}.frow .sym{flex:1;min-width:0;overflow-wrap:anywhere}.frow .val{color:var(--muted)}
 .frow.open>button{background:var(--sel);color:var(--selfg)}.frow.open>button .val,.frow.open>button .chev{color:var(--selfg)}
-.fbody{padding:8px 4px 14px}
+.fbody{padding:8px 4px 14px 14px;border-left:3px solid var(--fg);margin-left:2px}
+#formulas .frow.open>button{background:var(--soft);color:var(--fg);font-weight:600}#formulas .frow.open>button .chev{color:var(--fg)}#formulas .frow.open>button .val{color:var(--muted)}
+#formulas .eq{padding:0}#formulas .katex-display{margin:4px 0}#formulas .katex-display>.katex{text-align:left;font-size:1.15em}
+#formulas .fbody table{width:auto;max-width:100%;margin-top:10px;font-size:12.5px}#formulas .fbody td,#formulas .fbody th{padding:4px 14px 4px 0}#formulas .fbody td:first-child{white-space:nowrap}
 @media (max-width:820px){.pg{grid-template-columns:1fr;grid-template-areas:"ins" "stages" "fms"}.ins{position:static;max-height:none;overflow:visible}}
 .fgrid{display:grid;grid-template-columns:minmax(0,1fr) 16px minmax(0,1fr) 16px minmax(0,1fr) 16px minmax(0,1fr) 16px minmax(0,1fr);gap:4px;width:100%;align-items:stretch}
 .farrow{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:16px}.fvert{grid-column:5;text-align:center;color:var(--muted);font-size:16px;line-height:1}
