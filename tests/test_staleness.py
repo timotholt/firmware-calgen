@@ -38,7 +38,7 @@ def test_changing_switching_frequency_makes_gains_stale(tmp_path):
 
 def test_reapproval_by_updating_designed_against(tmp_path):
     v = variant_with(tmp_path, "{value: 20, unit: kHz, note: inverter", "{value: 25, unit: kHz, note: inverter")
-    text = v.path.read_text().replace("designed_against: {design.f_sw: 20 kHz}", "designed_against: {design.f_sw: 25 kHz}")
+    text = v.path.read_text().replace("designed_against: {actual.f_sw: 20 kHz}", "designed_against: {actual.f_sw: 25 kHz}")
     v.path.write_text(text)
     b = build(load_variant(v.path), RULES)
     assert all(s.status == OK for s in b.staleness) and b.ok

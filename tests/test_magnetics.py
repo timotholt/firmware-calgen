@@ -146,10 +146,10 @@ def test_playground_requirements_and_known_sizing_outcomes():
     # output filter: peak = max(3:1 crest load at rated = 37.5 A, sine overload 21.2 A) + ripple/2, heating at rated;
     # 410 V bus -> half-bridge (0.95 x 205 V = 194.75 V > 175 V peak)
     assert out["i_pk"] == pytest.approx(3 * 12.5 + 0.15 * 2 ** 0.5 * 12.5) and out["i_rms"] == pytest.approx(12.5)
-    assert out["l_uh"] == pytest.approx(410 / (4 * 20e3 * 0.3 * 2 ** 0.5 * 12.5) * 1e6) and "half-bridge" in out["basis"]
-    # 210 V bus: half of it (105 V) can't reach a 175 V output peak, so a unipolar full bridge, L = V_bus / (8 f_sw dI)
+    assert out["l_uh"] == pytest.approx(410 / (4 * 20e3 * 0.3 * 2 ** 0.5 * 12.5) * 1e6) and "Half bridge · bipolar PWM" in out["basis"]
+    # FA10434 explicitly declares a full bridge with unipolar PWM: L = V_bus / (8 f_sw dI)
     small = run(specs, "FA10434")["inductors"]["out"]
-    assert small["l_uh"] == pytest.approx(210 / (8 * 20e3 * 0.3 * 2 ** 0.5 * 800 / 120) * 1e6) and "full bridge" in small["basis"]
+    assert small["l_uh"] == pytest.approx(210 / (8 * 20e3 * 0.3 * 2 ** 0.5 * 800 / 120) * 1e6) and "Full bridge · unipolar PWM" in small["basis"]
     assert out["min_retained"] == 0.8 and pfc["min_retained"] == 0.5
     big = mg.size_inductor(CORES, LIMITS, pfc["l_uh"], pfc["i_rms"], pfc["i_pk"], pfc["min_retained"])
     assert [(c["core"], c["stack"]) for c in big["candidates"]] == [("0077908A7", 4)]
@@ -304,3 +304,25 @@ def test_sizer_reports_wire_catalog_limit_without_crashing():
     result = mg.size_inductor(CORES, LIMITS, 1, 200, 201)
     assert result['candidates'] == []
     assert 'Wire catalog insufficient' in result['error']
+
+
+@pytest.mark.parametrize('application', ['dc_bias', 'pfc', 'ac_output'])
+def test_sizing_scope_follows_application_without_claiming_validation(application):
+    import json
+    result = json.loads(mg.size_json(str(ROOT / 'specs'), json.dumps(dict(l_uh=330, i_rms=4, i_pk=4.5, application=application))))
+    assert result['candidates']
+    assert 'not a validated design' in result['scope']['verdict']
+    assert 'not guaranteed' in result['scope']['curve']
+    assert 'temperature rise are not evaluated' in result['scope']['remaining']
+    assert ('large AC excitation' in result['scope']['remaining']) == (application == 'ac_output')
+    for candidate in result['candidates']:
+        curve = candidate['fig']['curve']
+        assert 'adjusted estimate (not guaranteed)' in curve
+        assert 'curve between those points is not guaranteed' in curve
+        assert 'conservative' not in curve
+
+
+def test_records_keep_modeled_pass_separate_from_loss_and_thermal_validation():
+    for record in mg.site_records(ROOT)['records']:
+        assert 'Modeled checks only' in record['scope']
+        assert 'temperature rise are not evaluated' in record['scope']

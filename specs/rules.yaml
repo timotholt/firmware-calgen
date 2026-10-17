@@ -42,6 +42,7 @@ symbols:
   target.dac_div: 'D_{\text{DAC}}'
   design.crest_factor: 'CF'
   design.m_max: 'm_{\max}'
+  inverter.output_factor: 'k_{\text{bridge}}'
   target.f_pwmclk: 'f_{\text{clk}}'
   design.f_sw: 'f_{\text{sw}}'
   design.t_deadband: 't_{\text{DB}}'
@@ -401,9 +402,9 @@ checks:
     describe: The output peak at the top of the regulation band must fit under the bus at the inverter's maximum modulation index (room for modulation limits, dead time and device drop)
     lhs: sqrt(2) * vout_hi
     op: "<="
-    rhs: design.m_max * vbus_set
+    rhs: design.m_max * vbus_set * inverter.output_factor
     block: bus
-    fix: "Raise the DC bus margin, or lower the output voltage or its regulation band."
+    fix: "The declared inverter topology is fixed. Raise the DC bus margin, or lower the output voltage or its regulation band; changing the bridge requires an engineer-reviewed hardware profile."
 
   - id: bus_sense_range
     describe: Bus setpoint must sit inside the bus sensor's range with headroom

@@ -124,6 +124,9 @@ def _symbols(variant: Variant) -> tuple[dict[str, Quantity], dict[str, str], dic
     for kind, ps in (("board", variant.board), ("target", variant.target), ("design", variant.design)):
         for p in ps.params.values():
             add(kind, p, p.source, p.note)
+    factor = Param("output_factor", float(variant.inverter.output_factor), "ratio",
+                   f"inverter {variant.path.name}", variant.inverter.label)
+    add("inverter", factor, factor.source, factor.note)
     return numeric, text, sources
 
 def _resolve_format(rule: Rule, variant: Variant) -> str:
@@ -170,12 +173,17 @@ def build(variant: Variant, rules: Rules) -> Build:
             env[rule.id] = Quantity(r.encoded.stored * scale, dim)
             sources[rule.id] = Source(rule.id, env[rule.id], rule.unit, "constant")
 
+    # The timer's encoded period determines the frequency the hardware actually produces.
+    if "pwm_period" in env and "target.f_pwmclk" in env:
+        env["actual.f_sw"] = Quantity(env["target.f_pwmclk"].value / (2 * env["pwm_period"].value), env["target.f_pwmclk"].dim)
     checks = [_check(c, env) for c in rules.checks]
     findings = _classify(check_datasheet(variant.datasheet), _consumed_ds_fields(rules), variant)
     stale = _staleness(variant, env)
     h = hashlib.sha256(variant.digest().encode())
     h.update(rules.path.read_bytes())
     units = {n: src.unit for n, src in sources.items() if src.unit}
+    if "actual.f_sw" in env:
+        units["actual.f_sw"] = "Hz"
     units.update({r.rule.id: r.rule.unit for r in results if r.status == OK and r.rule.kind == "numeric"})
     return Build(variant, rules, results, checks, h.hexdigest(), findings, stale, dict(env), units)
 

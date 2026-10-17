@@ -236,7 +236,7 @@
     var ind = (DATA.inductors || {})[b];
     if (ind) {
       var q = "name=" + encodeURIComponent(ind.name) + "&l=" + ind.l_uh + "&irms=" + ind.i_rms + "&ipk=" + ind.i_pk +
-        "&ret=" + ind.min_retained + "&from=" + encodeURIComponent(state.product) + "&basis=" + encodeURIComponent(ind.basis);
+        "&application=" + ind.application + "&ret=" + ind.min_retained + "&from=" + encodeURIComponent(state.product) + "&basis=" + encodeURIComponent(ind.basis);
       summary += '<div class="indlink" title="' + esc(ind.basis) + '">' + esc(ind.name) + " ≈ " + ind.l_uh.toFixed(0) + " µH, " + ind.i_rms.toFixed(1) + " A RMS, " +
         ind.i_pk.toFixed(1) + ' A peak · <a href="magnetics.html#size?' + q + '" class="sizelink">size it in Magnetics →</a></div>';
     }
@@ -352,7 +352,7 @@
     ];
     var np = showReasons ? allProblems() : 0;
     var notOk = pills.filter(function (p) { return p[0] !== "ok"; });
-    var shownPills = notOk.length === pills.length ? pills : [["ok", "All gates pass ✓"]].concat(notOk);
+    var shownPills = notOk.length === pills.length ? pills : [["ok", "Modeled checks pass ✓"]].concat(notOk);
     if (pills.slice(0, 5).some(function (p) { return p[0] === "bad"; })) shownPills = pills;
     $("gates").innerHTML = shownPills.map(function (p) { return '<span class="pill ' + p[0] + '">' + esc(p[1]) + "</span>"; }).join("") +
       (np ? '<button type="button" class="pill bad probpill" id="probjump">' + np + " problem" + (np === 1 ? "" : "s") + " · see why</button>" : "");

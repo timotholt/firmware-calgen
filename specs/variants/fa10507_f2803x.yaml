@@ -3,6 +3,8 @@ description: FA10507 (1500 VA) on control board rev A, legacy F2803x-class targe
 datasheet: ../datasheets/fa10507.csv
 board: ../boards/ups_ctrl_revA.yaml
 target: ../targets/f2803x.yaml
+# Invented hardware/modulation contract; specification edits do not change it.
+inverter: {topology: half_bridge, pwm: bipolar}
 design:
   f_sw:              {value: 20, unit: kHz, note: inverter switching frequency (power engineering choice)}
   t_deadband:        {value: 1, unit: us, note: gate-drive dead time for an IGBT bridge (power engineering choice)}
@@ -14,5 +16,5 @@ design:
   crest_factor:      {value: 3, unit: ratio, note: "peak / RMS of a rated computer-type (capacitor-input rectifier) load; 3:1 is the usual UPS rating, assumed"}
   m_max:             {value: 95, unit: "%", note: "maximum inverter modulation index (room for dead time and device drop), assumed"}
   overload_delay:    {value: 30, unit: s, note: "time at the RMS trip level before the overload action; invented, the data sheet gives none"}
-  vloop_kp:          {value: 0.8, unit: ratio, note: "voltage-loop proportional gain (engineer-tuned, invented)", designed_against: {design.f_sw: 20 kHz}}
-  vloop_ki:          {value: 0.015, unit: ratio, note: "voltage-loop integral gain per ISR (engineer-tuned, invented)", designed_against: {design.f_sw: 20 kHz}}
+  vloop_kp:          {value: 0.8, unit: ratio, note: "voltage-loop proportional gain (engineer-tuned, invented)", designed_against: {actual.f_sw: 20 kHz}}
+  vloop_ki:          {value: 0.015, unit: ratio, note: "voltage-loop integral gain per ISR (engineer-tuned, invented)", designed_against: {actual.f_sw: 20 kHz}}

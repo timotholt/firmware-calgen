@@ -5,7 +5,9 @@
  *           ratings from DS-10449 Rev.09172021 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f28004x (default format float32)
- * inputs  : sha256 b786b5ae7d19c2899561c4794a8564f70d61046a1531515179bc4c4f3319d647
+ * inverter: Full bridge - unipolar PWM (assumed hardware profile)
+ * PWM Hz  : requested 20000; achieved 20000
+ * inputs  : sha256 2fdea375afaa06d363119dc4dcabc1ff692e64196a9106f73f0554fbb0c8c9d1
  *
  * SYNTHETIC DEMO: firmware names and circuit values are invented; product ratings
  * come from the public data sheet cited above. Not from any vendor SDK.
@@ -201,14 +203,14 @@ typedef float calgen_num_t;  /* float target */
  * = design.vloop_kp
  *   design.vloop_kp = 0.8  [design fa10449.yaml]
  *   engineer-supplied value, carried through unchanged */
-/*   designed against: design.f_sw = 20 kHz (staleness-tracked) */
+/*   designed against: actual.f_sw = 20 kHz (staleness-tracked) */
 #define UPS_VLOOP_KP               0.8f           /* 0.8 */
 
 /* Voltage-loop integral gain per control ISR (tuned by power engineering)
  * = design.vloop_ki
  *   design.vloop_ki = 0.015  [design fa10449.yaml]
  *   engineer-supplied value, carried through unchanged */
-/*   designed against: design.f_sw = 20 kHz (staleness-tracked) */
+/*   designed against: actual.f_sw = 20 kHz (staleness-tracked) */
 #define UPS_VLOOP_KI               0.015f         /* 0.015 */
 
 #endif /* CALGEN_FA10449_H */

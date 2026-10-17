@@ -5,7 +5,9 @@
  *           ratings from DS-10434 Rev.09172021 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f28004x (default format float32)
- * inputs  : sha256 0fd908e8588572c5568fc19d0a01b286952b3be17287de264f815d6eb880a307
+ * inverter: Full bridge - unipolar PWM (assumed hardware profile)
+ * PWM Hz  : requested 20000; achieved 20000
+ * inputs  : sha256 3ac98ba0e7a679f7a6252a4cf1f506ff494d1b9d44e9c3c856ab5b2ae8c0b290
  *
  * OVERRIDE ds.iin_max: DS-10434 Rev.09172021 prints "7.4 Amps @90VAC Input,
  *   560W Output" in the Input Frequency row and "50 or 60 Hz" in the Input Max
@@ -217,14 +219,14 @@ typedef float calgen_num_t;  /* float target */
  * = design.vloop_kp
  *   design.vloop_kp = 0.8  [design fa10434.yaml]
  *   engineer-supplied value, carried through unchanged */
-/*   designed against: design.f_sw = 20 kHz (staleness-tracked) */
+/*   designed against: actual.f_sw = 20 kHz (staleness-tracked) */
 #define UPS_VLOOP_KP               0.8f           /* 0.8 */
 
 /* Voltage-loop integral gain per control ISR (tuned by power engineering)
  * = design.vloop_ki
  *   design.vloop_ki = 0.015  [design fa10434.yaml]
  *   engineer-supplied value, carried through unchanged */
-/*   designed against: design.f_sw = 20 kHz (staleness-tracked) */
+/*   designed against: actual.f_sw = 20 kHz (staleness-tracked) */
 #define UPS_VLOOP_KI               0.015f         /* 0.015 */
 
 #endif /* CALGEN_FA10434_H */

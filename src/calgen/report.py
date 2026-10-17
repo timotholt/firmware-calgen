@@ -125,7 +125,7 @@ def render_report(b: Build, previous_header: str = "", katex_path: str = "assets
         ("ok" if not k_fail else "bad", f"Checks {'pass' if not k_fail else f'{k_fail} failed'}"),
         ("bad" if d_block else ("warn" if d_flag else "ok"), f"Data sheet {'blocking' if d_block else (f'{d_flag} for review' if d_flag else 'consistent')}"),
         ("ok" if not st_fail else "bad", f"Staleness {'current' if not st_fail else f'{st_fail} stale'}"),
-        ("ok" if b.ok else "bad", "Generated" if b.ok else "Nothing written (fail closed)"),
+        ("ok" if b.ok else "bad", "C generated · modeled checks passed" if b.ok else "Nothing written (fail closed)"),
     ]
     try:
         c_text = header(b)

@@ -27,7 +27,7 @@ def test_header_is_deterministic_and_ascii():
 def test_header_cites_datasheet_quotes():
     h = header(b("fa10507"))
     assert 'DS-10507 Rev.101119 p2: "Shutdown at 20% Overload"' in h
-    assert "designed against: design.f_sw = 20 kHz (staleness-tracked)" in h
+    assert "designed against: actual.f_sw = 20 kHz (staleness-tracked)" in h
 
 
 def test_header_shows_override_reason():

@@ -211,11 +211,16 @@ def summaries(b: Build) -> dict[str, str]:
     action = val["overload_action"].enum_ident.split("_")[-1].lower() if val["overload_action"].enum_ident else "?"
     trip_pct = g("ds.overload_trip_pct", "%")
     chem = str(ds["batt_type"].value).replace("lifepo4", "LiFePO4") if "batt_type" in ds else ""
+    requested = g("design.f_sw", "kHz")
+    achieved = g("actual.f_sw", "kHz")
+    pwm = f"PWM {achieved:.6g} kHz" if achieved else "PWM unavailable"
+    if requested and achieved and abs(requested - achieved) > 1e-9 * requested:
+        pwm = f"PWM requested {requested:.9g} kHz → achieved {achieved:.9g} kHz"
     return {
         "in": f"{v('vin_min')}–{v('vin_max')} V AC 1φ* · {freq} · ≤ {v('iin_limit', '{:.1f}')} A",
         "rect": f"Boost PFC · bus ≥ √2 × {v('vin_max')} V = {v('vbus_min', '{:.4g}')} V",
         "bus": f"{v('vbus_set')} V DC setpoint · sensor full scale {v('vbus_fs', '{:.4g}')} V",
-        "inv": f"{v('vout_set')} V AC ±{g('ds.vout_tol_pct', '%') or 0:g}% · {v('fout_hz')} Hz {mode} · PWM {g('design.f_sw', 'kHz') or 0:g} kHz",
+        "inv": f"{v('vout_set')} V AC ±{g('ds.vout_tol_pct', '%') or 0:g}% · {v('fout_hz')} Hz {mode} · {b.variant.inverter.label} (assumed) · {pwm}",
         "out": f"{g('ds.power_va', 'VA') or 0:g} VA · {v('iout_rated', '2dp')} A rated · overload {v('iout_trip', '2dp')} A RMS ({trip_pct or 0:g}%) for {(g('design.overload_delay', 's') or 0):g} s → {action} · peak limit {v('iout_pk_limit', '2dp')} A",
         "sense": _sense_line(val, g("design.sense_headroom", "%")),
         "batt": f"{v('vbat_nom', '{:.4g}')} V {chem} · cutoff {v('vbat_cutoff', '{:.4g}')} V",
@@ -297,32 +302,33 @@ def inductor_requirements(b: Build) -> dict[str, dict]:
     import math
 
     val = {c.rule.id: c.value for c in b.constants if c.value is not None}
-    f = b.env.get("design.f_sw")
+    f = b.env.get("actual.f_sw")
     if f is None or "vbus_set" not in val:
         return {}
     import yaml
 
     limits = yaml.safe_load((b.variant.path.parent.parent / "magnetics" / "limits.yaml").read_text(encoding="utf-8"))
     f_sw, vbus, r = f.value, val["vbus_set"], limits["ripple_fraction"]
-    shared = "PFC and inverter assumed to share design.f_sw"
+    shared = "PFC and inverter assumed to share achieved PWM frequency from the timer period"
     out = {}
     if "iin_limit" in val:
         i_rms = val["iin_limit"]
         di = r * math.sqrt(2) * i_rms
-        out["rect"] = {"name": "PFC boost inductor", "l_uh": vbus / (4 * f_sw * di) * 1e6, "i_rms": i_rms,
+        out["rect"] = {"name": "PFC boost inductor", "application": "pfc", "l_uh": vbus / (4 * f_sw * di) * 1e6, "i_rms": i_rms,
                        "i_pk": math.sqrt(2) * i_rms + di / 2, "min_retained": 0.5,
                        "basis": f"L = V_bus / (4 f_sw ΔI), ΔI = {r:g} × line peak at the data sheet's max input current; boost, worst case at V_in = V_bus/2; {shared}; "
                                 "keeps ≥ 50% at peak, common for PFC, so a drawing of it would fail the 80% drawing check"}
     if all(k in val for k in ("iout_trip", "iout_rated", "iout_pk_limit", "vout_hi")):
         di = r * math.sqrt(2) * val["iout_rated"]
-        # A half-bridge swings ±V_bus/2, so it can only serve outputs whose peak fits under half the bus;
-        # otherwise a full bridge (unipolar PWM: ripple at 2 f_sw, worst case V_bus / (8 f_sw L)).
-        m = b.env["design.m_max"].value if "design.m_max" in b.env else 1.0
-        cf = b.env["design.crest_factor"].value if "design.crest_factor" in b.env else math.sqrt(2)
-        half = m * vbus / 2 >= math.sqrt(2) * val["vout_hi"]
-        k, topo = (4, f"half-bridge ({m:g} × V_bus/2 clears the output peak)") if half else (8, f"unipolar full bridge ({m:g} × V_bus/2 can't reach the output peak; ripple at 2 f_sw)")
+        # Hardware and PWM mode come from the declared profile, never from voltage headroom.
+        cf = b.env["design.crest_factor"].value
+        k = b.variant.inverter.ripple_divisor
+        topo = b.variant.inverter.label
+        compatible = next(c.status == OK for c in b.checks if c.check.id == "bus_above_output_peak")
+        if not compatible:
+            return out  # incompatible hardware must not issue an output-filter requirement
         load_pk = max(cf * val["iout_rated"], math.sqrt(2) * val["iout_trip"])  # the inductor carries the load's current peaks
-        out["out"] = {"name": "Output filter inductor", "l_uh": vbus / (k * f_sw * di) * 1e6, "i_rms": val["iout_rated"],
+        out["out"] = {"name": "Output filter inductor", "application": "ac_output", "l_uh": vbus / (k * f_sw * di) * 1e6, "i_rms": val["iout_rated"],
                       "i_pk": load_pk + di / 2, "min_retained": 0.8,
                       "basis": f"L = V_bus / ({k} f_sw ΔI), ΔI = {r:g} × rated peak; {topo}; "
                                f"peak = the larger of a rated {cf:g}:1 crest-factor load ({cf * val['iout_rated']:.1f} A) and a sinusoidal {val['iout_trip']:.1f} A RMS overload ({math.sqrt(2) * val['iout_trip']:.1f} A), plus ripple; RMS (heating) at rated; "

@@ -5,7 +5,9 @@
  *           ratings from DS-10507 Rev.101119 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f28004x (default format float32)
- * inputs  : sha256 c70fb347388a8e8ca2c66dc4c7c734d49228b4775b85eecaa23862750851a9fb
+ * inverter: Half bridge - bipolar PWM (assumed hardware profile)
+ * PWM Hz  : requested 20000; achieved 20000
+ * inputs  : sha256 20528ba036c6be2fa6c45e6714e3320bbc5be717bdf227223098bdc8a9650559
  *
  * SYNTHETIC DEMO: firmware names and circuit values are invented; product ratings
  * come from the public data sheet cited above. Not from any vendor SDK.
@@ -200,14 +202,14 @@ typedef float calgen_num_t;  /* float target */
  * = design.vloop_kp
  *   design.vloop_kp = 0.8  [design fa10507.yaml]
  *   engineer-supplied value, carried through unchanged */
-/*   designed against: design.f_sw = 20 kHz (staleness-tracked) */
+/*   designed against: actual.f_sw = 20 kHz (staleness-tracked) */
 #define UPS_VLOOP_KP               0.8f           /* 0.8 */
 
 /* Voltage-loop integral gain per control ISR (tuned by power engineering)
  * = design.vloop_ki
  *   design.vloop_ki = 0.015  [design fa10507.yaml]
  *   engineer-supplied value, carried through unchanged */
-/*   designed against: design.f_sw = 20 kHz (staleness-tracked) */
+/*   designed against: actual.f_sw = 20 kHz (staleness-tracked) */
 #define UPS_VLOOP_KI               0.015f         /* 0.015 */
 
 #endif /* CALGEN_FA10507_H */

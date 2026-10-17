@@ -121,6 +121,30 @@ class Rules:
 
 
 @dataclass(frozen=True)
+class Inverter:
+    """Declared hardware and modulation; never inferred from the requested voltage."""
+
+    topology: str
+    pwm: str
+
+    def __post_init__(self):
+        if (self.topology, self.pwm) not in (("half_bridge", "bipolar"), ("full_bridge", "unipolar")):
+            raise ValueError("Unsupported inverter topology/PWM pair")
+
+    @property
+    def output_factor(self) -> float:
+        return 0.5 if self.topology == "half_bridge" else 1.0
+
+    @property
+    def ripple_divisor(self) -> int:
+        return 4 if self.topology == "half_bridge" else 8
+
+    @property
+    def label(self) -> str:
+        return "Half bridge · bipolar PWM" if self.topology == "half_bridge" else "Full bridge · unipolar PWM"
+
+
+@dataclass(frozen=True)
 class Variant:
     name: str
     path: Path
@@ -128,6 +152,7 @@ class Variant:
     board: ParamSet
     target: ParamSet
     design: ParamSet
+    inverter: Inverter
     overrides: dict[str, Param] = field(default_factory=dict)  # reviewer-visible data sheet waivers
 
     def digest(self) -> str:
@@ -261,6 +286,11 @@ def load_variant(path: str | Path) -> Variant:
     issues = [f"missing '{k}'" for k in ("variant", "datasheet", "board", "target") if k not in data]
     if issues:
         raise SpecError(str(path), issues)
+    config = data.get("inverter")
+    supported = (("half_bridge", "bipolar"), ("full_bridge", "unipolar"))
+    if not isinstance(config, dict) or (config.get("topology"), config.get("pwm")) not in supported:
+        raise SpecError(str(path), ["inverter must declare a supported topology/PWM pair: half_bridge/bipolar or full_bridge/unipolar"])
+    inverter = Inverter(config["topology"], config["pwm"])
     base = path.parent
     design_data = data.get("design", {})
     design_issues: list[str] = []
@@ -297,6 +327,7 @@ def load_variant(path: str | Path) -> Variant:
         board=load_paramset(base / data["board"], "board"),
         target=load_paramset(base / data["target"], "target"),
         design=design,
+        inverter=inverter,
         overrides=overrides,
     )
 

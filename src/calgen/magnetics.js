@@ -82,8 +82,8 @@
     var ran = r.checks.filter(function (c) { return c.status !== "n/a"; }).length, nm = r.checks.length - ran;
     var verdict = bad.length
       ? '<p class="verdict bad"><b>Needs review:</b> ' + bad.map(function (c) { return esc(FAIL_TEXT[c.id] || c.title); }).join("; ") + ". The evidence tab on the right is opened to show why.</p>"
-      : '<p class="verdict ok"><b>Passes all ' + ran + " checks" + (nm ? "</b> (" + nm + " not modelled, listed below)." : ".</b>") + "</p>";
-    var left = "<h3>" + esc(r.id) + " · " + esc(r.title) + "</h3>" + verdict +
+      : '<p class="verdict ok"><b>Passes ' + ran + " modeled checks" + (nm ? "</b> (" + nm + " not modelled, listed below)." : ".</b>") + "</p>";
+    var left = "<h3>" + esc(r.id) + " · " + esc(r.title) + "</h3>" + verdict + '<p class="sub">' + esc(r.scope) + "</p>" +
       '<h4>Extracted from the PDF</h4><table class="mfields"><tr><th>Field</th><th>Value</th><th>Text it came from</th></tr>' +
       fields.map(function (f) { return "<tr><td>" + esc(f[0]) + "</td><td>" + esc(f[1]) + '</td><td class="mono sub">' + esc(r.source[f[2]] || "") + "</td></tr>"; }).join("") + "</table>" +
       "<h4>Physics checks</h4>" + r.checks.map(function (c) {
@@ -104,10 +104,10 @@
   }
 
   // ---- sizing (runs calgen.magnetics in Pyodide) ----------------------------------------
-  var engine = null, open = 0, lastReq = null, sztab = "curve";
+  var engine = null, open = 0, lastReq = null, sztab = "curve", application = "dc_bias";
   function sizeNow() {
     if (!engine) return;
-    var req = { l_uh: num("sz-l"), i_rms: num("sz-irms"), i_pk: num("sz-ipk"), min_retained: parseFloat($("sz-ret").value),
+    var req = { l_uh: num("sz-l"), i_rms: num("sz-irms"), i_pk: num("sz-ipk"), min_retained: parseFloat($("sz-ret").value), application: application,
       past: DATA.records.filter(function (r) { return !r.flagged; }).map(function (r) { return { id: r.id, kind: r.kind, l_uh: r.l_uh, i_a: r.i_a }; }) };
     if (!(req.l_uh > 0 && req.i_rms > 0 && req.i_pk > 0)) { $("sz-out").innerHTML = '<p class="alert bad">Enter a positive inductance, RMS current, and peak current.</p>'; return; }
     if (req.i_pk < req.i_rms) { $("sz-out").innerHTML = '<p class="alert bad" role="alert">Peak current must be at least the RMS current.</p>'; return; }
@@ -120,17 +120,17 @@
     }
   }
   function renderSizing(res) {
-    var c = res.candidates, h = "";
+    var c = res.candidates, h = '<p class="sub"><b>' + esc(res.scope.verdict) + '</b><br>' + esc(res.scope.remaining) + '</p><details class="sub"><summary>Curve basis</summary><p>' + esc(res.scope.curve) + '</p></details>';
     if (res.error) {
       $("sz-out").innerHTML = '<p class="alert bad" role="alert">' + esc(res.error) + '</p>';
       return;
     }
     if (!c.length) {
-      h += '<p class="alert bad">No core in this catalog meets it, even stacked four high. That is an honest answer: the requirement needs a larger core family (for example powder E cores) or a different design approach.</p>';
+      h += '<p class="alert bad">No candidate found within this catalog and the screening assumptions, even stacked four high. Review a larger core family or the design requirements.</p>';
     } else {
-      h += '<p class="sub">' + c.length + " candidate" + (c.length === 1 ? "" : "s") + ", smallest core volume first. Click a row to see its math and evidence below.</p>";
+      h += '<p class="sub">' + c.length + " screening candidate" + (c.length === 1 ? "" : "s") + ", smallest core volume first. Click a row to see its math and evidence below.</p>";
       if (c.some(function (x) { return x.retained < 0.8; })) h += '<p class="alert na">Candidates marked <span class="pill na">below 80%</span> keep less than 80% of their inductance at peak current. That is common for PFC inductors, but a drawing of one would be flagged by the drawing check below, which requires 80%.</p>';
-      h += '<table class="szt"><tr><th>Core</th><th>Stack · core height</th><th>Turns</th><th>Wire</th><th>L at 0 A (min A<sub>L</sub>)</th><th>L at peak</th><th>L kept at peak</th><th>J (RMS)</th><th>Fill</th><th>Core volume</th></tr>' +
+      h += '<table class="szt"><tr><th>Core</th><th>Stack · core height</th><th>Turns</th><th>Wire</th><th>L at 0 A (min A<sub>L</sub>)</th><th>L at peak (est.)</th><th>L kept at peak</th><th>J (RMS)</th><th>Fill</th><th>Core volume</th></tr>' +
         c.map(function (x, i) {
           var row = '<tr class="cand' + (open === i ? " on" : "") + '" data-i="' + i + '" tabindex="0"><td class="mono">' + esc(x.core) + "</td><td>×" + x.stack + " · " + x.height_mm.toFixed(0) + " mm</td><td>" + x.turns + "</td><td>" + x.strands + " × " + x.awg + " AWG</td><td>" +
             fmtL(x.l0_uh) + "</td><td><b>" + fmtL(x.l_pk_uh) + "</b></td><td>" + Math.round(x.retained * 100) + "%" + (x.retained < 0.8 ? ' <span class="pill na">below 80%</span>' : "") + "</td><td>" + x.j.toFixed(2) + " A/mm²</td><td>" + Math.round(x.fill * 100) + "%</td><td>" + (x.core_volume_mm3 / 1000).toFixed(1) + " cm³</td></tr>";
@@ -162,6 +162,7 @@
     var q = {}; m[1].split("&").forEach(function (kv) { var p = kv.split("="); q[p[0]] = decodeURIComponent(p[1] || ""); });
     if (q.l) $("sz-l").value = q.l; if (q.irms) $("sz-irms").value = q.irms; if (q.ipk) $("sz-ipk").value = q.ipk;
     if (q.ret) $("sz-ret").value = q.ret;
+    application = q.application || "dc_bias";
     if (q.name) $("sz-from").innerHTML = "Requirement from the firmware playground: <b>" + esc(q.name) + "</b>" + (q.from ? " for " + esc(q.from) : "") + (q.basis ? ' <span title="' + esc(q.basis) + '">(first-pass estimate; hover for the basis)</span>' : "");
     return true;
   }

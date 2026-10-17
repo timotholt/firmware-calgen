@@ -153,3 +153,43 @@ def test_diff_always_starts_from_shipped_header(kwargs):
     assert result['ok'] and result['changed']
     expected = '\n'.join(difflib.unified_diff(shipped['header'].splitlines(), result['header'].splitlines(), 'baseline', 'edited', lineterm=''))
     assert result['diff'] == expected and expected
+
+
+@pytest.mark.parametrize('product,label', [('FA10507', 'Half bridge · bipolar PWM'), ('FA10449', 'Full bridge · unipolar PWM'), ('FA10434', 'Full bridge · unipolar PWM')])
+def test_declared_topology_stays_fixed_under_voltage_edits(product, label):
+    shipped = run(SPECS, product)
+    assert shipped['ok'] and label in shipped['summaries']['inv']
+    edited = run(SPECS, product, edits={'ds.vout_nom': 240})
+    assert label in edited['summaries']['inv']
+    if product == 'FA10507':
+        assert not edited['ok'] and not edited['header']
+        assert next(c for c in edited['checks'] if c['id'] == 'bus_above_output_peak')['status'] == 'fail'
+        assert 'out' not in edited['inductors']
+        assert 'declared inverter topology is fixed' in edited['gate_message'] or 'declared inverter topology is fixed' in next(c for c in edited['checks'] if c['id'] == 'bus_above_output_peak')['fix']
+
+
+@pytest.mark.parametrize('target,clock', [('f28004x', 100e6), ('f2803x', 60e6)])
+def test_sizing_and_staleness_use_realized_pwm_frequency(target, clock):
+    import math
+    requested = 20.003  # kHz; deliberately not representable by an integer timer period
+    result = run(SPECS, target=target, edits={'design.f_sw': requested})
+    achieved = clock / (2 * round(clock / (2 * requested * 1000)))
+    expected = 410 / (4 * achieved * .3 * math.sqrt(2) * 20) * 1e6
+    assert result['inductors']['rect']['l_uh'] == pytest.approx(expected)
+    assert 'requested 20.003 kHz → achieved' in result['summaries']['inv']
+    # Here both clocks round to the original 20 kHz. A changed request alone does not invalidate gains.
+    assert achieved == 20000 and result['ok']
+    changed = run(SPECS, target=target, edits={'design.f_sw': 23})
+    assert not changed['ok']
+    assert all(s['against'] == 'actual.f_sw' and s['status'] == 'fail' for s in changed['staleness'])
+
+
+@pytest.mark.parametrize('target,clock', [('f28004x', 100e6), ('f2803x', 60e6)])
+def test_nonrepresentable_frequency_updates_both_inductor_requirements(target, clock):
+    import math
+    result = run(SPECS, target=target, edits={'design.f_sw': 23})
+    achieved = clock / (2 * round(clock / 46000))
+    assert achieved != 23000
+    for stage, current in [('rect', 20), ('out', 12.5)]:
+        assert result['inductors'][stage]['l_uh'] == pytest.approx(410 / (4 * achieved * .3 * math.sqrt(2) * current) * 1e6)
+    assert all(s['current'] != '23 kHz' for s in result['staleness'])

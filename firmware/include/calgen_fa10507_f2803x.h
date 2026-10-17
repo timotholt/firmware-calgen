@@ -5,7 +5,9 @@
  *           ratings from DS-10507 Rev.101119 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f2803x (default format iq20)
- * inputs  : sha256 464aeeb7cccc1e2f01004cefad5c64310099dde6549002b151cff5cffa71eeba
+ * inverter: Half bridge - bipolar PWM (assumed hardware profile)
+ * PWM Hz  : requested 20000; achieved 20000
+ * inputs  : sha256 db6f7e68a5fcdc7978c67e30e943222cdc1fce4736583bf9c9cfc424feeef497
  *
  * SYNTHETIC DEMO: firmware names and circuit values are invented; product ratings
  * come from the public data sheet cited above. Not from any vendor SDK.
@@ -201,14 +203,14 @@ typedef calgen_iq_t calgen_num_t;  /* measurements are compared as IQ20 integers
  * = design.vloop_kp
  *   design.vloop_kp = 0.8  [design fa10507_f2803x.yaml]
  *   engineer-supplied value, carried through unchanged */
-/*   designed against: design.f_sw = 20 kHz (staleness-tracked) */
+/*   designed against: actual.f_sw = 20 kHz (staleness-tracked) */
 #define UPS_VLOOP_KP               838861L        /* 0.8, iq20, err 2.4e-05% */
 
 /* Voltage-loop integral gain per control ISR (tuned by power engineering)
  * = design.vloop_ki
  *   design.vloop_ki = 0.015  [design fa10507_f2803x.yaml]
  *   engineer-supplied value, carried through unchanged */
-/*   designed against: design.f_sw = 20 kHz (staleness-tracked) */
+/*   designed against: actual.f_sw = 20 kHz (staleness-tracked) */
 #define UPS_VLOOP_KI               15729L         /* 0.0150003, iq20, err 0.0023% */
 
 #endif /* CALGEN_FA10507_F2803X_H */

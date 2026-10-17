@@ -126,6 +126,8 @@ def header(build: Build) -> str:
         f" *           ratings from {ascii_text(ref)} (public IntelliPower data sheet)",
         f" * board   : {ascii_text(v.board.name)} rev {ascii_text(str(v.board.extra.get('rev', '?')))}",
         f" * target  : {ascii_text(v.target.name)} (default format {v.target.extra.get('default_format', 'float32')})",
+        f" * inverter: {ascii_text(v.inverter.label)} (assumed hardware profile)",
+        f" * PWM Hz  : requested {build.env['design.f_sw'].value:.9g}; achieved {build.env['actual.f_sw'].value:.9g}",
         f" * inputs  : sha256 {build.digest}",
     ]
     if v.overrides:

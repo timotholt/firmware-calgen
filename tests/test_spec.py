@@ -114,6 +114,7 @@ def test_variant_resolves_relative_paths(tmp_path):
         "variants/v.yaml",
         """
         variant: v1
+        inverter: {topology: full_bridge, pwm: unipolar}
         datasheet: ../datasheets/d.csv
         board: ../b.yaml
         target: ../t.yaml
@@ -126,3 +127,10 @@ def test_variant_resolves_relative_paths(tmp_path):
     assert var.datasheet.part == "P1"
     assert var.design.params["kp"].designed_against == {"design.f_sw": "20 kHz"}
     assert len(var.digest()) == 64
+
+
+@pytest.mark.parametrize('config', ['', 'inverter: {topology: half_bridge, pwm: unipolar}', 'inverter: {topology: invented, pwm: bipolar}'])
+def test_missing_or_unsupported_inverter_contract_is_rejected(tmp_path, config):
+    path = write(tmp_path, 'v.yaml', 'variant: x\ndatasheet: d.csv\nboard: b.yaml\ntarget: t.yaml\n' + config)
+    with pytest.raises(SpecError, match='supported topology/PWM pair'):
+        load_variant(path)

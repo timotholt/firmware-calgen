@@ -156,6 +156,12 @@ calgen vendor && calgen site                                # build the self-con
 
 Development: `uv run pytest` (tests include generated-file freshness and recorded-AI replay) and `make -C firmware test` (strict C99 build and known-answer tests for every passing variant). In a real adoption, constants change through pull requests: CI runs every gate and attaches the review report.
 
+## Model contracts
+
+- Each variant explicitly declares its inverter topology and PWM mode. FA10507 uses an assumed half bridge with bipolar PWM; FA10434/FA10449 use an assumed full bridge with unipolar PWM. Voltage edits never change that hardware profile; incompatible output peaks block generation and output-filter sizing.
+- The encoded PWM period determines `actual.f_sw = f_pwmclk / (2 * TBPRD)`. Inductor requirements and gain-staleness checks use that achieved frequency. Requested and achieved frequencies travel in the generated header; the playground shows both when they differ.
+- Magnetics candidates pass only the modeled screening constraints. The adjusted vendor typical DC-bias curve is an estimate between guaranteed points, not a guaranteed envelope. AC output requirements retain their application through the sizing link; results state that large AC excitation, core loss, AC winding loss, and temperature rise still need validation.
+
 ## Limitations
 
 - **No TI hardware or TI compiler was used.** gcc (CI) and clang (local) stand in for Code Composer Studio; they prove valid C99 under strict warnings, not a C2000 build, and cannot catch C28x issues such as 16-bit `char`.

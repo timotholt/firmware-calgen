@@ -556,6 +556,7 @@ def site_records(root: Path) -> dict:
             "i_pk_a": rec.i_pk_a, "l_tol_pct": rec.l_tol_pct, "v_pri": rec.v_pri, "f_khz": rec.f_khz,
             "windings": [dataclasses.asdict(w) for w in rec.windings],
             "source": x["source"],
+            "scope": "Modeled checks only; core loss, AC winding loss, and temperature rise are not evaluated.",
             "checks": [dataclasses.asdict(c) for c in checks],
             "flagged": any(c.status == FLAG for c in checks),
             "fig": _named_figures(core, rec, limits),
@@ -600,8 +601,8 @@ def typical(core: Core, h_oe: float) -> float | None:
 
 
 def retained(core: Core, h_oe: float) -> float | None:
-    """Fraction of initial permeability counted on at magnetizing force h: the vendor's curve
-    derated to the data sheet minimums (or, without a fit, straight lines between the data
+    """Estimated fraction of initial permeability at magnetizing force h: the vendor's curve
+    adjusted to the data sheet minimum points (or, without a fit, straight lines between the data
     sheet's 100/80/50% points). None past the data sheet's 50% point: no extrapolation."""
     if h_oe > core.h50_oe:
         return None
@@ -690,6 +691,18 @@ def size_inductor(cores: dict[str, Core], limits: dict, l_uh: float, i_rms: floa
     return {"candidates": passing, "rejected": rejected}
 
 
+def screening_scope(application: str = "dc_bias") -> dict:
+    if application not in {"dc_bias", "pfc", "ac_output"}:
+        raise ValueError("Unknown inductor application.")
+    return {
+        "application": application,
+        "verdict": "Screening only · passes modeled constraints, not a validated design",
+        "curve": "Inductance at peak is estimated from an adjusted vendor typical DC-bias curve; the curve between guaranteed points is not guaranteed.",
+        "remaining": ("AC output: large AC excitation requires separate loss and permeability validation. " if application == "ac_output" else "")
+                     + "Core loss, AC winding loss, and temperature rise are not evaluated.",
+    }
+
+
 def size_json(specs_dir: str, request_json: str) -> str:
     """Browser entry point (Pyodide): JSON in, JSON out."""
     import json
@@ -698,6 +711,7 @@ def size_json(specs_dir: str, request_json: str) -> str:
     specs = Path(specs_dir) / "magnetics"
     out = size_inductor(load_cores(specs / "cores.csv"), load_limits(specs / "limits.yaml"),
                         float(req["l_uh"]), float(req["i_rms"]), float(req["i_pk"]), float(req.get("min_retained", 0.5)))
+    out["scope"] = screening_scope(req.get("application", "dc_bias"))
     out["past"] = closest_past(req.get("past", []), float(req["l_uh"]), float(req["i_rms"]))
     return json.dumps(out)
 
@@ -804,7 +818,7 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
 
 def svg_l_vs_i(core: Core, turns: int, i_pk: float, l_req_uh: float | None, stack: int = 1, ref_at: str = "peak", al_scale: float = 1.0) -> str:
     """Inductance vs DC current over the design's operating range (0 to 1.5x peak).
-    Solid: the curve the checks count on (vendor curve derated to the data sheet minimums).
+    Solid: an estimate adjusted to the data sheet minimum points, not a guaranteed envelope.
     Faint: the vendor's typical curve. Squares: the data sheet's guaranteed 80% and 50% points.
     ref_at: "peak" = l_req_uh is required at peak current (sizing); "zero" = a drawing's 0 A
     value, which says nothing about peak current (records)."""
@@ -853,10 +867,10 @@ def svg_l_vs_i(core: Core, turns: int, i_pk: float, l_req_uh: float | None, stac
     cap = (f"{core.name}{f' ×{stack}' if stack > 1 else ''}, {turns} turns: {_fmt_l(l0)} at 0 A{' (minimum Aₗ)' if al_scale < 1 else ''}; "
            + (f"{_fmt_l(l0 * f_pk)} ({f_pk * 100:.0f}%) at {i_pk:g} A peak" if f_pk is not None else f"past the data sheet's 50% point at {i_pk:g} A")
            + (". The drawing specifies inductance at 0 A only, so it doesn't say how much is needed at full current: a question for the designer." if ref_at == "zero" else ".")
-           + (" Derated curve: the vendor's typical curve scaled to sit at or below both guaranteed points; used for sizing and these figures." if core.fit else ""))
+           + (" Adjusted estimate: the vendor's typical DC-bias curve shifted to sit at or below both guaranteed points. The curve between those points is not guaranteed; AC excitation and losses require separate validation." if core.fit else ""))
     sw = lambda body: f'<svg class="mc-sw" viewBox="0 0 22 10" aria-hidden="true">{body}</svg>'  # noqa: E731
     line = lambda cls: sw(f'<line class="{cls}" x1="1" y1="5" x2="21" y2="5"/>')  # noqa: E731
-    keys = [(line("mc-l"), "derated curve (conservative)" if core.fit else "data sheet points joined (conservative)")]
+    keys = [(line("mc-l"), "adjusted estimate (not guaranteed)" if core.fit else "interpolated estimate (not guaranteed)")]
     if core.fit:
         keys.append((line("mc-typ"), "catalog typical curve"))
     keys.append((sw('<rect class="mc-min" x="7.5" y="1.5" width="7" height="7"/>'), "guaranteed minimum (80%, 50%)"))
