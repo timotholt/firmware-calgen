@@ -5,7 +5,7 @@
  *           ratings from DS-10434 Rev.09172021 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f28004x (default format float32)
- * inputs  : sha256 a2949035fd62f393605c7e8d7a698978ff6d042e8b190b310b69b7698ae91d71
+ * inputs  : sha256 0fd908e8588572c5568fc19d0a01b286952b3be17287de264f815d6eb880a307
  *
  * OVERRIDE ds.iin_max: DS-10434 Rev.09172021 prints "7.4 Amps @90VAC Input,
  *   560W Output" in the Input Frequency row and "50 or 60 Hz" in the Input Max

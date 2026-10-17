@@ -618,6 +618,8 @@ def pick_wire(i_rms: float, j_max: float) -> tuple[int, int, float]:
     otherwise, which this first pass doesn't model)."""
     need = i_rms / j_max
     ok = [w for w in WIRES if awg_area_mm2(w[0]) * w[1] >= need]
+    if not ok:
+        raise ValueError("Wire catalog insufficient for the requested RMS current (AWG 10–24, up to 6 strands).")
     smallest = min(awg_area_mm2(a) * n for a, n in ok)
     awg, n = min((w for w in ok if awg_area_mm2(w[0]) * w[1] <= smallest * 1.10), key=lambda w: (w[1], awg_area_mm2(w[0]) * w[1]))
     return awg, n, awg_area_mm2(awg) * n
@@ -628,7 +630,18 @@ def size_inductor(cores: dict[str, Core], limits: dict, l_uh: float, i_rms: floa
     at the peak current while keeping at least min_retained of the inductance, then the
     smallest wire for the current, then window fill. Returns passing candidates ranked by
     core volume and copper, and why each core failed otherwise."""
+    for label, value in (("Inductance", l_uh), ("RMS current", i_rms), ("Peak current", i_pk)):
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError(f"{label} must be a finite positive number.")
+    if i_pk < i_rms:
+        raise ValueError("Peak current must be at least the RMS current.")
+    if not math.isfinite(min_retained) or not 0.5 <= min_retained <= 1:
+        raise ValueError("Retained inductance must be between 50% and 100%.")
     j_max, fill_max = limits["j_max_a_per_mm2"], limits["fill_max_toroid"]
+    try:
+        wire = pick_wire(i_rms, j_max)
+    except ValueError as exc:
+        return {"candidates": [], "rejected": [], "error": str(exc)}
     passing, rejected = [], []
     for core in (c for c in cores.values() if c.family == "toroid"):
         reason = ""
@@ -650,7 +663,7 @@ def size_inductor(cores: dict[str, Core], limits: dict, l_uh: float, i_rms: floa
             if not found:
                 continue
             turns, h, f, l_pk = found
-            awg, strands, cu = pick_wire(i_rms, j_max)
+            awg, strands, cu = wire
             fill = turns * strands * math.pi * _wire_od(awg) ** 2 / 4 / core.wa_mm2  # with enamel, as the check
             if fill > fill_max:
                 reason = f"×{n} stack: {turns} turns of {strands} × {awg} AWG fill {fill * 100:.0f}% of the window (limit {fill_max * 100:.0f}%)"

@@ -125,3 +125,31 @@ def test_unedited_download_is_the_committed_header():
         r = run(SPECS, product)
         assert r["variant"] == variant
         assert r["header"] == (SPECS.parent / "firmware" / "include" / f"calgen_{variant}.h").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize('edits,check_id', [
+    ({'ds.vin_min': 200, 'ds.vin_max': 150}, 'input_voltage_order'),
+    ({'ds.fin_nom_lo': 65, 'ds.fin_nom_hi': 45}, 'input_frequency_order'),
+    ({'ds.batt_series_cells': 28.5}, 'battery_cells_integer'),
+    ({'ds.batt_series_cells': 0}, 'battery_cells_positive'),
+    ({'ds.vout_tol_pct': 101}, 'output_regulation_below_100'),
+    ({'ds.vout_tol_pct': -1}, 'output_regulation_nonnegative'),
+])
+def test_invalid_effective_inputs_block_generation(edits, check_id):
+    r = run(SPECS, edits=edits)
+    assert not r['ok'] and not r['header']
+    assert any(c['id'] == check_id and c['status'] == 'fail' for c in r['checks'])
+
+
+@pytest.mark.parametrize('kwargs', [
+    {'target': 'f2803x'},
+    {'board_rev': 'B', 'product': 'FA10449'},
+    {'target': 'f2803x', 'edits': {'board.g_amp': 9}},
+])
+def test_diff_always_starts_from_shipped_header(kwargs):
+    import difflib
+    result = run(SPECS, **kwargs)
+    shipped = run(SPECS, product=kwargs.get('product', 'FA10507'))
+    assert result['ok'] and result['changed']
+    expected = '\n'.join(difflib.unified_diff(shipped['header'].splitlines(), result['header'].splitlines(), 'baseline', 'edited', lineterm=''))
+    assert result['diff'] == expected and expected

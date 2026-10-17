@@ -292,3 +292,15 @@ def test_check_lines_reproduce_their_results():
                 if m := re.search(rf"\\frac{{{num}\\,\\mathrm{{mm\^2}}}}{{{num}\\,\\mathrm{{mm\^2}}}} = (\d+)\\%", line):
                     cu, wa, pct = map(float, m.groups())
                     assert round(cu / wa * 100) == pct, (d.id, line)
+
+
+@pytest.mark.parametrize('values', [(330, 4, 1), (0, 4, 5), (330, float('inf'), 5), (330, 4, float('nan'))])
+def test_sizer_rejects_invalid_requirements(values):
+    with pytest.raises(ValueError):
+        mg.size_inductor(CORES, LIMITS, *values)
+
+
+def test_sizer_reports_wire_catalog_limit_without_crashing():
+    result = mg.size_inductor(CORES, LIMITS, 1, 200, 201)
+    assert result['candidates'] == []
+    assert 'Wire catalog insufficient' in result['error']

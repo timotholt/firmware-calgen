@@ -110,12 +110,21 @@
     var req = { l_uh: num("sz-l"), i_rms: num("sz-irms"), i_pk: num("sz-ipk"), min_retained: parseFloat($("sz-ret").value),
       past: DATA.records.filter(function (r) { return !r.flagged; }).map(function (r) { return { id: r.id, kind: r.kind, l_uh: r.l_uh, i_a: r.i_a }; }) };
     if (!(req.l_uh > 0 && req.i_rms > 0 && req.i_pk > 0)) { $("sz-out").innerHTML = '<p class="alert bad">Enter a positive inductance, RMS current, and peak current.</p>'; return; }
+    if (req.i_pk < req.i_rms) { $("sz-out").innerHTML = '<p class="alert bad" role="alert">Peak current must be at least the RMS current.</p>'; return; }
     lastReq = req; open = 0; sztab = "curve";
-    var res = JSON.parse(engine.size_json("/calgen/specs", JSON.stringify(req)));
-    renderSizing(res);
+    try {
+      var res = JSON.parse(engine.size_json("/calgen/specs", JSON.stringify(req)));
+      renderSizing(res);
+    } catch (e) {
+      $("sz-out").innerHTML = '<p class="alert bad" role="alert">Unable to size: ' + esc(e.message) + '</p>';
+    }
   }
   function renderSizing(res) {
     var c = res.candidates, h = "";
+    if (res.error) {
+      $("sz-out").innerHTML = '<p class="alert bad" role="alert">' + esc(res.error) + '</p>';
+      return;
+    }
     if (!c.length) {
       h += '<p class="alert bad">No core in this catalog meets it, even stacked four high. That is an honest answer: the requirement needs a larger core family (for example powder E cores) or a different design approach.</p>';
     } else {

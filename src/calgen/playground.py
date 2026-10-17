@@ -160,12 +160,8 @@ def run(specs: str | Path, product: str = "FA10507", board_rev: str = "A", targe
     # baseline = the product as shipped: board rev A, F28004x-class target, no edits
     default = build(base, rules)
     baseline = {c.rule.id: (_display(c), c.value, c.enum_ident, c.status) for c in default.constants}
-    if base_header is None and edits:
-        unedited = dataclasses.replace(variant, board=board, design=base.design, overrides=base.overrides)
-        try:
-            base_header = header(build(unedited, rules))
-        except GateError:
-            base_header = ""
+    # The UI always promises a diff against the shipped product, including board/target changes.
+    base_header = header(default)
     out = to_json(b, base_header)
     out["shipped_inputs"] = to_json(default)["inputs"]
     out["baseline"] = {k: v[0] for k, v in baseline.items()}

@@ -5,7 +5,7 @@
  *           ratings from DS-10507 Rev.101119 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f28004x (default format float32)
- * inputs  : sha256 76cdadaf52f39e7a680cd37bead116aa24cdda9bbc3b920a3f3b2fea76611a4d
+ * inputs  : sha256 c70fb347388a8e8ca2c66dc4c7c734d49228b4775b85eecaa23862750851a9fb
  *
  * SYNTHETIC DEMO: firmware names and circuit values are invented; product ratings
  * come from the public data sheet cited above. Not from any vendor SDK.

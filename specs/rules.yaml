@@ -485,3 +485,51 @@ checks:
     block: batt
 
     fix: "Lower the per-cell cutoff voltage."
+  # Validate effective inputs, including playground/variant overrides.
+  - id: input_voltage_order
+    describe: Minimum input voltage must not exceed maximum input voltage
+    lhs: ds.vin_min
+    op: "<="
+    rhs: ds.vin_max
+    block: in
+    fix: "Set the minimum input voltage at or below the maximum."
+
+  - id: input_frequency_order
+    describe: Lower nominal input frequency must not exceed the upper frequency
+    lhs: ds.fin_nom_lo
+    op: "<="
+    rhs: ds.fin_nom_hi
+    block: in
+    fix: "Set the lower input frequency at or below the upper frequency."
+
+  - id: battery_cells_integer
+    describe: Battery series cell count must be a whole number
+    lhs: ds.batt_series_cells
+    op: "=="
+    rhs: round(ds.batt_series_cells)
+    block: batt
+    fix: "Use a positive whole number of series cells."
+
+  - id: battery_cells_positive
+    describe: Battery series cell count must be positive
+    lhs: ds.batt_series_cells
+    op: ">"
+    rhs: 0
+    block: batt
+    fix: "Use a positive whole number of series cells."
+
+  - id: output_regulation_nonnegative
+    describe: Output regulation tolerance must not be negative
+    lhs: ds.vout_tol_pct
+    op: ">="
+    rhs: 0
+    block: inv
+    fix: "Use a regulation tolerance from 0% up to, but not including, 100%."
+
+  - id: output_regulation_below_100
+    describe: Output regulation tolerance must be below 100%
+    lhs: ds.vout_tol_pct
+    op: "<"
+    rhs: 1
+    block: inv
+    fix: "Use a regulation tolerance from 0% up to, but not including, 100%."
