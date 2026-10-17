@@ -803,14 +803,14 @@ def svg_l_vs_i(core: Core, turns: int, i_pk: float, l_req_uh: float | None, stac
            + (". The drawing specifies inductance at 0 A only, so it doesn't say how much is needed at full current: a question for the designer." if ref_at == "zero" else "."))
     sw = lambda body: f'<svg class="mc-sw" viewBox="0 0 22 10" aria-hidden="true">{body}</svg>'  # noqa: E731
     line = lambda cls: sw(f'<line class="{cls}" x1="1" y1="5" x2="21" y2="5"/>')  # noqa: E731
-    keys = [(line("mc-l"), "derated to this part's guaranteed minimums (used by the checks)" if core.fit
-             else "data sheet points joined straight (conservative; used by the checks)")]
+    keys = [(line("mc-l"), "derated curve (used by the checks)" if core.fit
+             else "data sheet points joined (used by the checks)")]
     if core.fit:
-        keys.append((line("mc-typ"), "Magnetics' catalog typical curve"))
-    keys.append((sw('<rect class="mc-min" x="7.5" y="1.5" width="7" height="7"/>'), "data sheet guaranteed minimum (80%, 50%)"))
+        keys.append((line("mc-typ"), "catalog typical curve"))
+    keys.append((sw('<rect class="mc-min" x="7.5" y="1.5" width="7" height="7"/>'), "guaranteed minimum (80%, 50%)"))
     if l_req_uh:
-        keys.append((line("mc-req"), "required inductance at peak" if ref_at == "peak" else "drawing's inductance (at 0 A)"))
+        keys.append((line("mc-req"), "required at peak" if ref_at == "peak" else "drawing value (at 0 A)"))
     keys.append((sw('<line class="mc-pk" x1="11" y1="0" x2="11" y2="10"/>' + ('<circle class="mc-dot" cx="11" cy="5" r="3.5"/>' if f_pk is not None else "")),
-                 "peak current; dot = inductance left at peak" if f_pk is not None else "peak current"))
+                 "peak current; dot = L left" if f_pk is not None else "peak current"))
     leg = '<div class="mc-leg">' + "".join(f"<span>{s}{t}</span>" for s, t in keys) + "</div>"
     return f'<figure class="mfig"><svg viewBox="0 0 {W} {H}" role="img" aria-label="Inductance versus current">{"".join(g)}</svg>{leg}<figcaption>{cap}</figcaption></figure>'
