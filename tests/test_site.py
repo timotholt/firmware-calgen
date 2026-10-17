@@ -80,3 +80,12 @@ def test_pages_carry_link_preview_tags(site):
             continue  # only full site pages
         for tag in ('property="og:image"', 'property="og:title"', 'property="og:description"', 'name="twitter:card"'):
             assert tag in text, (p.name, tag)
+
+
+@needs_vendor
+def test_workspace_typography_requires_no_new_font_downloads(site):
+    css = (site / 'assets' / 'site.css').read_text()
+    # Existing KaTeX math assets are separate; the application UI uses installed system fonts.
+    assert 'font-family:system-ui' in css
+    assert '@font-face' not in css and '@import' not in css
+    assert not re.search(r'url\([^)]*\.(?:woff2?|ttf|otf)', css, re.I)

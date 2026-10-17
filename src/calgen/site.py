@@ -128,15 +128,23 @@ def _e(x: object) -> str:
     return html.escape(str(x))
 
 
+SITE_CSS += Path(__file__).with_name("workspace.css").read_text(encoding="utf-8")
+
 ASSET_VERSION = ""  # content hash of site.css, playground.js and the engine bundle; set by build_site
 
 
 def _page(title: str, active: str, body: str, depth: int = 0, extra_head: str = "", scripts: str = "") -> str:
     up = "../" * depth
-    nav = "".join(f'<a href="{up}{href}" class="{"on" if href == active else ""}">{_e(label)}</a>' for href, label in NAV)
+    primary = [("index.html", "Overview"), ("playground.html", "Firmware"), ("magnetics.html", "Magnetics")]
+    evidence = [(href, label) for href, label in NAV if href not in {h for h, _ in primary} and href != "backstory.html"]
+    nav = '<div class="navlinks">' + "".join(f'<a href="{up}{href}" class="{"on" if href == active else ""}" {"aria-current=page" if href == active else ""}>{_e(label)}</a>' for href, label in primary)
+    nav += '<details class="navmore' + (' on' if active in {h for h, _ in evidence} else '') + '"><summary>Evidence</summary><div class="navmenu">'
+    nav += "".join(f'<a href="{up}{href}" class="{"on" if href == active else ""}">{_e(label)}</a>' for href, label in evidence) + '</div></details></div>'
+    nav += f'<div class="navpersonal"><a href="{up}backstory.html">Tim Otholt</a><a href="{REPO}">Source ↗</a></div>'
+    body_class = "workspace-page" if active == "playground.html" else ""
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{_e(title)}</title><meta name="description" content="{_e(SITE_BLURB)}"><meta property="og:type" content="website"><meta property="og:site_name" content="firmware-calgen"><meta property="og:title" content="{_e(title)}"><meta property="og:description" content="{_e(SITE_BLURB)}"><meta property="og:url" content="{SITE_URL}{_e(active)}"><meta property="og:image" content="{SITE_URL}assets/preview.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="Magnetics and firmware constants, checked from the spec: a toroid winding and an inductance-versus-current chart"><meta name="twitter:card" content="summary_large_image"><meta name="robots" content="noai, noimageai"><meta name="tdm-reservation" content="1"><meta name="tdm-policy" content="https://github.com/timotholt/firmware-calgen/blob/main/LICENSE"><link rel="stylesheet" href="{up}assets/katex/katex.min.css"><link rel="stylesheet" href="{up}assets/site.css?v={ASSET_VERSION}">{extra_head}</head>
-<body><main><nav><span class="brand">firmware-calgen</span>{nav}<a href="{REPO}">Source</a></nav>
+<body class="{body_class}"><main><nav><a class="brand" href="{up}index.html"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 14h5V8h5v12h5V4h5v10h4"/><circle cx="2" cy="14" r="1"/><circle cx="26" cy="14" r="1"/></svg>firmware-calgen</a>{nav}</nav>
 {notice_html()}
 {body}
 <footer>© 2026 Timothy Otholt. All rights reserved: you may view and run this demo to evaluate my work; no copying, reuse, or AI training (<a href="{up}LICENSE.txt">license</a>, <a href="{up}THIRD_PARTY_NOTICES.md">third-party notices</a>). Independent demo; product ratings from public IntelliPower data sheets (cited per value); all circuit values, gains, firmware names, and legacy code are invented. <a href="{REPO}">Source and tests</a>.</footer>
@@ -510,20 +518,18 @@ def page_backstory(ai: dict[str, float]) -> str:
 
 def page_playground(default: dict) -> str:
     opts = playground.options()
-    body = f"""<h1>Firmware playground</h1>
-<p class="sub">Choose a product, change an input on the left, and watch every stage's firmware constants, gates, and generated C follow on the right. Computed in your browser by the same Python code as the command-line tool; nothing is uploaded.</p>
-<div class="ptabs" id="products" role="tablist" aria-label="Product data sheet"></div>
-<div id="engine" class="sub engine">Showing pre-computed results · loading the in-browser engine…</div>
-<div class="statusbar"><div id="gates" class="pills"></div></div>
+    body = f"""<header class="workspace-heading"><div><h1>Firmware workspace</h1><p>Trace every change from specification to C.</p></div><div id="configuration" class="configuration" aria-label="Product and hardware"></div></header>
+<div class="workspace-meta"><p>Synthetic hardware · Public product ratings · Local computation</p><div id="engine" class="engine" role="status">Showing pre-computed results · loading the in-browser engine…</div></div>
 <div class="pg">
-<section class="ins" aria-label="Inputs"><div class="colhead">Inputs · change anything</div><div id="inputs" class="inputs"></div><div id="probs"></div></section>
-<section class="stages" aria-label="UPS power flow, top to bottom"><div class="colhead">Power flow · click a stage</div><div id="flow"></div></section>
-<section class="fms"><div class="colhead" id="fhead">Formulas</div><div class="pills" id="tabs"></div><div id="formulas"></div></section>
+<section class="ins workspace-panel" aria-label="Inputs"><h2 class="panel-title">Inputs</h2><div id="inputs" class="inputs"></div><div id="input-actions" class="input-actions"></div></section>
+<section class="stages workspace-panel" aria-label="Engineering view"><div id="flow"></div></section>
+<aside id="probs" class="result workspace-panel" aria-label="Results and repairs" aria-live="polite"></aside>
+<section class="fms workspace-panel" aria-label="Evidence"><div class="evidence-header"><div id="tabs" class="pills"></div><div class="colhead" id="fhead">Evidence</div></div><div id="formulas"></div></section>
 </div>
 <script id="default-data" type="application/json">{_script_json(default)}</script>
 <script id="options" type="application/json">{_script_json(opts)}</script>"""
     scripts = '<script src="assets/pyodide/pyodide.js"></script><script src="assets/playground.js?v=' + ASSET_VERSION + '"></script>'
-    return _page("Firmware playground", "playground.html", body, scripts=scripts)
+    return _page("Firmware workspace", "playground.html", body, scripts=scripts)
 
 
 def bundle(root: Path) -> dict[str, str]:

@@ -7,15 +7,24 @@
   var VER = document.currentScript ? new URL(document.currentScript.src).search : ""; // ?v=<content hash>, busts caches
   var DATA = JSON.parse(document.getElementById("default-data").textContent);
   var OPTS = JSON.parse(document.getElementById("options").textContent);
-  var state = { product: "FA10507", board: "A", target: "f28004x", edits: {}, stage: "out", open: {}, tab: "c", preset: null };
+  var state = { product: "FA10507", board: "A", target: "f28004x", edits: {}, stage: "out", open: {}, tab: "changes", preset: null };
   var engine = null;
   var prev = null; // id -> display from the previous computation, for flashing what just changed
-  var showReasons = true; // reasons appear only after the user pauses (red borders appear at once)
-  var reasonTimer = null;
-  function revealReasonsAfter(ms) {
-    showReasons = false;
-    clearTimeout(reasonTimer);
-    reasonTimer = setTimeout(function () { showReasons = true; renderProbs(); renderGates(); }, ms);
+  var history = [], inputTimer = null, pendingBefore = null, inputError = "";
+  var groupsOpen = { Board: true };
+  function copyState() { return JSON.parse(JSON.stringify(state)); }
+  function finishPending() {
+    clearTimeout(inputTimer);
+    if (pendingBefore) { history.push(pendingBefore); pendingBefore = null; }
+  }
+  function mutate(fn) {
+    if (!engine) return;
+    finishPending(); history.push(copyState()); inputError = "";
+    fn(); recompute();
+  }
+  function resetProduct() {
+    state.board = "A"; state.target = "f28004x"; state.edits = {}; state.preset = null;
+    state.stage = "out"; state.open = {}; groupsOpen = { Board: true };
   }
   var FLOW = {
     "in": ["vin_min", "vin_max", "fin_min", "fin_max", "iin_limit"],
@@ -29,9 +38,11 @@
     vin_min: "Vin min", vin_max: "Vin max", fin_min: "Fin min", fin_max: "Fin max", iin_limit: "Iin max",
     vbus_min: "Bus min", vbus_set: "Bus setpoint", vbus_fs: "Bus sensor FS",
     vout_set: "Vout", fout_hz: "Fout", fout_mode: "Mode", pwm_period: "PWM period",
-    iout_rated: "Rated", iout_trip: "Overload (RMS)", iout_pk_limit: "Peak limit", iout_fs_pk: "Sensor FS", iout_pklim_dac_hi: "Limit DAC",
+    iout_rated: "Rated", iout_trip: "Overload (RMS)", iout_pk_limit: "Peak limit", iout_fs_pk: "Sensor FS", iout_pklim_dac_hi: "High-limit DAC", iout_pklim_dac_lo: "Low-limit DAC", vout_lo: "Output low", vout_hi: "Output high",
     vbat_nom: "Nominal", vbat_cutoff: "Cutoff"
   };
+  var INPUT_CHECKS = ["input_voltage_order", "input_frequency_order", "battery_cells_integer", "battery_cells_positive", "output_regulation_nonnegative", "output_regulation_below_100"];
+  function inputFinding() { return DATA.checks.find(function (k) { return k.status === 'fail' && INPUT_CHECKS.indexOf(k.id) >= 0; }); }
   var TAGNAME = { datasheet: "data sheet", derived: "derived", assumption: "assumption", design: "design", override: "what-if" };
 
   function $(id) { return document.getElementById(id); }
@@ -68,46 +79,109 @@
       p.suggest.forEach(function (x) { if (!seenKey[x.key + x.value]) { seenKey[x.key + x.value] = 1; sugg.push(x); } });
     });
     if (!fixes.length && !sugg.length) return "";
-    return '<div class="howfix"><b>How to fix</b>' + fixes.map(function (f) { return "<p>" + esc(f) + "</p>"; }).join("") +
-      sugg.map(function (x) { return '<button type="button" class="applyfix" data-k="' + esc(x.key) + '" data-v="' + x.value + '">Apply: ' + esc(x.label) + "</button>"; }).join("") + "</div>";
-  }
-  function allProblems() {
-    var n = 0;
-    Object.keys(FLOW).forEach(function (b) { n += problems(b).length; });
-    return n; // staleness problems are counted under the inverter stage
+    function suggestion(x) {
+      var short = x.key === 'board.r_shunt' ? 'Use a ' + x.value + ' mΩ shunt' : x.key === 'board.g_amp' ? 'Use amp gain ' + x.value + ' V/V' : x.label;
+      return '<button type="button" class="applyfix" data-k="' + esc(x.key) + '" data-v="' + x.value + '" title="' + esc(x.label) + '">' + esc(short) + '</button>';
+    }
+    var h = '<div class="howfix"><b>' + (sugg.length ? 'Try a repair' : 'How to fix') + '</b>';
+    if (sugg.length) {
+      h += suggestion(sugg[0]);
+      if (state.board === 'B') h += '<button type="button" class="applyfix restore-board">Restore original amplifier</button>';
+      h += '<p>Hardware changes require engineer review.</p><details><summary>Repair guidance and other options</summary>' +
+        fixes.map(function (f) { return '<p>' + esc(f) + '</p>'; }).join('') + sugg.slice(1).map(suggestion).join('') + '</details>';
+    } else h += fixes.map(function (f) { return '<p>' + esc(f) + '</p>'; }).join('');
+    return h + '</div>';
+
   }
   function stageBad(b) {
     return DATA.constants.some(function (c) { return c.block === b && c.status === "fail"; }) ||
-      DATA.checks.some(function (k) { return k.block === b && k.status === "fail"; });
+      DATA.checks.some(function (k) { return k.block === b && k.status === "fail"; }) ||
+      (b === "inv" && DATA.staleness.some(function (x) { return x.status === "fail"; }));
   }
 
-  // ---- product tabs ------------------------------------------------------
-  function renderTabs() {
-    $("products").innerHTML = Object.keys(OPTS.products).map(function (k) {
-      var parts = OPTS.products[k].split(" · ");
-      var on = k === state.product;
-      return '<div class="ptab' + (on ? " on" : "") + '" role="tab" aria-selected="' + on + '" tabindex="0" data-p="' + esc(k) + '"><b>' + esc(parts[0]) + "</b>" + esc(parts.slice(1).join(" · ")) + "</div>";
-    }).join("");
-    $("products").querySelectorAll(".ptab").forEach(function (e) {
-      keyed(e, function () { if (!engine || e.dataset.p === state.product) return; state.product = e.dataset.p; state.edits = {}; state.open = {}; state.preset = null; revealReasonsAfter(300); recompute(); });
+  // ---- product and hardware: persistent, separate from market what-ifs ----
+  function renderConfiguration() {
+    var dis = engine ? "" : " disabled";
+    $("configuration").innerHTML = '<label>Product<select id="product"' + dis + '>' + Object.keys(OPTS.products).map(function (k) {
+      return '<option value="' + k + '">' + esc(OPTS.products[k]) + '</option>';
+    }).join('') + '</select></label>' +
+      '<label>Board revision<select id="board"' + dis + '><option value="A">Rev A · original amplifier</option><option value="B">Rev B · alternate amplifier</option></select></label>' +
+      '<label>Target processor<select id="target"' + dis + '><option value="f28004x">F28004x · float32</option><option value="f2803x">F2803x · IQ20</option></select></label>' +
+      '<button id="reset" class="btn" type="button" title="Restore this product’s shipped defaults"' + dis + '>↺ Reset</button>';
+    $("product").value = state.product; $("board").value = state.board; $("target").value = state.target;
+    $("product").onchange = function () { var v = this.value; mutate(function () { state.product = v; resetProduct(); }); };
+    $("board").onchange = function () { var v = this.value; mutate(function () {
+      state.board = v;
+      Object.keys(state.edits).forEach(function (k) { if (k.indexOf("board.") === 0) delete state.edits[k]; });
+      groupsOpen.Board = true;
+    }); };
+    $("target").onchange = function () { var v = this.value; mutate(function () { state.target = v; }); };
+    $("reset").onclick = function () { mutate(resetProduct); };
+  }
+
+  function changeRows(limit) {
+    var ids = DATA.changed || [];
+    return ids.slice(0, limit || ids.length).map(function (id) {
+      var c = byId(id);
+      return '<button type="button" data-change="' + esc(id) + '">' + esc(LABEL[id] || c.describe) +
+        '<span class="change-value">' + shown(c) + '</span></button>';
+    }).join('');
+  }
+  function bindChanges(el) {
+    el.querySelectorAll('[data-change]').forEach(function (button) {
+      button.onclick = function () {
+        var c = byId(button.dataset.change); state.stage = c.block; state.tab = "math"; state.open[c.id] = true;
+        renderFlow(); renderFormulas();
+        $("formulas").scrollIntoView({ behavior: "smooth", block: "nearest" });
+      };
     });
   }
 
-  // ---- why it's blocked, and how to fix (left column, no overlap) -----------
+  // ---- one result, engineering cause first, detailed checks on demand ----
   function renderProbs() {
-    var stages = Object.keys(FLOW).filter(function (b) { return problems(b).length; });
-    if (!stages.length || !showReasons) { $("probs").innerHTML = ""; return; }
-    $("probs").innerHTML = '<div class="probs" role="alert"><b>Why it is blocked</b>' + stages.map(function (b) {
-      var probs = problems(b);
-      return '<div class="pst"><button type="button" class="pstage" data-b="' + b + '">' + esc(DATA.blocks[b]) + " →</button><ul>" +
-        probs.map(function (m) { return "<li>" + esc(m.msg) + "</li>"; }).join("") + "</ul>" + fixHtml(probs) + "</div>";
-    }).join("") + "</div>";
-    $("probs").querySelectorAll(".pstage").forEach(function (x) {
-      x.onclick = function () { state.stage = x.dataset.b; state.tab = "math"; render(); var el = $("stage-" + x.dataset.b); if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest" }); };
+    var all = [];
+    Object.keys(FLOW).forEach(function (b) { all = all.concat(problems(b)); });
+    var pending = !!pendingBefore;
+    var blocked = !DATA.ok || !!inputError || pending;
+    var headline = "Ready for review", message = "The modeled constraints pass. Review the assumptions and source findings before using the generated constants.";
+    var invalid = inputFinding();
+    var senseFail = DATA.checks.some(function (k) { return k.id === "iout_sense_range" && k.status === "fail"; });
+    var busFail = DATA.checks.some(function (k) { return k.id === "bus_above_output_peak" && k.status === "fail"; });
+    if (pending) { headline = "Updating your experiment"; message = "Rechecking the edited inputs before generating C."; }
+    else if (inputError) { headline = "Check your input"; message = inputError; }
+    else if (invalid) { headline = invalid.describe; message = invalid.fix; }
+    else if (senseFail && DATA.protection) {
+      var p = DATA.protection;
+      headline = "Sensor cannot cover the protection limit";
+      message = "This configuration needs a " + f1(p.peak_limit) + " A peak limit. The sensor covers ±" + f1(p.sensor_fs) + " A; the " + Math.round(p.headroom * 100) + "% usable range is ±" + f1(p.sensor_fs * p.headroom) + " A.";
+    } else if (busFail) {
+      headline = "Output exceeds this inverter’s capability";
+      message = "The declared bridge stays fixed. Lower the output voltage or review the DC bus and hardware profile.";
+    } else if (DATA.staleness.some(function (x) { return x.status === "fail"; })) {
+      headline = "Loop gains need review"; message = "The achieved switching frequency differs from the frequency used to tune these gains.";
+    } else if (!DATA.ok) {
+      headline = "An engineering check failed"; message = "Review the affected input and the check details below. No C is generated while a gate fails.";
+    }
+    var count = (DATA.changed || []).length;
+    var findings = DATA.datasheet || [];
+    var h = '<div class="result-status' + (blocked ? ' bad' : '') + '">' + (pending ? 'Updating…' : blocked ? '● Generation blocked' : '✓ C generated · modeled checks pass') + '</div>' +
+      '<h2>' + esc(headline) + '</h2><p>' + esc(message) + '</p>';
+    if (!pending && !inputError && !DATA.ok) h += fixHtml(all);
+    if (findings.length) h += '<div class="review-note"><details><summary>' + findings.length + ' source finding' + (findings.length === 1 ? '' : 's') + ' for review</summary>' + findings.map(function (d) {
+      return '<p>' + esc(d.message) + ' ' + esc(d.note) + '</p>';
+    }).join('') + '</details></div>';
+    h += '<h3>What changed</h3>' + (count ? '<div class="changes-list">' + changeRows(5) + '</div>' + (count > 5 ? '<button class="text-button" id="all-changes">View all ' + count + ' changes →</button>' : '') : '<p>Matches the shipped product’s values.</p>');
+    if (all.length && !pending && !inputError) h += '<details><summary>View ' + all.length + ' failed check' + (all.length === 1 ? '' : 's') + '</summary><ul>' + all.map(function (x) { return '<li>' + esc(x.msg) + '</li>'; }).join('') + '</ul></details>';
+    h += '<p class="evidence-note">' + (blocked ? 'No C available until the inputs and checks pass.' : 'Synthetic hardware · modeled checks only. Engineering sign-off is still required.') + '</p>';
+    $("probs").innerHTML = h;
+    $("probs").querySelectorAll('.applyfix').forEach(function (button) {
+      button.onclick = function () { mutate(function () { state.edits[button.dataset.k] = parseFloat(button.dataset.v); groupsOpen.Board = true; }); };
     });
-    $("probs").querySelectorAll(".applyfix").forEach(function (btn) {
-      btn.onclick = function () { state.edits[btn.dataset.k] = parseFloat(btn.dataset.v); revealReasonsAfter(300); recompute(); };
-    });
+    $("probs").querySelectorAll('.restore-board').forEach(function (button) { button.onclick = function () { mutate(function () {
+      state.board = 'A'; Object.keys(state.edits).forEach(function (k) { if (k.indexOf('board.') === 0) delete state.edits[k]; });
+    }); }; });
+    bindChanges($("probs"));
+    if ($("all-changes")) $("all-changes").onclick = function () { state.tab = "changes"; renderFormulas(); };
   }
 
   // ---- current-protection visuals (drawing only; numbers come from Python) ----
@@ -184,14 +258,14 @@
       '<line class="w-br' + (over ? " bad" : "") + '" x1="' + (bx - 4).toFixed(1) + '" x2="' + (bx + 4).toFixed(1) + '" y1="' + y1.toFixed(1) + '" y2="' + y1.toFixed(1) + '"/>' +
       '<line class="w-br' + (over ? " bad" : "") + '" x1="' + (bx - 4).toFixed(1) + '" x2="' + (bx + 4).toFixed(1) + '" y1="' + y2.toFixed(1) + '" y2="' + y2.toFixed(1) + '"/>' +
       '<text class="g-t w-brt' + (over ? " bad" : "") + '" x="' + (bx + 8).toFixed(1) + '" y="' + ((y1 + y2) / 2 + 4).toFixed(1) + '">' +
-      (over ? "limit beyond the sensor's range: it can't fire" : f1(gap) + " A headroom (" + Math.round(gap / p.crest_pk * 100) + "%)") + "</text>";
+      (over ? "" : f1(gap) + " A headroom (" + Math.round(gap / p.crest_pk * 100) + "%)") + "</text>";
     sw += "</svg>";
     var key = '<div class="wkey">' +
       '<span><i class="k-load"></i>' + p.crest + ":1 rectifier load: " + f1(p.rated_rms) + " A RMS, " + f1(p.crest_pk) + " A peak (illustrative)</span>" +
       '<span><i class="k-sine"></i>linear load: ' + f1(p.rated_rms) + " A RMS, " + f1(p.rated_pk) + " A peak</span>" +
       '<span><i class="k-lim' + (over ? " bad" : "") + '"></i>hardware peak limit: instant</span>' +
       (p.sensor_fs < S ? '<span><i class="k-blind"></i>beyond the sensor\'s ±' + f1(p.sensor_fs) + " A range</span>" : "") + "</div>";
-    return sw + key + rmsBar(p);
+    return sw + key;
   }
   // The other protection layer, in its own units: RMS current against the timed overload trip.
   function rmsBar(p) {
@@ -221,7 +295,7 @@
     return out + esc(text.slice(last));
   }
 
-  // ---- vertical power flow -----------------------------------------------
+  // ---- selected engineering stage -----------------------------------------------
   function stageBox(b) {
     var rows = FLOW[b].map(function (id) {
       var c = byId(id); if (!c) return "";
@@ -231,7 +305,14 @@
     if (b === "out" && DATA.summaries && DATA.summaries.sense) {
       var sat = DATA.summaries.sense.indexOf("SATURATES") >= 0;
       summary += '<div class="sense' + (sat ? " bad" : "") + '">' + esc(DATA.summaries.sense) + "</div>";
-      if (DATA.protection) summary += '<div class="vizbox">' + gaugeSvg(DATA.protection) + waveSvg(DATA.protection) + "</div>";
+      if (DATA.protection) {
+        var p = DATA.protection;
+        summary = '<div class="vizbox">' + waveSvg(p) + '</div>' +
+          '<div class="metric-strip"><div><small>Rated current</small><strong data-vid="iout_rated">' + f1(p.rated_rms) + ' A RMS</strong></div>' +
+          '<div><small>Sensor range</small><strong data-vid="iout_fs_pk">±' + f1(p.sensor_fs) + ' A</strong></div><div><small>Peak limit</small><strong data-vid="iout_pk_limit">±' + f1(p.peak_limit) + ' A</strong></div></div>' +
+          '<p class="sum">' + esc(DATA.summaries.inv) + '</p>' + rmsBar(p) +
+          '<details class="sensor-detail"><summary>Sensor headroom</summary><p class="sum">' + esc(DATA.summaries.sense) + '</p>' + gaugeSvg(p) + '</details>';
+      }
     }
     var ind = (DATA.inductors || {})[b];
     if (ind) {
@@ -240,9 +321,8 @@
       summary += '<div class="indlink" title="' + esc(ind.basis) + '">' + esc(ind.name) + " ≈ " + ind.l_uh.toFixed(0) + " µH, " + ind.i_rms.toFixed(1) + " A RMS, " +
         ind.i_pk.toFixed(1) + ' A peak · <a href="magnetics.html#size?' + q + '" class="sizelink">size it in Magnetics →</a></div>';
     }
-    var any = DATA.constants.some(function (c) { return c.block === b && changed(c.id); });
-    return '<div class="fb' + (state.stage === b ? " sel" : "") + (stageBad(b) ? " bad" : "") + (any ? " has-chg" : "") +
-      '" data-b="' + b + '" id="stage-' + b + '" role="button" tabindex="0" aria-pressed="' + (state.stage === b) + '"><div class="t">' + esc(DATA.blocks[b]) + "</div>" + summary + rows + "</div>";
+    return '<article class="fb" id="stage-' + b + '">' + summary +
+      '<details class="stage-values"' + (b !== 'out' ? ' open' : '') + '><summary>Stage values and sources</summary>' + rows + '</details></article>';
   }
 
   function legendHtml() {
@@ -253,115 +333,93 @@
       ['<span class="tag tag-design">design</span>', "Engineer-supplied value carried through unchanged (loop gains)"],
       ['<span class="tag tag-override">what-if</span>', "Your override of a data sheet value (marked OVERRIDE in the C)"],
       ['<span class="lgchg"><span class="was">12.5</span> → <b>16.7</b></span>', "Differs from the shipped product (rev A board, F28004x-class, default design)"],
-      ['<span class="lgbad">red border</span>', "A gate failed in this stage; why, and how to fix it, appear on the left"],
+      ['<span class="lgbad">red indicator</span>', "A gate failed in this stage; why, and how to fix it, appear in Results"],
       ["1φ*", "Single-phase is implied by the IEC C14 inlet and NEMA 5-15 outlets, not stated as a rating"]
     ];
-    return '<div class="legend"><div class="colhead">Legend</div><table>' + rows.map(function (r) {
+    return '<details class="legend"><summary>Sources and assumptions</summary><table>' + rows.map(function (r) {
       return "<tr><td>" + r[0] + "</td><td>" + esc(r[1]) + "</td></tr>";
-    }).join("") + "</table></div>";
+    }).join("") + "</table></details>";
   }
 
   function renderFlow() {
-    var down = '<div class="vdown" aria-hidden="true">↓</div>';
-    $("flow").innerHTML = stageBox("in") + down + stageBox("rect") + down +
-      '<div class="busrow">' + stageBox("bus") + '<div class="side" title="bidirectional DC-DC stage (not modelled)"><span aria-hidden="true">↔</span><span class="sidel">DC-DC</span></div>' + stageBox("batt") + "</div>" +
-      down + stageBox("inv") + down + stageBox("out") +
-      legendHtml();
-    $("flow").querySelectorAll(".sizelink").forEach(function (l) { l.onclick = function (ev) { ev.stopPropagation(); }; });
-    $("flow").querySelectorAll(".fb").forEach(function (e) {
-      keyed(e, function () { state.stage = e.dataset.b; render(); });
-    });
+    var names = { in: "AC input", rect: "PFC", bus: "DC bus", inv: "Inverter", out: "AC output", batt: "Battery" };
+    var title = state.stage === "out" ? "Protection headroom" : DATA.blocks[state.stage];
+    $("flow").innerHTML = '<h2 class="stage-heading">' + esc(title) + '</h2><div class="stage-nav" aria-label="Power flow stages">' +
+      ["in", "rect", "bus", "inv", "out", "batt"].map(function (b) { return '<button type="button" data-b="' + b + '" aria-pressed="' + (state.stage === b) + '" class="' + (stageBad(b) ? 'is-bad' : '') + '">' + names[b] + '</button>'; }).join('') +
+      '</div>' + stageBox(state.stage) + '<div style="padding:0 18px 10px">' + legendHtml() + '</div>';
+    $("flow").querySelectorAll('button[data-b]').forEach(function (button) { button.onclick = function () {
+      state.stage = button.dataset.b; renderFlow(); renderFormulas();
+    }; });
   }
 
-  // ---- inputs --------------------------------------------------------------
   function field(e, dis) {
     var v = e.key in state.edits ? state.edits[e.key] : DATA.inputs[e.key];
+    var base = DATA.shipped_inputs[e.key];
     var unit = e.unit === "ratio" ? "V/V" : e.unit === "mohm" ? "mΩ" : e.unit === "counts" ? "" : e.unit;
-    var edited = e.key in state.edits || (state.preset && e.key.indexOf("ds.") === 0 && DATA.inputs[e.key] !== DATA.shipped_inputs[e.key]);
-    return '<label class="inp' + (edited ? " edited" : "") + '"><span>' + esc(e.label) + "</span>" +
-      '<input type="number" step="any" min="0" data-k="' + esc(e.key) + '" value="' + (v == null ? "" : esc(v)) + '"' +
-      (v == null ? ' placeholder="n/a" title="not in data sheet"' : "") + dis + '><i class="u">' + esc(unit) + "</i></label>";
+    var edited = v != null && v !== base;
+    var zeroAllowed = /tol|margin/.test(e.key);
+    return '<label class="inp' + (edited ? ' edited' : '') + '"><span>' + esc(e.label) + '</span>' +
+      '<input type="number" aria-label="' + esc(e.label + (unit ? " " + unit : "")) + '" step="' + (e.key === 'ds.batt_series_cells' ? '1' : 'any') + '" min="' + (zeroAllowed ? '0' : '0.000001') + '" data-k="' + esc(e.key) + '" value="' + (v == null ? '' : esc(v)) + '"' +
+      (v == null ? ' placeholder="n/a" title="not in data sheet"' : '') + dis + '><i class="u">' + esc(unit) + '</i>' +
+      (edited ? '<small class="input-origin">Shipped: ' + (base == null ? 'not stated' : esc(base) + ' ' + esc(unit)) + ' · edited</small>' : '') + '</label>';
   }
 
   function renderInputs() {
-    var dis = engine ? "" : " disabled";
+    var dis = engine ? '' : ' disabled';
     var groups = {};
-    OPTS.editable.forEach(function (e) { (groups[e.owner] = groups[e.owner] || []).push(e); });
-    var dsGroups = Object.keys(groups).filter(function (g) { return g.indexOf("Data sheet") === 0; });
-    var handEdited = Object.keys(state.edits).some(function (k) { return k.indexOf("ds.") === 0; });
-    var presetOpts = '<option value=""' + (handEdited || state.preset ? "" : " selected") + ">As shipped (data sheet)</option>" + Object.keys(OPTS.presets).map(function (k) {
-      return '<option value="' + k + '"' + (!handEdited && state.preset === k ? " selected" : "") + ">" + esc(OPTS.presets[k]) + "</option>";
-    }).join("") + (handEdited ? '<option value="__custom" selected>Custom (edited by hand)</option>' : "");
-    var ds = '<div class="card dsbox"><div class="dshead"><h3>Data sheet values <span class="sub" style="font-weight:400">· what-if: edits override the data sheet and are marked OVERRIDE in the C</span></h3>' +
-      '<div class="presetrow"><label class="inp preset' + (state.preset || handEdited ? " edited" : "") + '"><span>Market preset</span><select id="preset"' + dis + ">" + presetOpts + "</select></label>" +
-      '<button id="reset" class="btn" type="button"' + dis + ">Back to shipped product</button></div></div>" +
-      '<div class="dsgrid">' + dsGroups.map(function (g) {
-        return '<div><div class="glabel">' + esc(g.split(" · ")[1]) + "</div>" + groups[g].map(function (e) { return field(e, dis); }).join("") + "</div>";
-      }).join("") + "</div></div>";
-    var board = '<div class="card"><h3>Board and chip <span class="sub" style="font-weight:400">· hardware engineer</span></h3>' +
-      '<label class="inp' + (state.board !== "A" ? " edited" : "") + '"><span>Board revision</span><select id="board"' + dis + '><option value="A">rev A (original amplifier)</option><option value="B">rev B (alternate amplifier)</option></select></label>' +
-      (groups.Board || []).map(function (e) { return field(e, dis); }).join("") +
-      '<label class="inp' + (state.target !== "f28004x" ? " edited" : "") + '"><span>Target processor</span><select id="target"' + dis + '><option value="f28004x">F28004x-class (float32)</option><option value="f2803x">F2803x-class (IQ20, legacy)</option></select></label></div>';
-    var design = '<div class="card"><h3>Design choice <span class="sub" style="font-weight:400">· power engineer</span></h3>' +
-      (groups["Design choice"] || []).map(function (e) { return field(e, dis); }).join("") + "</div>";
-    $("inputs").innerHTML = ds + '<div class="inrow">' + board + design + "</div>";
-    $("board").value = state.board; $("target").value = state.target;
-    $("board").onchange = function () { state.board = this.value; revealReasonsAfter(300); recompute(); };
-    $("target").onchange = function () { state.target = this.value; revealReasonsAfter(300); recompute(); };
+    OPTS.editable.forEach(function (e) {
+      var group = e.owner.indexOf('Data sheet') === 0 ? e.owner.split(' · ')[1] : e.owner;
+      (groups[group] = groups[group] || []).push(e);
+    });
+    var handEdited = Object.keys(state.edits).some(function (k) { return k.indexOf('ds.') === 0; });
+    var presetOpts = '<option value="">As shipped</option>' + Object.keys(OPTS.presets).map(function (k) {
+      return '<option value="' + k + '">' + esc(OPTS.presets[k]) + '</option>';
+    }).join('') + (handEdited ? '<option value="__custom">Custom · edited by hand</option>' : '');
+    var h = '<label class="market-control">What-if market<select id="preset" aria-label="What-if market"' + dis + '>' + presetOpts + '</select><span class="market-note">Hypothetical specification edits, not certified market compatibility.</span></label>';
+    ['Board', 'Input', 'Output', 'Overload', 'Design choice', 'Battery'].forEach(function (group) {
+      h += '<details class="input-group" data-group="' + group + '"' + (groupsOpen[group] ? ' open' : '') + '><summary>' + esc(group === 'Board' ? 'Board sensing' : group === 'Input' ? 'AC input' : group === 'Output' ? 'Output ratings' : group === 'Design choice' ? 'Design choices' : group) + '</summary><div class="group-fields">' +
+        (groups[group] || []).map(function (e) { return field(e, dis); }).join('') + '</div></details>';
+    });
+    $("inputs").innerHTML = h;
+    $("preset").value = handEdited ? '__custom' : state.preset || '';
     $("preset").onchange = function () {
-      if (this.value === "__custom") return; // already custom; nothing to apply
-      state.preset = this.value || null;
-      Object.keys(state.edits).forEach(function (k) { if (k.indexOf("ds.") === 0) delete state.edits[k]; });
-      revealReasonsAfter(300); recompute();
+      if (this.value === '__custom') return;
+      var value = this.value;
+      mutate(function () {
+        state.preset = value || null;
+        Object.keys(state.edits).forEach(function (k) { if (k.indexOf('ds.') === 0) delete state.edits[k]; });
+        groupsOpen.Input = true; groupsOpen.Output = true;
+      });
     };
-    $("reset").onclick = function () { state.edits = {}; state.board = "A"; state.target = "f28004x"; state.preset = null; revealReasonsAfter(300); recompute(); };
-    var timer = null;
-    $("inputs").querySelectorAll("input[data-k]").forEach(function (inp) {
+    $("inputs").querySelectorAll('details[data-group]').forEach(function (details) {
+      details.ontoggle = function () { if (details.isConnected) groupsOpen[details.dataset.group] = details.open; };
+    });
+    $("inputs").querySelectorAll('input[data-k]').forEach(function (inp) {
       inp.oninput = function () {
-        var x = parseFloat(inp.value);
-        if (!(x > 0)) { inp.setCustomValidity("Enter a positive number"); inp.reportValidity(); return; }
-        inp.setCustomValidity("");
-        state.edits[inp.dataset.k] = x;
-        revealReasonsAfter(1500);
-        clearTimeout(timer);
-        timer = setTimeout(function () {
-          var key = inp.dataset.k;
-          recompute();
+        var x = Number(inp.value), key = inp.dataset.k;
+        if (!inp.value || !Number.isFinite(x) || x < Number(inp.min)) {
+          clearTimeout(inputTimer); inputError = 'Enter a ' + (Number(inp.min) === 0 ? 'non-negative' : 'positive') + ' number for ' + inp.closest('label').querySelector('span').textContent + '.';
+          $("engine").textContent = 'Input needs attention'; renderProbs(); renderFormulas(); return;
+        }
+        inputError = '';
+        if (!pendingBefore) pendingBefore = copyState();
+        state.edits[key] = x;
+        $("engine").textContent = 'Updating…';
+        renderProbs(); renderFormulas();
+        clearTimeout(inputTimer);
+        inputTimer = setTimeout(function () {
+          finishPending(); recompute();
           var again = document.querySelector('input[data-k="' + key + '"]');
           if (again) again.focus();
-        }, 400);
+        }, 250);
       };
     });
-  }
-
-  // ---- status bar ------------------------------------------------------------
-  function renderGates() {
-    var nfail = DATA.constants.filter(function (c) { return c.status === "fail"; }).length;
-    var kfail = DATA.checks.filter(function (k) { return k.status === "fail"; }).length;
-    var stale = DATA.staleness.filter(function (s) { return s.status === "fail"; }).length;
-    var dsb = DATA.datasheet.filter(function (d) { return d.status === "blocking"; }).length;
-    var dsf = DATA.datasheet.length - dsb;
-    var n = (DATA.changed || []).length;
-    var pills = [
-      [nfail ? "bad" : "ok", "Constants " + (DATA.constants.length - nfail) + "/" + DATA.constants.length],
-      [kfail ? "bad" : "ok", "Checks " + (kfail ? kfail + " failed" : "pass")],
-      [dsb ? "bad" : dsf ? "warn" : "ok", "Data sheet " + (dsb ? "blocking" : dsf ? dsf + " for review" : "consistent")],
-      [stale ? "bad" : "ok", "Staleness " + (stale ? stale + " stale" : "current")],
-      [DATA.ok ? "ok" : "bad", DATA.ok ? "C generated" : "Nothing written (fail closed)"],
-      [n ? "chgpill" : "na", n ? n + " value" + (n === 1 ? "" : "s") + " changed vs shipped" : "matches shipped product"]
-    ];
-    var np = showReasons ? allProblems() : 0;
-    var notOk = pills.filter(function (p) { return p[0] !== "ok"; });
-    var shownPills = notOk.length === pills.length ? pills : [["ok", "Modeled checks pass ✓"]].concat(notOk);
-    if (pills.slice(0, 5).some(function (p) { return p[0] === "bad"; })) shownPills = pills;
-    $("gates").innerHTML = shownPills.map(function (p) { return '<span class="pill ' + p[0] + '">' + esc(p[1]) + "</span>"; }).join("") +
-      (np ? '<button type="button" class="pill bad probpill" id="probjump">' + np + " problem" + (np === 1 ? "" : "s") + " · see why</button>" : "");
-    var jump = $("probjump");
-    if (jump) jump.onclick = function () {
-      var box = document.querySelector(".ins"), probs = $("probs");
-      box.scrollIntoView({ block: "nearest" });
-      if (getComputedStyle(box).overflowY === "auto") box.scrollTo({ top: probs.offsetTop - 8 }); // sticky column scrolls itself
-      else probs.scrollIntoView({ behavior: "smooth", block: "start" });
+    var n = Object.keys(state.edits).length + (state.board !== 'A' ? 1 : 0) + (state.target !== 'f28004x' ? 1 : 0) + (state.preset ? 1 : 0);
+    $("input-actions").innerHTML = '<span>' + (n ? n + ' experiment change' + (n === 1 ? '' : 's') : 'Shipped defaults') + '</span><button type="button" class="text-button" id="undo"' + (history.length ? '' : ' disabled') + '>↶ Undo</button>';
+    $("undo").onclick = function () {
+      finishPending();
+      if (!history.length) return;
+      state = history.pop(); inputError = ''; recompute();
     };
   }
 
@@ -379,18 +437,23 @@
   function isOpen(c) { return state.open[c.id] !== undefined ? state.open[c.id] : c.status === "fail"; } // changed rows show old -> new in the row itself
 
   function renderFormulas() {
-    var tabs = [["c", "Generated C"], ["math", "Derivations"], ["diff", "Diff vs shipped"]];
+    var tabs = [["changes", "Changes"], ["math", "Derivations"], ["c", "Generated C"], ["diff", "Diff vs shipped"]];
     $("fhead").textContent = state.tab === "math" ? "Derivations · " + DATA.blocks[state.stage] + " (click a stage to switch)" : "Output";
-    $("tabs").innerHTML = tabs.map(function (t) { return '<span class="pill tab' + (state.tab === t[0] ? " on" : "") + '" data-t="' + t[0] + '" role="button" tabindex="0">' + t[1] + "</span>"; }).join("");
+    $("tabs").innerHTML = tabs.map(function (t) { return '<button type="button" class="pill tab' + (state.tab === t[0] ? " on" : "") + '" data-t="' + t[0] + '" aria-pressed="' + (state.tab === t[0]) + '">' + t[1] + "</button>"; }).join("");
     $("tabs").querySelectorAll(".tab").forEach(function (e) {
       keyed(e, function () {
-        // keep the panel at least as tall as before, so a short tab can't shrink the page and jump the scroll
-        var f = $("formulas"); f.style.minHeight = Math.max(f.offsetHeight, parseFloat(f.style.minHeight) || 0) + "px";
         state.tab = e.dataset.t; renderFormulas();
       });
     });
     var out = "";
-    if (state.tab === "math") {
+    if (inputError || pendingBefore) {
+      out = '<p class="sub">' + esc(inputError || 'Rechecking your changes…') + ' C downloads are unavailable until the inputs pass.</p>';
+    } else if (state.tab === "changes") {
+      var changedConstants = DATA.constants.filter(function (c) { return changed(c.id); });
+      out = changedConstants.length ? '<table class="change-table"><thead><tr><th>Constant</th><th>Shipped</th><th>Current</th></tr></thead><tbody>' + changedConstants.map(function (c) {
+        return '<tr><td><button type="button" class="text-button" data-change="' + esc(c.id) + '">' + esc(c.symbol) + '</button></td><td class="mono">' + esc(DATA.baseline[c.id]) + '</td><td>' + esc(c.display) + '</td></tr>';
+      }).join('') + '</tbody></table>' : '<p class="sub">Your starting point matches the shipped product. Change a board, processor, or input to compare the results here.</p>';
+    } else if (state.tab === "math") {
       var list = DATA.constants.filter(function (c) { return c.block === state.stage; });
       out = list.map(function (c) {
         var open = isOpen(c);
@@ -418,6 +481,7 @@
       btn.onclick = function () { var c = byId(btn.dataset.id); state.open[c.id] = !isOpen(c); renderFormulas(); };
     });
     tex($("formulas"));
+    bindChanges($("formulas"));
     var dl = $("dl");
     if (dl) dl.onclick = function (ev) {
       ev.preventDefault();
@@ -448,13 +512,14 @@
   }
 
   function firstFailingStage() {
+    var invalid = inputFinding(); if (invalid) return invalid.block;
     var c = DATA.constants.filter(function (x) { return x.status === "fail"; })[0];
     if (c) return c.block;
     var k = DATA.checks.filter(function (x) { return x.status === "fail"; })[0];
-    return k ? k.block : null;
+    return k ? k.block : DATA.staleness.some(function (x) { return x.status === "fail"; }) ? "inv" : null;
   }
 
-  function render() { renderTabs(); renderGates(); renderProbs(); renderFlow(); renderInputs(); renderFormulas(); flashChanges(); prev = null; }
+  function render() { renderConfiguration(); renderProbs(); renderFlow(); renderInputs(); renderFormulas(); flashChanges(); prev = null; }
 
   function recompute() {
     if (!engine) return;
@@ -467,7 +532,8 @@
       if (bad) state.stage = bad; // show the failure where it happens
       $("engine").textContent = "Live · computed in your browser by calgen";
     } catch (e) {
-      $("engine").textContent = "Engine error: " + e.message;
+      inputError = "Unable to recheck these inputs: " + e.message;
+      $("engine").textContent = "Engine needs attention";
     }
     render();
   }
