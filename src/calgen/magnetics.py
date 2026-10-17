@@ -555,12 +555,12 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
     placed, overflow = [], 0
     if core.family == "toroid":
         r_out, r_in = core.od_mm / 2, math.sqrt(core.wa_mm2 / math.pi)  # window = data sheet W_a (coated)
-        pad = 3
-        vb = r_out + pad
-        i, layer_r = 0, None
+        i, layer_r, layer = 0, None, -1
+        spokes = []
         while i < len(wires):
             d = wires[i][1]
             layer_r = (r_in - d / 2) if layer_r is None else layer_r - d
+            layer += 1
             if layer_r < d / 2:
                 overflow = len(wires) - i
                 break
@@ -569,9 +569,20 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
             for j in range(count):
                 a = 2 * math.pi * j / count - math.pi / 2
                 placed.append((wires[i][0], layer_r * math.cos(a), layer_r * math.sin(a), wires[i][1] / 2))
+                r_o = r_out + d / 2 + layer * d  # the same turn returns around the outside, one layer further out
+                spokes.append((wires[i][0], layer_r, r_o, a, d))
                 i += 1
+        vb = r_out + (layer + 1) * (wires[0][1] if wires else 0) + 3
+        # From above only the last-wound (top) layer is visible; the layers under it show as copper
+        # build-up around the outside edge.
+        top = [sp for sp in spokes if sp[2] == max(x[2] for x in spokes)] if spokes else []
+        build = (max(x[2] for x in spokes) - r_out - spokes[0][4] / 2) if spokes else 0
+        spoke_svg = (f'<circle class="mw-build" cx="0" cy="0" r="{r_out + build / 2:.2f}" stroke-width="{build:.2f}"/>' if build > 0 else "") + "".join(
+            f'<line class="mw-s{k}" x1="{ri * math.cos(a):.2f}" y1="{ri * math.sin(a):.2f}" x2="{ro * math.cos(a):.2f}" y2="{ro * math.sin(a):.2f}" stroke-width="{d * 0.9:.3f}"/>'
+            f'<circle class="mw-w{k}" cx="{ro * math.cos(a):.2f}" cy="{ro * math.sin(a):.2f}" r="{d / 2:.3f}"/>'
+            for k, ri, ro, a, d in top)
         body = (f'<path class="mw-core" fill-rule="evenodd" d="M{-r_out:.2f},0a{r_out:.2f},{r_out:.2f} 0 1,0 {2 * r_out:.2f},0a{r_out:.2f},{r_out:.2f} 0 1,0 {-2 * r_out:.2f},0'
-                f'M{-r_in:.2f},0a{r_in:.2f},{r_in:.2f} 0 1,0 {2 * r_in:.2f},0a{r_in:.2f},{r_in:.2f} 0 1,0 {-2 * r_in:.2f},0"/>')
+                f'M{-r_in:.2f},0a{r_in:.2f},{r_in:.2f} 0 1,0 {2 * r_in:.2f},0a{r_in:.2f},{r_in:.2f} 0 1,0 {-2 * r_in:.2f},0"/>') + spoke_svg
         view = f"{-vb:.1f} {-vb:.1f} {2 * vb:.1f} {2 * vb:.1f}"
     else:
         w, h = core.wa_mm2 / (2 * core.ht_mm), 2 * core.ht_mm  # one window of the pair, bare (no former)
@@ -598,8 +609,8 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
     circles = "".join(f'<circle class="mw-w{k}" cx="{x:.2f}" cy="{y:.2f}" r="{r:.3f}"/>' for k, x, y, r in placed)
     label = ", ".join(f"{name}: {t} × {n} × {a} AWG" for name, t, n, a in windings)
     note = f"{len(wires) - overflow} of {len(wires)} conductors drawn" + (f"; {overflow} don't fit" if overflow else "")
-    return (f'<figure class="mfig"><svg viewBox="{view}" role="img" aria-label="Window cross-section: {label}; copper fills {fill * 100:.0f}% of the window">'
-            f"{body}{circles}</svg><figcaption>{'Toroid' if core.family == 'toroid' else 'E-core window (one side)'}{f', {stack} stacked' if stack > 1 else ''} · {label} · "
+    return (f'<figure class="mfig"><svg viewBox="{view}" role="img" aria-label="Winding view: {label}; copper fills {fill * 100:.0f}% of the window">'
+            f"{body}{circles}</svg><figcaption>{'Toroid, top view: each turn passes through the hole and returns around the outside' if core.family == 'toroid' else 'E-core window (one side)'}{f', {stack} stacked' if stack > 1 else ''} · {label} · "
             f"bare copper {fill * 100:.0f}% of the window · {note}</figcaption></figure>")
 
 

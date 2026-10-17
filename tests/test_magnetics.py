@@ -160,8 +160,8 @@ def test_window_drawing_shows_overflow_only_when_the_winding_cannot_fit():
         d = by[did]
         svg = mg.svg_window(CORES[d.core], [(w.name, w.turns, w.strands, w.awg) for w in d.windings])
         total = sum(w.turns * w.strands for w in d.windings)
-        drawn = len(re.findall(r"<circle ", svg))
-        assert (drawn < total) == overflows, did
+        drawn, of = map(int, re.search(r"(\d+) of (\d+) conductors drawn", svg).groups())
+        assert of == total and (drawn < total) == overflows, did
         assert ("don't fit" in svg) == overflows
 
 
