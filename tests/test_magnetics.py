@@ -326,3 +326,11 @@ def test_records_keep_modeled_pass_separate_from_loss_and_thermal_validation():
     for record in mg.site_records(ROOT)['records']:
         assert 'Modeled checks only' in record['scope']
         assert 'temperature rise are not evaluated' in record['scope']
+
+
+def test_empty_sizing_results_do_not_claim_a_pass():
+    import json
+    result = json.loads(mg.size_json(str(ROOT / 'specs'), json.dumps(dict(l_uh=966.3792676216149, i_rms=12.5, i_pk=40.15165042944955, min_retained=.8, application='ac_output'))))
+    assert not result['candidates']
+    assert result['scope']['verdict'] == 'Screening only · no candidate passes modeled constraints'
+    assert 'large AC excitation' in result['scope']['remaining']

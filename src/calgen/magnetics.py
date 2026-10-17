@@ -712,6 +712,8 @@ def size_json(specs_dir: str, request_json: str) -> str:
     out = size_inductor(load_cores(specs / "cores.csv"), load_limits(specs / "limits.yaml"),
                         float(req["l_uh"]), float(req["i_rms"]), float(req["i_pk"]), float(req.get("min_retained", 0.5)))
     out["scope"] = screening_scope(req.get("application", "dc_bias"))
+    if not out["candidates"]:
+        out["scope"]["verdict"] = "Screening only · no candidate passes modeled constraints"
     out["past"] = closest_past(req.get("past", []), float(req["l_uh"]), float(req["i_rms"]))
     return json.dumps(out)
 
