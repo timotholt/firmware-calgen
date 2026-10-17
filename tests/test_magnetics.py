@@ -182,9 +182,16 @@ def test_curve_label_says_what_the_reference_inductance_means():
     from pathlib import Path as _P  # noqa: F401
 
     recs = {r["id"]: r for r in mg.site_records(ROOT)["records"]}
-    curve = recs["MAG-001"]["figures"][0]  # curve leads unless the winding doesn't fit
+    curve = recs["MAG-001"]["fig"]["curve"]
     assert "drawing: 330 µH at 0 A" in curve and "required at peak" not in curve
-    sized = mg.size_inductor(CORES, LIMITS, 330, 4, 4.5, 0.8)["candidates"][0]["figures"][0]
+    sized = mg.size_inductor(CORES, LIMITS, 330, 4, 4.5, 0.8)["candidates"][0]["fig"]["curve"]
     assert "required at peak: 330 µH" in sized
-    assert 'class="mfig thumbfig"' in recs["MAG-001"]["figures"][1]
-    assert 'class="mfig bigfig"' in recs["MAG-008"]["figures"][0]  # shown large only when it doesn't fit
+    assert recs["XFMR-001"]["fig"]["curve"] is None  # transformers have no inductance curve
+
+
+
+def test_default_tab_opens_the_evidence_for_the_verdict():
+    recs = {r["id"]: r for r in mg.site_records(ROOT)["records"]}
+    want = {"MAG-001": "curve", "MAG-003": "curve", "MAG-005": "curve", "MAG-009": "curve", "MAG-006": "winding",
+            "MAG-008": "winding", "MAG-010": "drawing", "XFMR-002": "drawing", "XFMR-001": "flux"}
+    assert {k: recs[k]["default_tab"] for k in want} == want

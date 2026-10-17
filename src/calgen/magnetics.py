@@ -412,14 +412,49 @@ def similar(designs: list[Design], k: int = 3) -> dict[str, list[tuple[str, floa
 
 
 # ---- site data -----------------------------------------------------------------------
-def _figures(core: Core | None, d: Design) -> list[str]:
+# Which evidence explains a verdict: the tab the page opens first.
+TAB_FOR_CHECK = {"inductance": "curve", "dc_bias": "curve", "window_fill": "winding", "current_density": "winding",
+                 "core_known": "drawing", "ratio": "drawing", "magnetizing": "drawing", "flux": "flux"}
+
+
+def default_tab(checks: list[Check], has_curve: bool, has_flux: bool = False) -> str:
+    for c in checks:
+        if c.status == FLAG:
+            tab = TAB_FOR_CHECK.get(c.id, "drawing")
+            return "winding" if tab == "curve" and not has_curve else tab
+    return "curve" if has_curve else ("flux" if has_flux else "winding")
+
+
+def _named_figures(core: Core | None, d: Design) -> dict[str, str | None]:
     if core is None:
-        return []
+        return {"curve": None, "winding": None}
     win = svg_window(core, [(w.name, w.turns, w.strands, w.awg) for w in d.windings])
-    if d.kind != "inductor" or core.family != "toroid":
-        return [win]
-    curve = svg_l_vs_i(core, d.windings[0].turns, d.i_pk_a, parse_inductance_uh(d.l_text), ref_at="zero")
-    return [win, curve] if "bigfig" in win else [curve, win]  # lead with what matters: the curve, unless the winding doesn't fit
+    curve = (svg_l_vs_i(core, d.windings[0].turns, d.i_pk_a, parse_inductance_uh(d.l_text), ref_at="zero")
+             if d.kind == "inductor" and core.family == "toroid" else None)
+    flux = svg_flux(core, d) if d.kind == "transformer" and core.bsat_mt else None
+    return {"curve": curve, "flux": flux, "winding": win}
+
+
+def svg_flux(core: Core, d: Design, margin: float = 0.80) -> str:
+    """Transformer evidence: peak flux density (square-wave drive) against the core's B_sat."""
+    p = d.windings[0]
+    b = d.v_pri / (4 * d.f_khz * 1e3 * p.turns * core.ae_mm2 * 1e-6) * 1e3
+    lim, sat = margin * core.bsat_mt, core.bsat_mt
+    W, x0, x1, yb, hb = 420, 20, 400, 40, 22
+    x = lambda v: x0 + min(v, sat) / sat * (x1 - x0)  # noqa: E731
+    over = b > lim
+    g = (f'<rect class="fx-bar" x="{x0}" y="{yb}" width="{x1 - x0}" height="{hb}" rx="3"/>'
+         f'<rect class="fx-hot" x="{x(lim):.1f}" y="{yb}" width="{x1 - x(lim):.1f}" height="{hb}"/>'
+         f'<rect class="fx-val{" bad" if over else ""}" x="{x0}" y="{yb + 5}" width="{x(b) - x0:.1f}" height="{hb - 10}" rx="2"/>'
+         f'<line class="fx-lim" x1="{x(lim):.1f}" x2="{x(lim):.1f}" y1="{yb - 6}" y2="{yb + hb + 6}"/>'
+         f'<text class="mc-t" x="{x(lim):.1f}" y="{yb - 10}" text-anchor="middle">limit {lim:.0f} mT ({margin * 100:.0f}% of B_sat)</text>'
+         f'<text class="mc-t" x="{x1}" y="{yb + hb + 18}" text-anchor="end">B_sat {sat:.0f} mT (min, 100 °C)</text>'
+         f'<text class="mc-t" x="{x0}" y="{yb + hb + 18}">0</text>'
+         f'<text class="mc-t fx-num" x="{x(b) + 6:.1f}" y="{yb + hb / 2 + 4}">{b:.0f} mT</text>')
+    cap = (f"{core.name}, {p.turns} primary turns at {d.v_pri:g} V square, {d.f_khz:g} kHz: peak flux {b:.0f} mT, "
+           f"{b / sat * 100:.0f}% of B_sat. " + ("Over the limit: the core would run into saturation." if over else
+           "Headroom left for line surges and start-up transients."))
+    return f'<figure class="mfig"><svg viewBox="0 0 {W} 92" role="img" aria-label="Peak flux {b:.0f} mT versus limit {lim:.0f} mT">{g}</svg><figcaption>{cap}</figcaption></figure>'
 
 
 def site_records(root: Path) -> dict:
@@ -444,7 +479,9 @@ def site_records(root: Path) -> dict:
             "source": x["source"],
             "checks": [dataclasses.asdict(c) for c in checks],
             "flagged": any(c.status == FLAG for c in checks),
-            "figures": _figures(core, rec),
+            "fig": _named_figures(core, rec),
+            "default_tab": default_tab(checks, core is not None and rec.kind == "inductor" and core.family == "toroid",
+                                       core is not None and rec.kind == "transformer" and bool(core.bsat_mt)),
         })
     sim = similar(extracted)
     for r in recs:
@@ -540,7 +577,7 @@ def size_inductor(cores: dict[str, Core], limits: dict, l_uh: float, i_rms: floa
                 "core": core.name, "stack": n, "turns": turns, "awg": awg, "strands": strands,
                 "l0_uh": l0, "l_pk_uh": l_pk, "retained": f, "h_oe": h, "j": i_rms / cu, "fill": fill,
                 "core_volume_mm3": core.ve_mm3 * n, "copper_mm2": cu, "material": core.material,
-                "figures": [svg_l_vs_i(core, turns, i_pk, l_uh, n), svg_window(core, [("W1", turns, strands, awg)], n)],
+                "fig": {"curve": svg_l_vs_i(core, turns, i_pk, l_uh, n), "winding": svg_window(core, [("W1", turns, strands, awg)], n)},
                 "latex": [
                     rf"H_{{pk}} = \frac{{0.4\pi \times {turns} \times {_f(i_pk)}\,\mathrm{{A}}}}{{{_f(le_cm)}\,\mathrm{{cm}}}} = {_f(h)}\,\mathrm{{Oe}} \;\Rightarrow\; {f * 100:.0f}\%\ \text{{of }} A_L \text{{ remains}}",
                     rf"L(I_{{pk}}) = {n} \times {_f(core.al_nh)}\,\mathrm{{nH}} \times {turns}^2 \times {f:.2f} = {_f(l_pk, 4)}\,\mu\mathrm{{H}} \geq {_f(l_uh, 4)}\,\mu\mathrm{{H}}",
@@ -641,7 +678,7 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
         t = leg / 2  # half center leg (cut at the symmetry line); outer leg and yokes drawn at the same width
         body = (f'<path class="mw-core" fill-rule="evenodd" d="M{-t:.2f},{-t:.2f}h{t + w + t:.2f}v{h + 2 * t:.2f}h{-(t + w + t):.2f}z'
                 f'M0,0h{w:.2f}v{h:.2f}h{-w:.2f}z"/>'
-                f'<line class="mw-cut" x1="{-t:.2f}" y1="{-t - 1:.2f}" x2="{-t:.2f}" y2="{h + t + 1:.2f}"/>'
+                f'<line class="mw-cut" x1="{-t:.2f}" y1="{-t:.2f}" x2="{-t:.2f}" y2="{h + t:.2f}"/>'
                 f'<rect class="mw-win" x="0" y="0" width="{w:.2f}" height="{h:.2f}"/>')
         view = f"{-t - 2:.1f} {-t - 2:.1f} {w + 2 * t + 4:.1f} {h + 2 * t + 4:.1f}"
     circles = "".join(f'<circle class="mw-w{k}" cx="{x:.2f}" cy="{y:.2f}" r="{r:.3f}"/>' for k, x, y, r in placed)

@@ -41,13 +41,31 @@
         (r.flagged ? '<span class="pill bad">review</span>' : '<span class="pill ok">pass</span>') + "</td></tr>";
     }).join("") || '<tr><td colspan="6" class="sub">No drawings match these filters.</td></tr>';
     $("m-list").querySelectorAll(".mrow").forEach(function (tr) {
-      tr.onclick = function () { sel = tr.dataset.id; render(); };
-      tr.onkeydown = function (ev) { if (ev.key === "Enter") { sel = tr.dataset.id; render(); } };
+      tr.onclick = function () { sel = tr.dataset.id; tab = null; render(); };
+      tr.onkeydown = function (ev) { if (ev.key === "Enter") { sel = tr.dataset.id; tab = null; render(); } };
     });
   }
 
+  // ---- record detail: design on the left, evidence tabs on the right ---------------------
+  var tab = null; // current evidence tab; reset to the record's default when the selection changes
+  var TABS = [["curve", "Curve"], ["flux", "Flux"], ["winding", "Winding"], ["drawing", "Drawing"]];
+  function tabsHtml(avail, cur, attr) {
+    return '<div class="etabs" role="tablist">' + TABS.filter(function (t) { return avail[t[0]]; }).map(function (t) {
+      return '<button type="button" role="tab" class="etab' + (t[0] === cur ? " on" : "") + '" aria-selected="' + (t[0] === cur) + '" ' + attr + '="' + t[0] + '">' + t[1] + "</button>";
+    }).join("") + "</div>";
+  }
+  function evidence(r, cur) {
+    if (cur === "drawing") {
+      return '<a href="magnetics/' + esc(r.id) + '.pdf" target="_blank" rel="noopener" title="Open the PDF"><img class="mpng" src="magnetics/' + esc(r.id) +
+        '.png" alt="Drawing ' + esc(r.id) + ": " + esc(r.title) + '" width="1268" height="980"></a><p class="sub"><a href="magnetics/' + esc(r.id) +
+        '.pdf" target="_blank" rel="noopener">Open the PDF</a> · synthetic drawing; the fields on the left were read from its text layer</p>';
+    }
+    return r.fig[cur] || '<p class="sub">Not available for this design.</p>';
+  }
   function renderDetail() {
     var r = byId[sel];
+    var avail = { curve: !!r.fig.curve, flux: !!r.fig.flux, winding: !!r.fig.winding, drawing: true };
+    if (!tab || !avail[tab]) tab = r.default_tab;
     var fields = [["Drawing", r.id + " rev " + r.rev, "id"], ["Title", r.title, "title"], ["Core", r.core + " (" + r.core_desc + ")", "core"]];
     if (r.kind === "inductor") {
       fields.push(["Inductance", r.l_text, "l_text"]);
@@ -57,33 +75,38 @@
     r.windings.forEach(function (w) {
       fields.push(["Winding " + w.name, w.turns + " turns, " + w.strands + " × " + w.awg + " AWG, " + w.i_rms_a + " A RMS", w.name]);
     });
-    var html = '<div class="mdetail"><div class="mdraw"><a href="magnetics/' + esc(r.id) + '.pdf" target="_blank" rel="noopener" title="Open the PDF">' +
-      '<img src="magnetics/' + esc(r.id) + '.png" alt="Drawing ' + esc(r.id) + ': ' + esc(r.title) + '" width="1268" height="980"></a>' +
-      '<p class="sub"><a href="magnetics/' + esc(r.id) + '.pdf" target="_blank" rel="noopener">Open the PDF</a> · synthetic drawing; the fields on the right were read from this PDF</p></div>' +
-      '<div class="minfo"><h3>Extracted from the PDF text</h3><table><tr><th>Field</th><th>Value</th><th>Text it came from</th></tr>' +
-      fields.map(function (f) { return "<tr><td>" + esc(f[0]) + "</td><td>" + esc(f[1]) + '</td><td class="mono sub">' + esc(r.source[f[2]] || "") + "</td></tr>"; }).join("") +
-      "</table></div></div>";
-    if (r.figures && r.figures.length) html += '<h3>Inside the core</h3><div class="mfigs">' + r.figures.join("") + "</div>";
-    html += '<h3>Physics checks</h3>' + r.checks.map(function (c) {
-      var cls = c.status === "pass" ? "ok" : c.status === "flag" ? "bad" : "na";
-      return '<div class="mcheck"><p><span class="pill ' + cls + '">' + esc(c.status === "flag" ? "review" : c.status) + "</span> <b>" + esc(c.title) + "</b> · " + esc(c.message) + "</p>" +
-        c.latex.map(function (l) { return '<div class="eq"><div class="tex">' + esc(l) + "</div></div>"; }).join("") + "</div>";
-    }).join("");
-    html += '<h3>Closest past designs</h3><p class="sub">Same kind, ranked by closeness of inductance, current, and turns. In real use this answers "have we built something like this before?"</p><ul class="msim">' +
-      r.similar.map(function (s) { var o = byId[s.id]; return '<li><a href="#" data-id="' + esc(s.id) + '">' + esc(s.id) + "</a> " + esc(o.title) + " · " + esc(o.l_text) + ", " + o.i_a + " A" + (o.flagged ? ' <span class="pill bad">review</span>' : "") + "</li>"; }).join("") + "</ul>";
-    $("m-detail").innerHTML = html;
-    $("m-detail").querySelectorAll(".msim a").forEach(function (a) { a.onclick = function (ev) { ev.preventDefault(); sel = a.dataset.id; render(); }; });
+    var bad = r.checks.filter(function (c) { return c.status === "flag"; });
+    var verdict = bad.length
+      ? '<p class="verdict bad"><b>Needs review:</b> ' + bad.map(function (c) { return esc(c.title.toLowerCase()); }).join("; ") + ". The evidence tab on the right is opened to show why.</p>"
+      : '<p class="verdict ok"><b>Passes all ' + r.checks.length + " checks.</b></p>";
+    var left = "<h3>" + esc(r.id) + " · " + esc(r.title) + "</h3>" + verdict +
+      '<h4>Extracted from the PDF</h4><table class="mfields"><tr><th>Field</th><th>Value</th><th>Text it came from</th></tr>' +
+      fields.map(function (f) { return "<tr><td>" + esc(f[0]) + "</td><td>" + esc(f[1]) + '</td><td class="mono sub">' + esc(r.source[f[2]] || "") + "</td></tr>"; }).join("") + "</table>" +
+      "<h4>Physics checks</h4>" + r.checks.map(function (c) {
+        var cls = c.status === "pass" ? "ok" : c.status === "flag" ? "bad" : "na";
+        return '<details class="mcheck"' + (c.status === "flag" ? " open" : "") + '><summary><span class="pill ' + cls + '">' + esc(c.status === "flag" ? "review" : c.status) +
+          "</span> <b>" + esc(c.title) + '</b> <span class="sub">' + esc(c.message) + "</span></summary>" +
+          c.latex.map(function (l) { return '<div class="eq"><div class="tex">' + esc(l) + "</div></div>"; }).join("") + "</details>";
+      }).join("") +
+      '<h4>Closest past designs</h4><ul class="msim">' + r.similar.map(function (s) {
+        var o = byId[s.id];
+        return '<li><a href="#" data-id="' + esc(s.id) + '">' + esc(s.id) + "</a> " + esc(o.title) + " · " + esc(o.l_text) + ", " + o.i_a + " A" + (o.flagged ? ' <span class="pill bad">review</span>' : "") + "</li>";
+      }).join("") + "</ul>";
+    var right = tabsHtml(avail, tab, "data-tab") + '<div class="epanel">' + evidence(r, tab) + "</div>";
+    $("m-detail").innerHTML = '<div class="m2col"><div class="mleft">' + left + '</div><aside class="mright" aria-label="Evidence">' + right + "</aside></div>";
+    $("m-detail").querySelectorAll(".msim a").forEach(function (a) { a.onclick = function (ev) { ev.preventDefault(); sel = a.dataset.id; tab = null; render(); }; });
+    $("m-detail").querySelectorAll(".etab").forEach(function (b) { b.onclick = function () { tab = b.dataset.tab; renderDetail(); }; });
     tex($("m-detail"));
   }
 
   // ---- sizing (runs calgen.magnetics in Pyodide) ----------------------------------------
-  var engine = null, open = null, lastReq = null;
+  var engine = null, open = 0, lastReq = null, sztab = "curve";
   function sizeNow() {
     if (!engine) return;
     var req = { l_uh: num("sz-l"), i_rms: num("sz-irms"), i_pk: num("sz-ipk"), min_retained: parseFloat($("sz-ret").value),
       past: DATA.records.filter(function (r) { return !r.flagged; }).map(function (r) { return { id: r.id, kind: r.kind, l_uh: r.l_uh, i_a: r.i_a }; }) };
     if (!(req.l_uh > 0 && req.i_rms > 0 && req.i_pk > 0)) { $("sz-out").innerHTML = '<p class="alert bad">Enter a positive inductance, RMS current, and peak current.</p>'; return; }
-    lastReq = req; open = null;
+    lastReq = req; open = 0; sztab = "curve";
     var res = JSON.parse(engine.size_json("/calgen/specs", JSON.stringify(req)));
     renderSizing(res);
   }
@@ -92,14 +115,17 @@
     if (!c.length) {
       h += '<p class="alert bad">No core in this catalog meets it, even stacked four high. That is an honest answer: the requirement needs a larger core family (for example powder E cores) or a different design approach.</p>';
     } else {
-      h += '<p class="sub">' + c.length + " candidate" + (c.length === 1 ? "" : "s") + ", smallest core volume first. Click a row for the math.</p>";
+      h += '<p class="sub">' + c.length + " candidate" + (c.length === 1 ? "" : "s") + ", smallest core volume first. Click a row to see its math and evidence below.</p>";
       h += '<table class="szt"><tr><th>Core</th><th>Stack</th><th>Turns</th><th>Wire</th><th>L at 0 A</th><th>L at peak</th><th>Kept</th><th>J</th><th>Fill</th><th>Core volume</th></tr>' +
         c.map(function (x, i) {
-          var row = '<tr class="cand' + (open === i ? " on" : "") + '" data-i="' + i + '"><td class="mono">' + esc(x.core) + "</td><td>" + x.stack + "×</td><td>" + x.turns + "</td><td>" + x.strands + " × " + x.awg + " AWG</td><td>" +
+          var row = '<tr class="cand' + (open === i ? " on" : "") + '" data-i="' + i + '" tabindex="0"><td class="mono">' + esc(x.core) + "</td><td>" + x.stack + "×</td><td>" + x.turns + "</td><td>" + x.strands + " × " + x.awg + " AWG</td><td>" +
             fmtL(x.l0_uh) + "</td><td><b>" + fmtL(x.l_pk_uh) + "</b></td><td>" + Math.round(x.retained * 100) + "%</td><td>" + x.j.toFixed(2) + " A/mm²</td><td>" + Math.round(x.fill * 100) + "%</td><td>" + (x.core_volume_mm3 / 1000).toFixed(1) + " cm³</td></tr>";
-          if (open === i) row += '<tr><td colspan="10" class="szmath"><div class="mfigs">' + x.figures.join("") + "</div>" + x.latex.map(function (l) { return '<div class="eq"><div class="tex">' + esc(l) + "</div></div>"; }).join("") + "</td></tr>";
           return row;
         }).join("") + "</table>";
+      var x = c[open] || c[0];
+      h += '<div class="m2col szdetail"><div class="mleft"><h4>' + esc(x.core) + (x.stack > 1 ? " × " + x.stack + " stacked" : "") + ": " + x.turns + " turns of " + x.strands + " × " + x.awg + " AWG</h4>" +
+        x.latex.map(function (l) { return '<div class="eq"><div class="tex">' + esc(l) + "</div></div>"; }).join("") + "</div>" +
+        '<aside class="mright" aria-label="Evidence">' + tabsHtml({ curve: true, winding: true }, sztab, "data-sztab") + '<div class="epanel">' + x.fig[sztab] + "</div></aside></div>";
     }
     if (res.rejected.length) {
       h += '<details><summary class="sub">Why the other ' + res.rejected.length + " core" + (res.rejected.length === 1 ? "" : "s") + " don't work</summary><ul>" +
@@ -109,7 +135,11 @@
       h += '<p class="sub">Closest past designs (passed their checks): ' + res.past.map(function (p) { var o = byId[p.id]; return '<a href="#" data-id="' + esc(p.id) + '">' + esc(p.id) + "</a> " + esc(o.l_text) + ", " + o.i_a + " A"; }).join(" · ") + "</p>";
     }
     $("sz-out").innerHTML = h;
-    $("sz-out").querySelectorAll("tr.cand").forEach(function (tr) { tr.onclick = function () { var i = +tr.dataset.i; open = open === i ? null : i; renderSizing(res); }; });
+    $("sz-out").querySelectorAll("tr.cand").forEach(function (tr) {
+      tr.onclick = function () { open = +tr.dataset.i; renderSizing(res); };
+      tr.onkeydown = function (ev) { if (ev.key === "Enter") { open = +tr.dataset.i; renderSizing(res); } };
+    });
+    $("sz-out").querySelectorAll(".etab").forEach(function (b) { b.onclick = function () { sztab = b.dataset.sztab; renderSizing(res); }; });
     $("sz-out").querySelectorAll("a[data-id]").forEach(function (a) { a.onclick = function (ev) { ev.preventDefault(); sel = a.dataset.id; render(); $("m-detail").scrollIntoView({ behavior: "smooth" }); }; });
     tex($("sz-out"));
   }
