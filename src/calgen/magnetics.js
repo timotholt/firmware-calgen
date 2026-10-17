@@ -57,9 +57,9 @@
     r.windings.forEach(function (w) {
       fields.push(["Winding " + w.name, w.turns + " turns, " + w.strands + " × " + w.awg + " AWG, " + w.i_rms_a + " A RMS", w.name]);
     });
-    var html = '<div class="mdetail"><div class="mdraw"><object data="magnetics/' + esc(r.id) + '.pdf#toolbar=0&navpanes=0&view=FitH" type="application/pdf" aria-label="Drawing ' + esc(r.id) + '">' +
-      '<p class="sub"><a href="magnetics/' + esc(r.id) + '.pdf">Open drawing ' + esc(r.id) + " (PDF)</a></p></object>" +
-      '<p class="sub"><a href="magnetics/' + esc(r.id) + '.pdf" target="_blank" rel="noopener">Open full size</a> · synthetic drawing</p></div>' +
+    var html = '<div class="mdetail"><div class="mdraw"><a href="magnetics/' + esc(r.id) + '.pdf" target="_blank" rel="noopener" title="Open the PDF">' +
+      '<img src="magnetics/' + esc(r.id) + '.png" alt="Drawing ' + esc(r.id) + ': ' + esc(r.title) + '" width="1268" height="980"></a>' +
+      '<p class="sub"><a href="magnetics/' + esc(r.id) + '.pdf" target="_blank" rel="noopener">Open the PDF</a> · synthetic drawing; the fields on the right were read from this PDF</p></div>' +
       '<div class="minfo"><h3>Extracted from the PDF text</h3><table><tr><th>Field</th><th>Value</th><th>Text it came from</th></tr>' +
       fields.map(function (f) { return "<tr><td>" + esc(f[0]) + "</td><td>" + esc(f[1]) + '</td><td class="mono sub">' + esc(r.source[f[2]] || "") + "</td></tr>"; }).join("") +
       "</table></div></div>";

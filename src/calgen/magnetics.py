@@ -233,24 +233,32 @@ def render_pdf(d: Design, path: Path) -> None:
     c.drawString(36, H - 44, "SYNTHETIC DEMO DRAWING - NOT A REAL PRODUCT")
 
     def table(x, y, title, header, rows, widths):
+        """Title above the box; header row and data rows inside it. Returns the y for the next table."""
         c.setFont("Helvetica-Bold", 10)
         c.drawString(x, y, title)
-        y -= 16
+        top = y - 8
+        hy = top - 13
         c.setFont("Helvetica-Bold", 8.5)
         cx = x
         for h, wd in zip(header, widths):
-            c.drawString(cx + 4, y, h)
+            c.drawString(cx + 5, hy, h)
             cx += wd
-        c.line(x, y - 4, x + sum(widths), y - 4)
+        c.line(x, hy - 5, x + sum(widths), hy - 5)
         c.setFont("Helvetica", 9)
+        ry = hy
         for r in rows:
-            y -= 15
+            ry -= 16
             cx = x
             for v, wd in zip(r, widths):
-                c.drawString(cx + 4, y, str(v))
+                c.drawString(cx + 5, ry, str(v))
                 cx += wd
-        c.rect(x, y - 6, sum(widths), (len(rows) + 1) * 15 + 12)
-        return y - 26
+        bottom = ry - 7
+        c.rect(x, bottom, sum(widths), top - bottom)
+        cx = x
+        for wd in widths[:-1]:  # column rules
+            cx += wd
+            c.line(cx, bottom, cx, top)
+        return bottom - 26
 
     # schematic sketch: a coil between pins
     c.setLineWidth(1)
@@ -294,10 +302,14 @@ def render_pdf(d: Design, path: Path) -> None:
     c.drawString(x0 + 6, y0 + 46, d.title)
     c.drawString(x0 + 6, y0 + 14, d.id)
     c.drawString(x0 + 200, y0 + 14, d.rev)
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(40, 150, "NOTES")
     c.setFont("Helvetica", 8)
-    y = 150
-    for n in d.notes:
-        c.drawString(36, y, n)
+    y = 136
+    for n in ["1. WIND EVENLY IN ONE DIRECTION; LEADS AS SHOWN.", "2. VARNISH IMPREGNATE AFTER WINDING.",
+              "3. MARK WITH DRAWING NUMBER AND DATE CODE.", "4. SYNTHETIC EXAMPLE FOR A SOFTWARE DEMO; NOT FOR MANUFACTURE.",
+              *d.notes]:
+        c.drawString(40, y, n)
         y -= 12
     c.showPage()
     c.save()
