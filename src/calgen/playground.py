@@ -81,13 +81,67 @@ def run(specs: str | Path, product: str = "FA10507", board_rev: str = "A", targe
     )
     rules = load_rules(specs / "rules.yaml")
     b = build(variant, rules)
+    # baseline = the product as shipped: board rev A, F28004x-class target, no edits
+    default = build(base, rules)
+    baseline = {c.rule.id: (_display(c), c.value, c.enum_ident, c.status) for c in default.constants}
     if base_header is None and edits:
         unedited = dataclasses.replace(variant, board=board, design=base.design)
         try:
             base_header = header(build(unedited, rules))
         except GateError:
             base_header = ""
-    return to_json(b, base_header)
+    out = to_json(b, base_header)
+    out["baseline"] = {k: v[0] for k, v in baseline.items()}
+    out["changed"] = [c.rule.id for c in b.constants if _differs(baseline.get(c.rule.id), c)]
+    return out
+
+
+def _differs(base, c) -> bool:
+    """Meaningful change vs the shipped product: status, enum, or value beyond 0.01%."""
+    if base is None:
+        return True
+    _, value, ident, status = base
+    if status != c.status or ident != c.enum_ident:
+        return True
+    if value is None or c.value is None:
+        return value != c.value
+    return abs(c.value - value) > 1e-4 * max(abs(value), 1e-12)
+
+
+def _num(b: Build, name: str, unit: str) -> float | None:
+    from calgen.units import from_si
+
+    q = b.env.get(name)
+    return None if q is None else from_si(q.value, unit)
+
+
+def summaries(b: Build) -> dict[str, str]:
+    """One-line engineering summary per power-flow block, built from the same values."""
+    ds = b.variant.datasheet.params
+    g = lambda name, unit="1": _num(b, name, unit)  # noqa: E731
+    val = {c.rule.id: c for c in b.constants}
+
+    def v(rule_id: str, fmt: str = "{:.0f}") -> str:
+        c = val.get(rule_id)
+        return fmt.format(c.value) if c is not None and c.value is not None else "?"
+
+    fin = ds.get("fin_nom")
+    if fin is not None and fin.numeric:
+        freq = fin.raw.replace("+/-", "±").replace(", ", " ").replace("(", "").replace(")", "").replace("± ", "±")
+    else:
+        freq = "freq. unreadable on data sheet"
+    mode = val["fout_mode"].enum_ident.split("_")[-1].lower() if val["fout_mode"].enum_ident else "?"
+    action = val["overload_action"].enum_ident.split("_")[-1].lower() if val["overload_action"].enum_ident else "?"
+    trip_pct = g("ds.overload_trip_pct", "%")
+    chem = str(ds["batt_type"].value).replace("lifepo4", "LiFePO4") if "batt_type" in ds else ""
+    return {
+        "in": f"{v('vin_min')}–{v('vin_max')} V AC 1φ* · {freq} · ≤ {v('iin_limit', '{:.1f}')} A",
+        "rect": f"Boost PFC · bus ≥ √2 × {v('vin_max')} V = {v('vbus_min')} V",
+        "bus": f"{v('vbus_set')} V DC setpoint · sensor full scale {v('vbus_fs')} V",
+        "inv": f"{v('vout_set')} V AC ±{g('ds.vout_tol_pct', '%') or 0:g}% · {v('fout_hz')} Hz {mode} · PWM {g('design.f_sw', 'kHz') or 0:g} kHz",
+        "out": f"{g('ds.power_va', 'VA') or 0:g} VA · {v('iout_rated', '{:.2f}')} A rated · trip {v('iout_trip', '{:.2f}')} A ({trip_pct or 0:g}%) · {action}",
+        "batt": f"{v('vbat_nom', '{:.1f}')} V {chem} · cutoff {v('vbat_cutoff', '{:.1f}')} V",
+    }
 
 
 def to_json(b: Build, base_header: str | None = None) -> dict:
@@ -132,6 +186,8 @@ def to_json(b: Build, base_header: str | None = None) -> dict:
         "header": c_text,
         "diff": diff,
         "inputs": {f"{kind}.{name}": _input_value(b, kind, name, unit) for kind, name, unit, _, _ in EDITABLE},
+        "summaries": summaries(b),
+        "footnote": "* single-phase is implied by the IEC C14 inlet and NEMA 5-15 outlets on the data sheet, not stated as a rating",
     }
 
 

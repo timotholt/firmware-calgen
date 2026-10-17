@@ -43,21 +43,33 @@
     });
   }
 
+  function changed(id) { return (DATA.changed || []).indexOf(id) >= 0; }
+  function shown(c) {
+    if (!changed(c.id) || !DATA.baseline) return esc(c.display);
+    return '<span class="was">' + esc(DATA.baseline[c.id]) + '</span> → <b>' + esc(c.display) + "</b>";
+  }
+
   function flowBox(b) {
     var title = DATA.blocks[b];
     var rows = FLOW[b].map(function (id) {
       var c = byId(id); if (!c) return "";
-      return '<div class="r" title="' + esc(c.symbol) + '">' + esc(c.display) + '<span class="tag tag-' + c.tag + '">' + esc(TAGNAME[c.tag]) + "</span></div>";
+      return '<div class="r' + (changed(id) ? " chg" : "") + '" title="' + esc(c.symbol) + '">' + shown(c) + '<span class="tag tag-' + c.tag + '">' + esc(TAGNAME[c.tag]) + "</span></div>";
     }).join("");
+    var summary = DATA.summaries ? '<div class="sum">' + esc(DATA.summaries[b]) + "</div>" : "";
     var bad = DATA.constants.some(function (c) { return c.block === b && c.status === "fail"; }) ||
       DATA.checks.some(function (k) { return k.block === b && k.status === "fail"; });
-    return '<div class="fb' + (state.block === b ? " sel" : "") + (bad ? " bad" : "") + '" data-b="' + b + '" role="button" tabindex="0"><div class="t">' + esc(title) + "</div>" + rows + "</div>";
+    var any = DATA.constants.some(function (c) { return c.block === b && changed(c.id); });
+    return '<div class="fb' + (state.block === b ? " sel" : "") + (bad ? " bad" : "") + (any ? " has-chg" : "") + '" data-b="' + b + '" role="button" tabindex="0"><div class="t">' + esc(title) + "</div>" + summary + rows + "</div>";
   }
 
   function renderFlow() {
-    var main = ["in", "rect", "bus", "inv", "out"].map(flowBox).join("");
-    $("flow").innerHTML = '<div class="fgrid">' + main + '<div class="under">' + flowBox("batt") + "</div></div>" +
-      '<div class="sub" style="width:100%">Battery charges and discharges through the DC bus. Click a block to filter the constants below.</div>';
+    var arrow = '<div class="farrow" aria-hidden="true">→</div>';
+    var main = ["in", "rect", "bus", "inv", "out"].map(flowBox).join(arrow);
+    $("flow").innerHTML = '<div class="fgrid">' + main +
+      '<div class="fvert" aria-hidden="true">↕</div><div class="under">' + flowBox("batt") + "</div></div>" +
+      '<div class="sub" style="width:100%">Power flows left to right; the battery charges from and discharges into the DC bus. ' +
+      'Click a block to filter the constants below. Highlighted values differ from the product as shipped (board rev A, F28004x-class, default design values).<br>' +
+      esc(DATA.footnote || "") + "</div>";
     $("flow").querySelectorAll(".fb").forEach(function (e) {
       var go = function () { state.block = state.block === e.dataset.b ? null : e.dataset.b; state.sel = null; render(); };
       e.onclick = go; e.onkeydown = function (ev) { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); go(); } };
@@ -106,6 +118,8 @@
       [stale ? "bad" : "ok", "Staleness " + (stale ? stale + " stale" : "current")],
       [DATA.ok ? "ok" : "bad", DATA.ok ? "C generated" : "Nothing written (fail closed)"]
     ];
+    var n = (DATA.changed || []).length;
+    pills.push([n ? "chgpill" : "na", n ? n + " value" + (n === 1 ? "" : "s") + " changed vs shipped" : "matches shipped product"]);
     $("gates").innerHTML = pills.map(function (p) { return '<span class="pill ' + p[0] + '">' + esc(p[1]) + "</span>"; }).join("");
     var msgs = DATA.checks.filter(function (k) { return k.status === "fail"; }).map(function (k) { return k.message; })
       .concat(DATA.staleness.filter(function (s) { return s.status === "fail"; }).map(function (s) { return s.param + ": " + s.message; }))
@@ -127,7 +141,7 @@
     list.forEach(function (c) {
       if (c.block !== last) { html += '<div class="blk">' + esc(DATA.blocks[c.block]) + "</div>"; last = c.block; }
       html += '<div class="it' + (c.id === state.sel ? " sel" : "") + '" data-id="' + esc(c.id) + '" role="button" tabindex="0" aria-pressed="' + (c.id === state.sel) + '">' +
-        "<span>" + esc(c.symbol) + '</span><span style="display:flex;gap:6px;align-items:center"><span class="v">' + esc(c.display) + '</span><span class="dot ' + dot(c.status) + '"></span></span></div>';
+        "<span>" + esc(c.symbol) + '</span><span style="display:flex;gap:6px;align-items:center"><span class="v' + (changed(c.id) ? " chg" : "") + '">' + shown(c) + '</span><span class="dot ' + dot(c.status) + '"></span></span></div>';
     });
     $("clist").innerHTML = html;
     $("clist").querySelectorAll(".it").forEach(function (e) {
