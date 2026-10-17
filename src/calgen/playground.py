@@ -18,7 +18,7 @@ from calgen.build import FAIL, OK, Build, build
 from calgen.codegen import GateError, header
 from calgen.expr import dotted_name, parse
 from calgen.latex import derive_check, derive_constant
-from calgen.spec import ParamSet, load_paramset, load_rules, load_variant
+from calgen.spec import Param, ParamSet, load_paramset, load_rules, load_variant
 
 PRODUCTS = {
     "FA10449": {"variant": "fa10449", "label": "FA10449 · 650 VA · half rack"},
@@ -30,6 +30,10 @@ TARGETS = {"f28004x": "f28004x.yaml", "f2803x": "f2803x.yaml"}
 
 # editable inputs: (paramset, name, display unit, label, owner)
 EDITABLE = [
+    ("ds", "power_va", "VA", "Rated power", "Product what-if"),
+    ("ds", "vin_max", "V", "Max input voltage", "Product what-if"),
+    ("ds", "vout_nom", "V", "Output voltage", "Product what-if"),
+    ("ds", "overload_trip_pct", "%", "Overload trip level", "Product what-if"),
     ("board", "r_shunt", "mohm", "Current shunt", "Board"),
     ("board", "g_amp", "ratio", "Sense amp gain", "Board"),
     ("design", "f_sw", "kHz", "Switching frequency", "Design choice"),
@@ -51,6 +55,8 @@ def _with_params(ps: ParamSet, edits: dict[str, float]) -> ParamSet:
 
 def _tag(b: Build, rule_id: str) -> str:
     c = b.constant(rule_id)
+    if any(s.override for s in c.sources) and dotted_name(parse(c.rule.formula).tree) is not None:
+        return "override"
     if c.rule.supplied:
         return "design"
     if c.rule.kind == "enum":
@@ -72,12 +78,22 @@ def run(specs: str | Path, product: str = "FA10507", board_rev: str = "A", targe
     tgt = load_paramset(specs / "targets" / TARGETS[target], "target")
     board_edits = {k.split(".", 1)[1]: v for k, v in edits.items() if k.startswith("board.")}
     design_edits = {k.split(".", 1)[1]: v for k, v in edits.items() if k.startswith("design.")}
+    overrides = dict(base.overrides)
+    for k, v in edits.items():
+        if k.startswith("ds."):
+            name = k.split(".", 1)[1]
+            orig = base.datasheet.params.get(name)
+            unit = next(u for kind, n, u, _, _ in EDITABLE if kind == "ds" and n == name)
+            was = f"{orig.value:g} {orig.unit}" if orig is not None and orig.numeric else "not stated"
+            reason = f"what-if in playground: data sheet says {was}"
+            overrides[name] = Param(name=name, value=float(v), unit=unit, source=f"OVERRIDE ({reason})", note=reason)
     variant = dataclasses.replace(
         base,
         name=f"{PRODUCTS[product]['variant']}_rev{board_rev}_{target}",
         board=_with_params(board, board_edits),
         target=tgt,
         design=_with_params(base.design, design_edits),
+        overrides=overrides,
     )
     rules = load_rules(specs / "rules.yaml")
     b = build(variant, rules)
@@ -85,7 +101,7 @@ def run(specs: str | Path, product: str = "FA10507", board_rev: str = "A", targe
     default = build(base, rules)
     baseline = {c.rule.id: (_display(c), c.value, c.enum_ident, c.status) for c in default.constants}
     if base_header is None and edits:
-        unedited = dataclasses.replace(variant, board=board, design=base.design)
+        unedited = dataclasses.replace(variant, board=board, design=base.design, overrides=base.overrides)
         try:
             base_header = header(build(unedited, rules))
         except GateError:
@@ -140,8 +156,19 @@ def summaries(b: Build) -> dict[str, str]:
         "bus": f"{v('vbus_set')} V DC setpoint · sensor full scale {v('vbus_fs')} V",
         "inv": f"{v('vout_set')} V AC ±{g('ds.vout_tol_pct', '%') or 0:g}% · {v('fout_hz')} Hz {mode} · PWM {g('design.f_sw', 'kHz') or 0:g} kHz",
         "out": f"{g('ds.power_va', 'VA') or 0:g} VA · {v('iout_rated', '{:.2f}')} A rated · trip {v('iout_trip', '{:.2f}')} A ({trip_pct or 0:g}%) · {action}",
+        "sense": _sense_line(val, g("design.sense_headroom", "%")),
         "batt": f"{v('vbat_nom', '{:.1f}')} V {chem} · cutoff {v('vbat_cutoff', '{:.1f}')} V",
     }
+
+
+def _sense_line(val: dict, headroom_pct: float | None) -> str:
+    pk, fs = val.get("iout_trip_pk"), val.get("iout_fs_pk")
+    if not pk or not fs or pk.value is None or fs.value is None:
+        return ""
+    used = 100 * pk.value / fs.value
+    limit = headroom_pct or 95
+    verdict = "OK" if used <= limit else "SATURATES before trip"
+    return f"Current sensor ±{fs.value:.1f} A peak · trip peak {pk.value:.1f} A uses {used:.0f}% (limit {limit:g}%) · {verdict}"
 
 
 def to_json(b: Build, base_header: str | None = None) -> dict:

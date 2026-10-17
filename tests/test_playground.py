@@ -39,3 +39,25 @@ def test_frequency_edit_regenerates_pwm_and_flags_stale_gains():
     r = run(SPECS, edits={"design.f_sw": 25})
     assert "pwm_period" in r["changed"] and not r["ok"]
     assert {s["param"] for s in r["staleness"] if s["status"] == "fail"} == {"design.vloop_kp", "design.vloop_ki"}
+
+
+def test_shunt_change_is_visible_in_sensor_line():
+    base = run(SPECS)["summaries"]["sense"]
+    r = run(SPECS, edits={"board.r_shunt": 6})
+    assert base.startswith("Current sensor ±33.0 A peak") and "uses 64%" in base
+    assert "±27.5 A" in r["summaries"]["sense"] and "uses 77%" in r["summaries"]["sense"]
+    assert {"iout_fs_pk", "iout_trip_dac_hi"} <= set(r["changed"])
+
+
+def test_product_what_if_overrides_data_sheet_and_is_marked():
+    ok = run(SPECS, edits={"ds.power_va": 2000})
+    assert ok["ok"] and "OVERRIDE ds.power_va: what-if in playground: data sheet says 1500 VA" in ok["header"]
+    assert next(c for c in ok["constants"] if c["id"] == "iout_rated")["display"] == "16.67 A"
+    too_big = run(SPECS, edits={"ds.power_va": 2500})
+    assert not too_big["ok"] and "SATURATES before trip" in too_big["summaries"]["sense"]
+
+
+def test_input_voltage_what_if_moves_the_bus():
+    r = run(SPECS, edits={"ds.vin_max": 277})
+    assert {"vin_max", "vbus_min", "vbus_set"} <= set(r["changed"])
+    assert next(c for c in r["constants"] if c["id"] == "vbus_set")["display"] == "420 V"  # ceil(391.7*1.07/10)*10

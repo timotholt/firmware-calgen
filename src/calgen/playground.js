@@ -12,10 +12,10 @@
     "rect": ["vbus_min"],
     "bus": ["vbus_set", "vbus_fs"],
     "inv": ["vout_set", "fout_mode", "pwm_period"],
-    "out": ["iout_rated", "iout_trip", "iout_trip_dac_hi"],
+    "out": ["iout_rated", "iout_trip", "iout_fs_pk", "iout_trip_dac_hi"],
     "batt": ["vbat_nom", "vbat_cutoff"]
   };
-  var TAGNAME = { datasheet: "data sheet", derived: "derived", design: "design" };
+  var TAGNAME = { datasheet: "data sheet", derived: "derived", design: "design", override: "what-if" };
 
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
@@ -56,6 +56,10 @@
       return '<div class="r' + (changed(id) ? " chg" : "") + '" title="' + esc(c.symbol) + '">' + shown(c) + '<span class="tag tag-' + c.tag + '">' + esc(TAGNAME[c.tag]) + "</span></div>";
     }).join("");
     var summary = DATA.summaries ? '<div class="sum">' + esc(DATA.summaries[b]) + "</div>" : "";
+    if (b === "out" && DATA.summaries && DATA.summaries.sense) {
+      var sat = DATA.summaries.sense.indexOf("SATURATES") >= 0;
+      summary += '<div class="sense' + (sat ? " bad" : "") + '">' + esc(DATA.summaries.sense) + "</div>";
+    }
     var bad = DATA.constants.some(function (c) { return c.block === b && c.status === "fail"; }) ||
       DATA.checks.some(function (k) { return k.block === b && k.status === "fail"; });
     var any = DATA.constants.some(function (c) { return c.block === b && changed(c.id); });
@@ -86,10 +90,13 @@
       var unit = e.unit === "ratio" ? "V/V" : e.unit === "mohm" ? "mΩ" : e.unit;
       owners[e.owner] = (owners[e.owner] || "") + '<div class="inp"><label for="i-' + esc(e.key) + '">' + esc(e.label) + " (" + esc(unit) + ')</label><input type="number" step="any" min="0" id="i-' + esc(e.key) + '" data-k="' + esc(e.key) + '" value="' + esc(v) + '"' + dis + "></div>";
     });
-    var order = [["Board", "hardware engineer"], ["Chip", "processor profile"], ["Design choice", "power engineer"]];
+    var order = [["Product what-if", "overrides the data sheet"], ["Board", "hardware engineer"], ["Chip", "processor profile"], ["Design choice", "power engineer"]];
     $("inputs").innerHTML = order.map(function (o) {
-      return '<div class="card"><h3>' + o[0] + " · " + o[1] + "</h3>" + (owners[o[0]] || "") + "</div>";
-    }).join("") + '<div class="card"><h3>Product · data sheet</h3><p class="sub">Ratings are fixed by the public data sheet. Choose a product on the left.</p></div>';
+      var note = o[0] === "Product what-if" ? '<p class="sub" style="margin:0 0 6px">Start a new variant: values here replace the data sheet and are marked OVERRIDE in the generated C.</p>' : "";
+      return '<div class="card"><h3>' + o[0] + " · " + o[1] + "</h3>" + note + (owners[o[0]] || "") + "</div>";
+    }).join("") + '<div class="card"><button id="reset" class="btn" type="button"' + dis + '>Reset to shipped product</button></div>';
+    var reset = $("reset");
+    if (reset) reset.onclick = function () { state.edits = {}; state.board = "A"; state.target = "f28004x"; recompute(); };
     $("board").value = state.board; $("target").value = state.target;
     $("board").onchange = function () { state.board = this.value; recompute(); };
     $("target").onchange = function () { state.target = this.value; recompute(); };
