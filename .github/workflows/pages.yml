@@ -1,8 +1,8 @@
 name: Pages
 
-# Manual for now. Free GitHub Pages needs a public repository; switch to
-# `push: branches: [main]` once the repository is public.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
