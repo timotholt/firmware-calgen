@@ -27,7 +27,7 @@ def _default_rules(variant_path: Path) -> Path:
 
 
 def _load(args: argparse.Namespace) -> Build:
-    vpath = Path(args.variant)
+    vpath = Path(args.variant)  # audit passes --variant; check/build pass it positionally
     rules = Path(args.rules) if args.rules else _default_rules(vpath)
     return build(load_variant(vpath), load_rules(rules))
 
@@ -86,6 +86,80 @@ def cmd_build(args: argparse.Namespace) -> int:
     return 0
 
 
+def _backend(spec: str, root: Path):
+    from calgen import ai
+
+    kind, _, model = spec.partition(":")
+    if kind == "none":
+        return ai.NoBackend()
+    if kind == "replay":
+        return ai.ReplayBackend(Path(model) if model else root / "ai_runs" / "default.json")
+    if kind == "openai":
+        return ai.OpenAIBackend(model)
+    if kind == "anthropic":
+        return ai.AnthropicBackend(model)
+    raise SystemExit(f"unknown --ai backend {spec!r}; use none | replay[:file] | openai:<model> | anthropic:<model>")
+
+
+def cmd_audit(args: argparse.Namespace) -> int:
+    from calgen.audit import MATCH, MISMATCH, UNMAPPED, conform, load_map, scan
+
+    root = Path(args.source)
+    cands = scan(root)
+    b = _load(args)
+    mapping = load_map(Path(args.map)) if args.map else []
+    results = conform(cands, mapping, b)
+    print(f"audit {root} against {b.variant.name}: {len(cands)} numeric constants")
+    for r in results:
+        c = r.candidate
+        where = f"{c.file}:{c.line}"
+        if r.status == MATCH:
+            print(f"  {_tag(OK)}  {where:<16} {c.symbol:<14} {c.literal:<12} = {r.rule}")
+        elif r.status == MISMATCH:
+            print(f"  {_tag(FAIL)}  {where:<16} {c.symbol:<14} {c.literal:<12} spec says {r.expected:.6g} ({r.rule})")
+    unmapped = [r.candidate for r in results if r.status == UNMAPPED]
+    n_mis = sum(r.status == MISMATCH for r in results)
+    print(f"{sum(r.status == MATCH for r in results)} match, {n_mis} mismatch, {len(unmapped)} unexplained")
+    if args.ai and unmapped:
+        from calgen import ai
+
+        res = ai.classify(root, unmapped, b.rules, _backend(args.ai, root))
+        print(f"AI draft for unexplained constants ({args.ai}) -- for human review, nothing applied:")
+        by_id = {i.id: i for r in res for i in r.items}
+        per_file: dict[str, int] = {}
+        for c in unmapped:
+            n = per_file.get(c.file, 0)
+            per_file[c.file] = n + 1
+            item = by_id.get(ai.candidate_id(c, n))
+            text = f"{item.category}, {item.units}, {item.confidence}: {item.reason}" if item else "no valid answer"
+            print(f"  {c.file}:{c.line:<4} {c.symbol:<14} {c.literal:<10} {text}")
+    return 1 if n_mis else 0
+
+
+def cmd_eval(args: argparse.Namespace) -> int:
+    from calgen import ai
+    from calgen.audit import scan
+    from calgen.evals import load_key, score
+
+    root = Path(args.source)
+    cands = scan(root)
+    key = load_key(Path(args.key))
+    rules = load_rules(Path(args.rules) if args.rules else Path("specs/rules.yaml"))
+    backend = _backend(args.ai, root)
+    results = ai.classify(root, cands, rules, backend)
+    if args.record:
+        ai.record(results, backend, Path(args.record))
+        print(f"recorded {args.record}")
+    s = score(backend.model, cands, key, results)
+    print(f"model {s.model}: {s.n} keyed constants, {s.answered} valid answers")
+    for label, v in (("category", s.category), ("units", s.units), ("typed/derived", s.typed), ("rule mapping", s.rule)):
+        print(f"  {label:<14} {v:>3}/{s.n}  {s.pct(v):5.1f}%")
+    print(f"  tokens in/out  {s.input_tokens}/{s.output_tokens}   latency {s.latency_s:.1f}s")
+    for e in s.errors:
+        print(f"  miss: {e}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="calgen",
@@ -107,6 +181,22 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--patch", help="rewrite CALGEN:BEGIN/END blocks in this existing C file instead")
     p.add_argument("--dry-run", action="store_true", help="print the unified diff; write nothing")
     p.set_defaults(func=cmd_build)
+
+    p = sub.add_parser("audit", help="read-only: check existing C firmware against a variant's spec")
+    p.add_argument("source", help="directory of legacy .c/.h files")
+    p.add_argument("--variant", required=True, help="variant YAML to compare against")
+    p.add_argument("--rules", help="rules YAML")
+    p.add_argument("--map", help="reviewed legacy-symbol -> rule mapping (calgen_map.yaml)")
+    p.add_argument("--ai", help="classify unexplained constants: none | replay[:file] | openai:<model> | anthropic:<model>")
+    p.set_defaults(func=cmd_audit)
+
+    p = sub.add_parser("eval", help="score an AI backend against a blind answer key")
+    p.add_argument("source", help="directory of legacy .c/.h files")
+    p.add_argument("--key", required=True, help="answer key YAML (never shown to the model)")
+    p.add_argument("--rules", help="rules YAML (default specs/rules.yaml)")
+    p.add_argument("--ai", default="replay", help="backend: replay[:file] | openai:<model> | anthropic:<model> | none")
+    p.add_argument("--record", help="save responses for offline replay")
+    p.set_defaults(func=cmd_eval)
     return parser
 
 

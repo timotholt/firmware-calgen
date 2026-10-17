@@ -161,6 +161,7 @@ class MapEntry:
     scale: float  # multiply legacy value by this to get the rule's unit
     reviewed_by: str
     note: str = ""
+    line: int | None = None  # required for "<inline>" magic numbers
 
 
 @dataclass(frozen=True)
@@ -186,16 +187,18 @@ def load_map(path: Path) -> list[MapEntry]:
                 scale=float(e.get("scale", 1.0)),
                 reviewed_by=str(e.get("reviewed_by", "")),
                 note=str(e.get("note", "")),
+                line=int(e["line"]) if e.get("line") is not None else None,
             )
         )
     return out
 
 
 def conform(candidates: list[Candidate], mapping: list[MapEntry], build: Build, rel_tol: float = 0.005) -> list[Conformance]:
-    by_key = {(m.file, m.symbol): m for m in mapping}
+    by_line = {(m.file, m.symbol, m.line): m for m in mapping if m.line is not None}
+    by_name = {(m.file, m.symbol): m for m in mapping if m.line is None and m.symbol != "<inline>"}
     out = []
     for c in candidates:
-        m = by_key.get((c.file, c.symbol))
+        m = by_line.get((c.file, c.symbol, c.line)) or by_name.get((c.file, c.symbol))
         if m is None:
             out.append(Conformance(c, UNMAPPED))
             continue

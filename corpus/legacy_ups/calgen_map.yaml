@@ -1,0 +1,27 @@
+# Engineer-reviewed mapping: legacy symbol -> calgen rule.
+# In a real adoption this starts as the AI step's draft and is corrected by a
+# reviewer. Here it is the reviewed ground truth (same mappings as ANSWER_KEY.yaml).
+# scale: multiply the legacy value by this to get the rule's unit.
+map:
+  - {file: ups_config.h, symbol: "VIN_LO_XFER", rule: vin_min, scale: 1.0, reviewed_by: demo-author}
+  - {file: ups_config.h, symbol: "VIN_HI_XFER", rule: vin_max, scale: 1.0, reviewed_by: demo-author}
+  - {file: ups_config.h, symbol: "VBUS_REF", rule: vbus_set, scale: 1.0, reviewed_by: demo-author}
+  - {file: ups_config.h, symbol: "VO_NOM", rule: vout_set, scale: 1.0, reviewed_by: demo-author}
+  - {file: ups_config.h, symbol: "VO_HI", rule: vout_hi, scale: 1.0, reviewed_by: demo-author}
+  - {file: ups_config.h, symbol: "IO_RATED", rule: iout_rated, scale: 1.0, reviewed_by: demo-author}
+  - {file: ups_config.h, symbol: "I_TRIP_RMS", rule: iout_trip, scale: 1.0, reviewed_by: demo-author}
+  - {file: ups_config.h, symbol: "TMR_LD", rule: pwm_period, scale: 1.0, reviewed_by: demo-author}
+  - {file: ups_config.h, symbol: "DB_CNT", rule: pwm_deadband, scale: 1.0, reviewed_by: demo-author}
+  - {file: ups_config.h, symbol: "K_P", rule: vloop_kp, scale: 1.0, reviewed_by: demo-author}
+  - {file: ups_config.h, symbol: "K_I", rule: vloop_ki, scale: 1.0, reviewed_by: demo-author}
+  - {file: ups_config.h, symbol: "VBAT_NOM", rule: vbat_nom, scale: 1.0, reviewed_by: demo-author}
+  - {file: ups_config.h, symbol: "VBAT_CUT", rule: vbat_cutoff, scale: 1.0, reviewed_by: demo-author}
+  - {file: sense_scale.h, symbol: "VBUS_FS", rule: vbus_fs, scale: 1.0, reviewed_by: demo-author}
+  - {file: sense_scale.h, symbol: "K_VS", rule: vbus_scale, scale: 1.0, reviewed_by: demo-author}
+  - {file: sense_scale.h, symbol: "VBAT_FS", rule: vbat_fs, scale: 1.0, reviewed_by: demo-author}
+  - {file: sense_scale.h, symbol: "VO_FS_PK", rule: vout_fs_pk, scale: 1.0, reviewed_by: demo-author}
+  - {file: sense_scale.h, symbol: "IO_FS_PK", rule: iout_fs_pk, scale: 1.0, reviewed_by: demo-author}
+  - {file: sense_scale.h, symbol: "CMP_DAC_HI", rule: iout_trip_dac_hi, scale: 1.0, reviewed_by: demo-author}
+  - {file: sense_scale.h, symbol: "CMP_DAC_LO", rule: iout_trip_dac_lo, scale: 1.0, reviewed_by: demo-author}
+  - {file: protect.c, symbol: "k_trip_a", rule: iout_trip, scale: 1.0, reviewed_by: demo-author}
+  - {file: protect.c, symbol: "<inline>", line: 34, rule: iout_trip_pk, scale: 1.0, reviewed_by: demo-author}

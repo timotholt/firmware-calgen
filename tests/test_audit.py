@@ -74,3 +74,22 @@ def test_conformance_match_and_mismatch(tmp_path):
     assert res["K_VS"].status == MATCH  # 0.12168 vs 0.121684976: within 0.5%
     assert res["PWM_PRD"].status == MATCH
     assert res["UART_BAUD"].status == UNMAPPED
+
+
+def test_corpus_conformance_reproduces_answer_key():
+    """Deterministic audit of the synthetic legacy corpus agrees with the blind key on every constant."""
+    from calgen.audit import NO_VALUE, load_map, scan
+    from calgen.evals import load_key, match_key
+
+    root = Path(__file__).resolve().parent.parent / "corpus" / "legacy_ups"
+    cands = scan(root)
+    key = load_key(root / "ANSWER_KEY.yaml")
+    pairs, missed = match_key(cands, key)
+    assert not missed and len(pairs) == len(cands) == len(key)
+    b = build(load_variant(SPECS / "variants" / "fa10507.yaml"), load_rules(SPECS / "rules.yaml"))
+    results = conform(cands, load_map(root / "calgen_map.yaml"), b)
+    want = {"match": MATCH, "mismatch": MISMATCH, "not_applicable": UNMAPPED}
+    for i, r in enumerate(results):
+        k = pairs[i]
+        assert r.status != NO_VALUE, (k.symbol, r.note)
+        assert r.status == want[k.expected_conformance], (k.file, k.line, k.symbol, r.status, k.expected_conformance)

@@ -1,0 +1,434 @@
+# Blind answer key for corpus/legacy_ups (SYNTHETIC). Never show to the classifier.
+# correct_value = FA10507 / ups_ctrl rev A / f28004x values from
+# firmware/include/calgen_fa10507.h. match = within 0.5% (or 1 count for integers).
+# ---------------- ups_config.h ----------------
+- file: ups_config.h
+  line: 19
+  symbol: FW_VER_MAJ
+  literal: "2"
+  value: 2
+  category: version_or_id
+  units: none
+  typed: true
+  maps_to_rule: null
+  expected_conformance: not_applicable
+  correct_value: null
+  notes: "firmware major version"
+
+- file: ups_config.h
+  line: 22
+  symbol: VIN_LO_XFER
+  literal: "85.0f"
+  value: 85.0
+  category: protection_threshold
+  units: V
+  typed: true
+  maps_to_rule: vin_min
+  expected_conformance: match
+  correct_value: 85.0
+  notes: "low-line transfer to battery = data sheet min input"
+
+- file: ups_config.h
+  line: 23
+  symbol: VIN_HI_XFER
+  literal: "265.0f"
+  value: 265.0
+  category: protection_threshold
+  units: V
+  typed: true
+  maps_to_rule: vin_max
+  expected_conformance: match
+  correct_value: 265.0
+  notes: "high-line transfer = data sheet max input"
+
+- file: ups_config.h
+  line: 26
+  symbol: VBUS_REF
+  literal: "400.0f"
+  value: 400.0
+  category: setpoint
+  units: V
+  typed: true
+  maps_to_rule: vbus_set
+  expected_conformance: mismatch
+  correct_value: 410.0
+  notes: "seeded: round-number bus setpoint from the export board; spec is ceil(sqrt2*265*1.07/10)*10 = 410 V (-2.4%)"
+
+- file: ups_config.h
+  line: 29
+  symbol: VO_NOM
+  literal: "220.0f"
+  value: 220.0
+  category: setpoint
+  units: V
+  typed: true
+  maps_to_rule: vout_set
+  expected_conformance: mismatch
+  correct_value: 120.0
+  notes: "seeded: export-model 220 Vrms never changed for the 120 V domestic build (IO_RATED comment even says 120 V)"
+
+- file: ups_config.h
+  line: 30
+  symbol: VO_TOL
+  literal: "0.03f"
+  value: 0.03
+  category: other
+  units: ratio
+  typed: true
+  maps_to_rule: null
+  expected_conformance: not_applicable
+  correct_value: null
+  notes: "equals data sheet input ds.vout_tol_pct (3%), but that is a rule input, not a rule constant"
+
+- file: ups_config.h
+  line: 31
+  symbol: VO_HI
+  literal: "(VO_NOM * (1.0f + VO_TOL))"
+  value: 226.6
+  category: protection_threshold
+  units: V
+  typed: false
+  maps_to_rule: vout_hi
+  expected_conformance: mismatch
+  correct_value: 123.6
+  notes: "cascade of the VO_NOM mismatch: 220*1.03 = 226.6 vs 120*1.03 = 123.6; formula itself is right. Contains literal 1.0f (excluded as trivial)"
+
+- file: ups_config.h
+  line: 32
+  symbol: IO_RATED
+  literal: "12.5f"
+  value: 12.5
+  category: other
+  units: A
+  typed: true
+  maps_to_rule: iout_rated
+  expected_conformance: match
+  correct_value: 12.5
+  notes: "rated output current 1500 VA / 120 V; not a limit or setpoint, so category other"
+
+- file: ups_config.h
+  line: 33
+  symbol: I_TRIP_RMS
+  literal: "14.0f"
+  value: 14.0
+  category: trip_limit
+  units: A
+  typed: true
+  maps_to_rule: iout_trip
+  expected_conformance: mismatch
+  correct_value: 15.0
+  notes: "seeded: stale overload trip; duplicated in protect.c as k_trip_a = 15.0f (that copy is correct)"
+
+- file: ups_config.h
+  line: 36
+  symbol: TMR_LD
+  literal: "6000"
+  value: 6000
+  category: timing
+  units: counts
+  typed: true
+  maps_to_rule: pwm_period
+  expected_conformance: mismatch
+  correct_value: 5000
+  notes: "seeded + stale comment: comment says 25 kHz (true only for a 150 MHz clock); at 100 MHz 6000 counts = 16.67 kHz; spec is 20 kHz -> 5000"
+
+- file: ups_config.h
+  line: 37
+  symbol: DB_CNT
+  literal: "30"
+  value: 30
+  category: timing
+  units: counts
+  typed: true
+  maps_to_rule: pwm_deadband
+  expected_conformance: match
+  correct_value: 30
+  notes: "value correct; seeded wrong unit in comment ('300 us' should be 300 ns: 30 counts at 100 MHz)"
+
+- file: ups_config.h
+  line: 40
+  symbol: K_P
+  literal: "0.8f"
+  value: 0.8
+  category: control_gain
+  units: ratio
+  typed: true
+  maps_to_rule: vloop_kp
+  expected_conformance: match
+  correct_value: 0.8
+  notes: "voltage-loop proportional gain"
+
+- file: ups_config.h
+  line: 41
+  symbol: K_I
+  literal: "0.015f"
+  value: 0.015
+  category: control_gain
+  units: ratio
+  typed: true
+  maps_to_rule: vloop_ki
+  expected_conformance: match
+  correct_value: 0.015
+  notes: "voltage-loop integral gain per ISR (only valid at 20 kHz; TMR_LD mismatch makes it suspect, but value itself matches)"
+
+- file: ups_config.h
+  line: 44
+  symbol: VBAT_NOM
+  literal: "89.6f"
+  value: 89.6
+  category: battery
+  units: V
+  typed: true
+  maps_to_rule: vbat_nom
+  expected_conformance: match
+  correct_value: 89.6
+  notes: "battery string nominal"
+
+- file: ups_config.h
+  line: 45
+  symbol: VBAT_CUT
+  literal: "78.4f"
+  value: 78.4
+  category: battery
+  units: V
+  typed: true
+  maps_to_rule: vbat_cutoff
+  expected_conformance: mismatch
+  correct_value: 69.888
+  notes: "seeded: lead-acid end-of-discharge ratio 1.75/2.00 = 0.875 x 89.6 left over from the lead-acid build; LiFePO4 ratio 0.78 gives 69.888 V (+12.2%)"
+
+- file: ups_config.h
+  line: 48
+  symbol: UART_BAUD
+  literal: "19200"
+  value: 19200
+  category: comms_or_buffer
+  units: baud
+  typed: true
+  maps_to_rule: null
+  expected_conformance: not_applicable
+  correct_value: null
+  notes: "serial port rate"
+
+- file: ups_config.h
+  line: 49
+  symbol: PIN_BYP_RELAY
+  literal: "12"
+  value: 12
+  category: pin_map
+  units: none
+  typed: true
+  maps_to_rule: null
+  expected_conformance: not_applicable
+  correct_value: null
+  notes: "GPIO number"
+
+# ---------------- sense_scale.h ----------------
+- file: sense_scale.h
+  line: 9
+  symbol: ADC_FULL
+  literal: "4095.0f"
+  value: 4095.0
+  category: sense_full_scale
+  units: counts
+  typed: true
+  maps_to_rule: null
+  expected_conformance: not_applicable
+  correct_value: null
+  notes: "target.adc_max (target profile parameter, not a rule constant); equals 4095"
+
+- file: sense_scale.h
+  line: 10
+  symbol: DAC_FULL
+  literal: "4095"
+  value: 4095
+  category: sense_full_scale
+  units: counts
+  typed: true
+  maps_to_rule: null
+  expected_conformance: not_applicable
+  correct_value: null
+  notes: "target.dac_max (target profile parameter); equals 4095"
+
+- file: sense_scale.h
+  line: 13
+  symbol: VBUS_FS
+  literal: "498.3f"
+  value: 498.3
+  category: sense_full_scale
+  units: V
+  typed: true
+  maps_to_rule: vbus_fs
+  expected_conformance: match
+  correct_value: 498.3
+  notes: "3.3 V * (1.5M+10k)/10k"
+
+- file: sense_scale.h
+  line: 14
+  symbol: K_VS
+  literal: "(VBUS_FS / ADC_FULL)"
+  value: 0.121684982
+  category: sense_scale_factor
+  units: V/count
+  typed: false
+  maps_to_rule: vbus_scale
+  expected_conformance: match
+  correct_value: 0.121684976
+  notes: "cryptic name; derived 498.3/4095"
+
+- file: sense_scale.h
+  line: 17
+  symbol: VBAT_FS
+  literal: "168.0f"
+  value: 168.0
+  category: sense_full_scale
+  units: V
+  typed: true
+  maps_to_rule: vbat_fs
+  expected_conformance: match
+  correct_value: 167.97
+  notes: "rounded; +0.018%"
+
+- file: sense_scale.h
+  line: 20
+  symbol: VO_FS_PK
+  literal: "501.6f"
+  value: 501.6
+  category: sense_full_scale
+  units: V
+  typed: true
+  maps_to_rule: vout_fs_pk
+  expected_conformance: match
+  correct_value: 501.65
+  notes: "fewer digits; -0.01%"
+
+- file: sense_scale.h
+  line: 23
+  symbol: IO_FS_PK
+  literal: "33.0f"
+  value: 33.0
+  category: sense_full_scale
+  units: A
+  typed: true
+  maps_to_rule: iout_fs_pk
+  expected_conformance: match
+  correct_value: 33.0
+  notes: "1.65 V / (5 mOhm * 10)"
+
+- file: sense_scale.h
+  line: 24
+  symbol: CMP_DAC_HI
+  literal: "3364"
+  value: 3364
+  category: trip_limit
+  units: counts
+  typed: true
+  maps_to_rule: iout_trip_dac_hi
+  expected_conformance: match
+  correct_value: 3364
+  notes: "matches the 15 A trip (not the 14 A I_TRIP_RMS)"
+
+- file: sense_scale.h
+  line: 25
+  symbol: CMP_DAC_LO
+  literal: "(DAC_FULL - CMP_DAC_HI)"
+  value: 731
+  category: trip_limit
+  units: counts
+  typed: false
+  maps_to_rule: iout_trip_dac_lo
+  expected_conformance: match
+  correct_value: 731
+  notes: "derived by symmetry about mid-rail: 4095 - 3364 = 731"
+
+# ---------------- protect.c ----------------
+- file: protect.c
+  line: 9
+  symbol: FLT_LOG_LEN
+  literal: "16"
+  value: 16
+  category: comms_or_buffer
+  units: bytes
+  typed: true
+  maps_to_rule: null
+  expected_conformance: not_applicable
+  correct_value: null
+  notes: "fault log ring buffer size"
+
+- file: protect.c
+  line: 13
+  symbol: k_trip_a
+  literal: "15.0f"
+  value: 15.0
+  category: trip_limit
+  units: A
+  typed: true
+  maps_to_rule: iout_trip
+  expected_conformance: match
+  correct_value: 15.0
+  notes: "duplicate of I_TRIP_RMS (ups_config.h, 14.0f) with a different value; this copy is the one the code uses and it is correct"
+
+- file: protect.c
+  line: 14
+  symbol: ol_hold_ms
+  literal: "5000"
+  value: 5000
+  category: timing
+  units: ms
+  typed: true
+  maps_to_rule: null
+  expected_conformance: not_applicable
+  correct_value: null
+  notes: "overload ride-through time in ms; trap: numerically equals the correct PWM period (5000 counts) but is unrelated"
+
+- file: protect.c
+  line: 34
+  symbol: "<inline>"
+  literal: "21.2f"
+  value: 21.2
+  category: trip_limit
+  units: A
+  typed: true
+  maps_to_rule: iout_trip_pk
+  expected_conformance: match
+  correct_value: 21.213203
+  notes: "magic number: sqrt(2)*15 A peak; -0.06%"
+
+- file: protect.c
+  line: 49
+  symbol: "<inline>"
+  literal: "0.9f"
+  value: 0.9
+  category: protection_threshold
+  units: ratio
+  typed: true
+  maps_to_rule: null
+  expected_conformance: not_applicable
+  correct_value: null
+  notes: "brownout warning at 90% of VO_NOM; not the 3% regulation band (vout_lo), no rule covers it"
+
+- file: protect.c
+  line: 54
+  symbol: "<inline>"
+  literal: "3"
+  value: 3
+  category: other
+  units: none
+  typed: true
+  maps_to_rule: null
+  expected_conformance: not_applicable
+  correct_value: null
+  notes: "restart retry count"
+
+- file: protect.c
+  line: 55
+  symbol: "<inline>"
+  literal: "500"
+  value: 500
+  category: timing
+  units: ms
+  typed: true
+  maps_to_rule: null
+  expected_conformance: not_applicable
+  correct_value: null
+  notes: "restart delay in ms"
