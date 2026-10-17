@@ -101,3 +101,4 @@ def test_shared_header_is_independent_of_page_content_width(site):
         # Following site navigation bypasses HTML cached from older deployments.
         header = html.split('<header class="site-header">', 1)[1].split('</header>', 1)[0]
         assert 'playground.html?v=' in header and 'magnetics.html?v=' in header
+        assert header.index('index.html?v=') < header.index('magnetics.html?v=') < header.index('playground.html?v=')

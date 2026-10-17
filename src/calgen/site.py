@@ -135,7 +135,7 @@ ASSET_VERSION = ""  # content hash of site.css, playground.js and the engine bun
 
 def _page(title: str, active: str, body: str, depth: int = 0, extra_head: str = "", scripts: str = "") -> str:
     up = "../" * depth
-    primary = [("index.html", "Overview"), ("playground.html", "Firmware"), ("magnetics.html", "Magnetics")]
+    primary = [("index.html", "Overview"), ("magnetics.html", "Magnetics"), ("playground.html", "Firmware")]
     evidence = [(href, label) for href, label in NAV if href not in {h for h, _ in primary} and href != "backstory.html"]
     nav = '<div class="navlinks">' + "".join(f'<a href="{up}{href}?v={ASSET_VERSION}" class="{"on" if href == active else ""}" {"aria-current=page" if href == active else ""}>{_e(label)}</a>' for href, label in primary)
     nav += '<details class="navmore' + (' on' if active in {h for h, _ in evidence} else '') + '"><summary>Evidence</summary><div class="navmenu">'
