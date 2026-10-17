@@ -44,6 +44,9 @@ class Core:
     h50_oe: float | None
     bsat_mt: float | None
     source: str
+    od_mm: float | None = None  # toroid: uncoated OD; E core: overall width A
+    id_mm: float | None = None  # toroid: uncoated ID; E core: center-leg width C
+    ht_mm: float | None = None  # toroid: height; E core: window half-height E
 
 
 def load_cores(path: Path) -> dict[str, Core]:
@@ -53,7 +56,7 @@ def load_cores(path: Path) -> dict[str, Core]:
             num = lambda k: float(r[k]) if r[k] else None  # noqa: E731
             out[r["core"]] = Core(r["core"], r["vendor"], r["family"], r["material"], num("al_nh"), num("al_tol_pct"),
                                   num("ae_mm2"), num("le_mm"), num("ve_mm3"), num("wa_mm2"), r["wa_basis"], num("h80_oe"), num("h50_oe"),
-                                  num("bsat_mt"), r["source"])
+                                  num("bsat_mt"), r["source"], num("od_mm"), num("id_mm"), num("ht_mm"))
     return out
 
 
@@ -400,6 +403,15 @@ def similar(designs: list[Design], k: int = 3) -> dict[str, list[tuple[str, floa
 
 
 # ---- site data -----------------------------------------------------------------------
+def _figures(core: Core | None, d: Design) -> list[str]:
+    if core is None:
+        return []
+    figs = [svg_window(core, [(w.name, w.turns, w.strands, w.awg) for w in d.windings])]
+    if d.kind == "inductor" and core.family == "toroid":
+        figs.append(svg_l_vs_i(core, d.windings[0].turns, d.i_pk_a, parse_inductance_uh(d.l_text)))
+    return figs
+
+
 def site_records(root: Path) -> dict:
     """Everything the Magnetics page shows, computed at build time from the PDFs themselves."""
     specs, corpus = root / "specs" / "magnetics", root / "corpus" / "magnetics"
@@ -422,6 +434,7 @@ def site_records(root: Path) -> dict:
             "source": x["source"],
             "checks": [dataclasses.asdict(c) for c in checks],
             "flagged": any(c.status == FLAG for c in checks),
+            "figures": _figures(core, rec),
         })
     sim = similar(extracted)
     for r in recs:
@@ -493,6 +506,7 @@ def size_inductor(cores: dict[str, Core], limits: dict, l_uh: float, i_rms: floa
                 "core": core.name, "stack": n, "turns": turns, "awg": awg, "strands": strands,
                 "l0_uh": l0, "l_pk_uh": l_pk, "retained": f, "h_oe": h, "j": i_rms / cu, "fill": fill,
                 "core_volume_mm3": core.ve_mm3 * n, "copper_mm2": cu, "material": core.material,
+                "figures": [svg_window(core, [("W1", turns, strands, awg)], n), svg_l_vs_i(core, turns, i_pk, l_uh, n)],
                 "latex": [
                     rf"H_{{pk}} = \frac{{0.4\pi \times {turns} \times {_f(i_pk)}\,\mathrm{{A}}}}{{{_f(le_cm)}\,\mathrm{{cm}}}} = {_f(h)}\,\mathrm{{Oe}} \;\Rightarrow\; {f * 100:.0f}\%\ \text{{of }} A_L \text{{ remains}}",
                     rf"L(I_{{pk}}) = {n} \times {_f(core.al_nh)}\,\mathrm{{nH}} \times {turns}^2 \times {f:.2f} = {_f(l_pk, 4)}\,\mu\mathrm{{H}} \geq {_f(l_uh, 4)}\,\mu\mathrm{{H}}",
@@ -524,3 +538,102 @@ def closest_past(past: list[dict], l_uh: float, i_a: float, k: int = 3) -> list[
         return math.hypot(math.log10(max(p["l_uh"], 1e-9) / l_uh), math.log10(max(p["i_a"], 1e-9) / i_a))
     near = sorted((p for p in past if p.get("kind") == "inductor"), key=dist)[:k]
     return [{"id": p["id"], "distance": round(dist(p), 3)} for p in near]
+
+
+# ---- drawings for the page: window cross-section and inductance vs current (SVG) ---------
+def _wire_od(awg: int) -> float:
+    """Bare diameter plus ~8% for heavy-build magnet-wire enamel (approximation for drawing)."""
+    return 0.127 * 92 ** ((36 - awg) / 39) * 1.08
+
+
+def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int = 1) -> str:
+    """Cross-section through the core window with every wire drawn to scale.
+    windings: (name, turns, strands, awg). Wires are packed in layers along the window edge."""
+    wires = [(k, _wire_od(awg)) for k, (_, turns, strands, awg) in enumerate(windings) for _ in range(turns * strands)]
+    cu = sum(t * n * awg_area_mm2(a) for _, t, n, a in windings)
+    fill = cu / core.wa_mm2
+    placed, overflow = [], 0
+    if core.family == "toroid":
+        r_out, r_in = core.od_mm / 2, math.sqrt(core.wa_mm2 / math.pi)  # window = data sheet W_a (coated)
+        pad = 3
+        vb = r_out + pad
+        i, layer_r = 0, None
+        while i < len(wires):
+            d = wires[i][1]
+            layer_r = (r_in - d / 2) if layer_r is None else layer_r - d
+            if layer_r < d / 2:
+                overflow = len(wires) - i
+                break
+            cap = max(1, int(2 * math.pi * layer_r / d))
+            for j in range(cap):
+                if i >= len(wires):
+                    break
+                a = 2 * math.pi * j / cap
+                placed.append((wires[i][0], layer_r * math.cos(a), layer_r * math.sin(a), wires[i][1] / 2))
+                i += 1
+        body = (f'<path class="mw-core" fill-rule="evenodd" d="M{-r_out:.2f},0a{r_out:.2f},{r_out:.2f} 0 1,0 {2 * r_out:.2f},0a{r_out:.2f},{r_out:.2f} 0 1,0 {-2 * r_out:.2f},0'
+                f'M{-r_in:.2f},0a{r_in:.2f},{r_in:.2f} 0 1,0 {2 * r_in:.2f},0a{r_in:.2f},{r_in:.2f} 0 1,0 {-2 * r_in:.2f},0"/>')
+        view = f"{-vb:.1f} {-vb:.1f} {2 * vb:.1f} {2 * vb:.1f}"
+    else:
+        w, h = core.wa_mm2 / (2 * core.ht_mm), 2 * core.ht_mm  # one window of the pair, bare (no former)
+        leg = core.id_mm
+        x0, y = 0.0, h
+        i = 0
+        while i < len(wires) and y > 0:
+            d = wires[i][1]
+            y -= d
+            if y < 0:
+                break
+            x = d / 2
+            while i < len(wires) and x + wires[i][1] / 2 <= w:
+                placed.append((wires[i][0], x0 + x, y + d / 2, wires[i][1] / 2))
+                x += wires[i][1]
+                i += 1
+        overflow = len(wires) - i
+        t = leg / 2  # half center leg (cut at the symmetry line); outer leg and yokes drawn at the same width
+        body = (f'<path class="mw-core" fill-rule="evenodd" d="M{-t:.2f},{-t:.2f}h{t + w + t:.2f}v{h + 2 * t:.2f}h{-(t + w + t):.2f}z'
+                f'M0,0h{w:.2f}v{h:.2f}h{-w:.2f}z"/>'
+                f'<line class="mw-cut" x1="{-t:.2f}" y1="{-t - 1:.2f}" x2="{-t:.2f}" y2="{h + t + 1:.2f}"/>'
+                f'<rect class="mw-win" x="0" y="0" width="{w:.2f}" height="{h:.2f}"/>')
+        view = f"{-t - 2:.1f} {-t - 2:.1f} {w + 2 * t + 4:.1f} {h + 2 * t + 4:.1f}"
+    circles = "".join(f'<circle class="mw-w{k}" cx="{x:.2f}" cy="{y:.2f}" r="{r:.3f}"/>' for k, x, y, r in placed)
+    label = ", ".join(f"{name}: {t} × {n} × {a} AWG" for name, t, n, a in windings)
+    note = f"{len(wires) - overflow} of {len(wires)} conductors drawn" + (f"; {overflow} don't fit" if overflow else "")
+    return (f'<figure class="mfig"><svg viewBox="{view}" role="img" aria-label="Window cross-section: {label}; copper fills {fill * 100:.0f}% of the window">'
+            f"{body}{circles}</svg><figcaption>{'Toroid' if core.family == 'toroid' else 'E-core window (one side)'}{f', {stack} stacked' if stack > 1 else ''} · {label} · "
+            f"bare copper {fill * 100:.0f}% of the window · {note}</figcaption></figure>")
+
+
+def svg_l_vs_i(core: Core, turns: int, i_pk: float, l_req_uh: float | None, stack: int = 1) -> str:
+    """Inductance vs DC current for a powder toroid, from the data sheet's 100/80/50% points
+    (linear between them, as the checks assume); stops at the 50% point."""
+    le_cm = core.le_mm / 10
+    i50 = core.h50_oe * le_cm / (0.4 * math.pi * turns)
+    l0 = core.al_nh * stack * turns * turns / 1000
+    i_max = max(i50, i_pk) * 1.1
+    W, H, ml, mb, mt, mr = 420, 190, 52, 30, 10, 12
+    pw, ph = W - ml - mr, H - mb - mt
+    x = lambda i: ml + i / i_max * pw  # noqa: E731
+    y = lambda l: mt + (1 - l / (l0 * 1.08)) * ph  # noqa: E731
+    pts = []
+    for k in range(0, 101):
+        i = i50 * k / 100
+        f = retained(core, min(0.4 * math.pi * turns * i / le_cm, core.h50_oe))  # clamp float round-off at the end point
+        pts.append(f"{x(i):.1f},{y(l0 * f):.1f}")
+    g = [f'<line class="mc-ax" x1="{ml}" y1="{mt + ph}" x2="{ml + pw}" y2="{mt + ph}"/><line class="mc-ax" x1="{ml}" y1="{mt}" x2="{ml}" y2="{mt + ph}"/>',
+         f'<polyline class="mc-l" points="{" ".join(pts)}"/>',
+         f'<text class="mc-t" x="{ml + pw}" y="{H - 6}" text-anchor="end">DC current (A)</text>',
+         f'<text class="mc-t" x="4" y="{mt + 8}">{l0:.0f} µH</text><text class="mc-t" x="4" y="{mt + ph}">0</text>']
+    for frac, lab in ((0.8, "80%"), (0.5, "50%")):
+        g.append(f'<line class="mc-g" x1="{ml}" x2="{ml + pw}" y1="{y(l0 * frac):.1f}" y2="{y(l0 * frac):.1f}"/><text class="mc-t" x="{ml + pw}" y="{y(l0 * frac) - 3:.1f}" text-anchor="end">{lab}</text>')
+    if l_req_uh:
+        g.append(f'<line class="mc-req" x1="{ml}" x2="{ml + pw}" y1="{y(l_req_uh):.1f}" y2="{y(l_req_uh):.1f}"/><text class="mc-t mc-reqt" x="{ml + 4}" y="{y(l_req_uh) - 3:.1f}">required {l_req_uh:.0f} µH</text>')
+    f_pk = retained(core, 0.4 * math.pi * turns * i_pk / le_cm)
+    g.append(f'<line class="mc-pk" x1="{x(i_pk):.1f}" x2="{x(i_pk):.1f}" y1="{mt}" y2="{mt + ph}"/><text class="mc-t" x="{x(i_pk) + 3:.1f}" y="{mt + 10}">peak {i_pk:g} A</text>')
+    if f_pk is not None:
+        g.append(f'<circle class="mc-dot" cx="{x(i_pk):.1f}" cy="{y(l0 * f_pk):.1f}" r="4"/>')
+    g.append(f'<text class="mc-t" x="{x(i50):.1f}" y="{mt + ph + 14}" text-anchor="middle">{i50:.1f}</text><text class="mc-t" x="{ml}" y="{mt + ph + 14}" text-anchor="middle">0</text>')
+    cap = (f"{core.name}{f' ×{stack}' if stack > 1 else ''}, {turns} turns: {l0:.0f} µH at 0 A; "
+           + (f"{l0 * f_pk:.0f} µH ({f_pk * 100:.0f}%) at {i_pk:g} A peak" if f_pk is not None else f"past the data sheet's 50% point at {i_pk:g} A")
+           + ". Line: data sheet points joined straight (conservative).")
+    return f'<figure class="mfig"><svg viewBox="0 0 {W} {H}" role="img" aria-label="Inductance versus current">{"".join(g)}</svg><figcaption>{cap}</figcaption></figure>'

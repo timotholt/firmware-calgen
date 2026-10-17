@@ -63,6 +63,7 @@
       '<div class="minfo"><h3>Extracted from the PDF text</h3><table><tr><th>Field</th><th>Value</th><th>Text it came from</th></tr>' +
       fields.map(function (f) { return "<tr><td>" + esc(f[0]) + "</td><td>" + esc(f[1]) + '</td><td class="mono sub">' + esc(r.source[f[2]] || "") + "</td></tr>"; }).join("") +
       "</table></div></div>";
+    if (r.figures && r.figures.length) html += '<h3>Inside the core</h3><div class="mfigs">' + r.figures.join("") + "</div>";
     html += '<h3>Physics checks</h3>' + r.checks.map(function (c) {
       var cls = c.status === "pass" ? "ok" : c.status === "flag" ? "bad" : "na";
       return '<div class="mcheck"><p><span class="pill ' + cls + '">' + esc(c.status === "flag" ? "review" : c.status) + "</span> <b>" + esc(c.title) + "</b> · " + esc(c.message) + "</p>" +
@@ -96,7 +97,7 @@
         c.map(function (x, i) {
           var row = '<tr class="cand' + (open === i ? " on" : "") + '" data-i="' + i + '"><td class="mono">' + esc(x.core) + "</td><td>" + x.stack + "×</td><td>" + x.turns + "</td><td>" + x.strands + " × " + x.awg + " AWG</td><td>" +
             fmtL(x.l0_uh) + "</td><td><b>" + fmtL(x.l_pk_uh) + "</b></td><td>" + Math.round(x.retained * 100) + "%</td><td>" + x.j.toFixed(2) + " A/mm²</td><td>" + Math.round(x.fill * 100) + "%</td><td>" + (x.core_volume_mm3 / 1000).toFixed(1) + " cm³</td></tr>";
-          if (open === i) row += '<tr><td colspan="10" class="szmath">' + x.latex.map(function (l) { return '<div class="eq"><div class="tex">' + esc(l) + "</div></div>"; }).join("") + "</td></tr>";
+          if (open === i) row += '<tr><td colspan="10" class="szmath"><div class="mfigs">' + x.figures.join("") + "</div>" + x.latex.map(function (l) { return '<div class="eq"><div class="tex">' + esc(l) + "</div></div>"; }).join("") + "</td></tr>";
           return row;
         }).join("") + "</table>";
     }

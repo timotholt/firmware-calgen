@@ -8,3 +8,5 @@ Values in `cores.csv` are transcribed from public vendor data sheets (facts only
 | E32/16/9, E42/21/15 (3C94) | Ferroxcube product specifications, `https://www.ferroxcube.com/upload/media/product/file/Pr_ds/<core>.pdf` | 2016 | A_L (ungapped, nH/turn², ±25%), A_e, L_e, V_e, B_sat minimum at 100 °C (25 kHz, 250 A/m), nominal dimensions B, C, E |
 
 **Derived, not stated:** the E-core window area is computed from nominal dimensions as (B − C)/2 × 2E for a core pair, before subtracting the coil former. Bare-core window; the window-fill limit in `limits.yaml` is set lower for E cores to allow for the former and insulation.
+
+**Dimensions** (`od_mm`, `id_mm`, `ht_mm`): uncoated OD, ID, and height for toroids, from the same data sheets. For E cores the columns hold A (overall width), C (center-leg width), and E (window half-height) from the Ferroxcube dimension tables; they are used only to draw the window.

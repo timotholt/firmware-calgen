@@ -150,3 +150,24 @@ def test_size_json_includes_closest_past_designs():
     past = [{"id": d.id, "kind": d.kind, **{k: v for k, v in mg.features(d).items() if k in ("l_uh", "i_a")}} for d in DESIGNS]
     out = json.loads(mg.size_json(str(ROOT / "specs"), json.dumps({"l_uh": 330, "i_rms": 4, "i_pk": 4.5, "min_retained": 0.8, "past": past})))
     assert out["past"][0]["id"] in ("MAG-001", "MAG-010") and out["candidates"]
+
+
+def test_window_drawing_shows_overflow_only_when_the_winding_cannot_fit():
+    import re
+
+    by = {d.id: d for d in DESIGNS}
+    for did, overflows in (("MAG-001", False), ("MAG-008", True), ("XFMR-001", False)):
+        d = by[did]
+        svg = mg.svg_window(CORES[d.core], [(w.name, w.turns, w.strands, w.awg) for w in d.windings])
+        total = sum(w.turns * w.strands for w in d.windings)
+        drawn = len(re.findall(r"<circle ", svg))
+        assert (drawn < total) == overflows, did
+        assert ("don't fit" in svg) == overflows
+
+
+def test_inductance_curve_matches_the_check_at_peak():
+    d = {x.id: x for x in DESIGNS}["MAG-001"]
+    core = CORES[d.core]
+    svg = mg.svg_l_vs_i(core, d.windings[0].turns, d.i_pk_a, 330)
+    f = mg.retained(core, 0.4 * 3.141592653589793 * d.windings[0].turns * d.i_pk_a / (core.le_mm / 10))
+    assert f"{core.al_nh * d.windings[0].turns ** 2 / 1000 * f:.0f} µH ({f * 100:.0f}%)" in svg
