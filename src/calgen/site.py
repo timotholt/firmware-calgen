@@ -397,7 +397,7 @@ def page_magnetics(data: dict, key_match: tuple[int, int]) -> str:
     core_rows = "".join(
         f"<tr><td class='mono'>{_e(c['name'])}</td><td>{_e(c['vendor'])} {_e(c['material'])} {_e(c['family'])}</td><td>{c['al_nh']:g} ± {c['al_tol_pct']:g}%</td>"
         f"<td>{c['ae_mm2']:g}</td><td>{c['le_mm']:g}</td><td>{c['wa_mm2']:g}{' *' if c['wa_basis'] != 'data sheet' else ''}</td>"
-        f"<td>{'' if c['h80_oe'] is None else format(c['h80_oe'], 'g') + ' Oe'}{'' if c['bsat_mt'] is None else format(c['bsat_mt'], 'g') + ' mT'}</td><td class='sub'>{_e(c['source'])}</td></tr>"
+        f"<td>{'—' if c['h80_oe'] is None else format(c['h80_oe'], 'g') + ' Oe'}</td><td>{'—' if c['bsat_mt'] is None else format(c['bsat_mt'], 'g') + ' mT'}</td><td class='sub'>{_e(c['source'])}</td></tr>"
         for c in data["cores"])
     body = f"""<h1>Magnetics</h1>
 <p class="lead">The posting's first initiative is an AI tool that speeds up inductor and transformer design using past designs. That tool needs two things first, and this page demonstrates both: past drawings turned into structured, checked, searchable data, and a first-pass sizing tool that turns a requirement into checked starting designs from real cores. Neither replaces a magnetics engineer; they shorten the path to the first good prototype.</p>
@@ -414,7 +414,7 @@ def page_magnetics(data: dict, key_match: tuple[int, int]) -> str:
 <label>Inductance at peak <input id="sz-l" type="number" min="0" step="any" value="330" placeholder="µH"></label>
 <label>RMS current <input id="sz-irms" type="number" min="0" step="any" value="4" placeholder="A"></label>
 <label>Peak current <input id="sz-ipk" type="number" min="0" step="any" value="4.5" placeholder="A"></label>
-<label>Keep at peak <select id="sz-ret"><option value="0.8">≥ 80% (conservative)</option><option value="0.5">≥ 50% (common for PFC)</option></select></label>
+<label>Keep at peak <select id="sz-ret"><option value="0.8">≥ 80% (what the drawing check requires)</option><option value="0.5">≥ 50% (common for PFC; fails the 80% drawing check)</option></select></label>
 <button id="sz-go" class="btn primary-btn" type="button">Size it</button>
 </div>
 <div id="sz-out" aria-live="polite"><p class="sub">Loading the in-browser engine…</p></div>
@@ -439,8 +439,8 @@ def page_magnetics(data: dict, key_match: tuple[int, int]) -> str:
 <li><b>Search.</b> Filter checked records, and rank the closest past designs, the question a design engineer actually asks first.</li>
 </ol>
 <h2>Core catalog (real data)</h2>
-<table><tr><th>Core</th><th>Type</th><th>A<sub>L</sub> (nH/T²)</th><th>A<sub>e</sub> (mm²)</th><th>l<sub>e</sub> (mm)</th><th>W<sub>a</sub> (mm²)</th><th>Limit</th><th>Source</th></tr>{core_rows}</table>
-<p class="sub">Limit is the DC bias at 80% permeability for powder toroids, or minimum B<sub>sat</sub> at 100 °C for ferrite. * E-core window derived from nominal dimensions as (B − C)/2 × 2E, before the coil former.</p>
+<table><tr><th>Core</th><th>Type</th><th>A<sub>L</sub> (nH/T²)</th><th>A<sub>e</sub> (mm²)</th><th>l<sub>e</sub> (mm)</th><th>W<sub>a</sub> (mm²)</th><th>DC bias at 80% (min)</th><th>B<sub>sat</sub> (min, 100 °C)</th><th>Source</th></tr>{core_rows}</table>
+<p class="sub">Powder toroids are limited by DC bias (the magnetizing force at which permeability falls to 80%, data sheet minimum); ferrite E cores by saturation flux density. * E-core window derived from nominal dimensions as (B − C)/2 × 2E, before the coil former.</p>
 <h2>Assumptions and limits</h2>
 <ul class="prose">
 <li>Drawings, part numbers, and designs are <b>synthetic</b>; seeded mistakes are listed in a blind answer key the checks never read.</li>

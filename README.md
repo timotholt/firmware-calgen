@@ -17,7 +17,7 @@ This is a working demo for AMETEK IntelliPower's **AI Automation Intern** postin
 5. **Process knowledge isn't written down**: process maps, tool usage, limitations.
 6. **Adopt AI responsibly**, and present outcomes to leaders.
 
-**This demo addresses problem 2**, supported by 3, 4, and 5. It does not attempt problem 1; magnetics needs real design data and power-engineering judgment, and a toy would mislead.
+**This demo addresses problems 1 and 2**, supported by 3, 4, and 5: for magnetics, the first step (past drawings turned into checked, searchable data, plus first-pass sizing from real cores); for firmware constants, the whole path from data sheet to C. Magnetics design itself still needs real design data and power-engineering judgment, and the demo doesn't pretend otherwise.
 
 **Thesis.** IntelliPower publicly describes a configure-to-order catalog ("2,000+ variations", "building block methodology"), and its engineering postings mention maintaining legacy boards and qualifying alternate components. Each product's ratings and each board's measurement chain end up as constants in firmware. This tool makes that path automatic, traceable, and gated, and uses AI only where the input is messy, measured against a blind answer key and reviewed by a person.
 
@@ -126,7 +126,7 @@ History: an earlier single run scored 91% on category with a different rule set,
 
 The posting's other initiative is an AI tool that speeds up inductor and transformer design using past designs. That needs past drawings turned into structured, checked, searchable data, plus a first-pass way to turn a requirement into starting designs, so that's what the Magnetics tab shows. Neither replaces a magnetics engineer.
 
-- **Real core data:** six Magnetics Inc. Kool Mµ toroids and two Ferroxcube 3C94 E cores, transcribed with citations ([sources](specs/magnetics/SOURCES.md)).
+- **Real core data:** eight Magnetics Inc. Kool Mµ toroids and two Ferroxcube 3C94 E cores, transcribed with citations ([sources](specs/magnetics/SOURCES.md)).
 - **Synthetic drawings:** 12 PDFs (10 inductors, 2 transformers) with seeded mistakes and a blind answer key.
 - **Size an inductor:** a requirement (inductance at peak current, RMS and peak current) becomes ranked candidate designs from the real cores, stacked up to four high, with turns, wire, and the math. The firmware playground's rectifier and AC output stages estimate their inductor requirements and link straight to it.
 - **Extract → check → search:** fields are read back from each PDF's text layer; physics checks compare them with the core data (A_L·N², DC bias, peak flux, turns ratio, current density, window fill); flagged drawings go to review with the math. The checks agree with the key on all 12.

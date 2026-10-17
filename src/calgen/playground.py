@@ -290,9 +290,6 @@ def suggestions(b: Build) -> dict[str, list[dict]]:
     return out
 
 
-RIPPLE_FRACTION = 0.30  # mirrors specs/magnetics/limits.yaml ripple_fraction (first-pass estimates)
-
-
 def inductor_requirements(b: Build) -> dict[str, dict]:
     """First-pass inductor requirements from this build's values, for the Magnetics sizing link.
     Estimates with stated assumptions, not design values (stage id -> requirement)."""
@@ -302,19 +299,25 @@ def inductor_requirements(b: Build) -> dict[str, dict]:
     f = b.env.get("design.f_sw")
     if f is None or "vbus_set" not in val:
         return {}
-    f_sw, vbus, r = f.value, val["vbus_set"], RIPPLE_FRACTION
+    import yaml
+
+    limits = yaml.safe_load((b.variant.path.parent.parent / "magnetics" / "limits.yaml").read_text(encoding="utf-8"))
+    f_sw, vbus, r = f.value, val["vbus_set"], limits["ripple_fraction"]
+    shared = "PFC and inverter assumed to share design.f_sw"
     out = {}
     if "iin_limit" in val:
         i_rms = val["iin_limit"]
         di = r * math.sqrt(2) * i_rms
         out["rect"] = {"name": "PFC boost inductor", "l_uh": vbus / (4 * f_sw * di) * 1e6, "i_rms": i_rms,
                        "i_pk": math.sqrt(2) * i_rms + di / 2, "min_retained": 0.5,
-                       "basis": f"L = V_bus / (4 f_sw ΔI), ΔI = {r:g} × line peak at the data sheet's max input current; boost worst case"}
+                       "basis": f"L = V_bus / (4 f_sw ΔI), ΔI = {r:g} × line peak at the data sheet's max input current; boost, worst case at V_in = V_bus/2; {shared}; "
+                                "keeps ≥ 50% at peak, common for PFC, so a drawing of it would fail the 80% drawing check"}
     if all(k in val for k in ("iout_trip", "iout_rated", "iout_pk_limit")):
         di = r * math.sqrt(2) * val["iout_rated"]
-        out["out"] = {"name": "Output filter inductor", "l_uh": vbus / (4 * f_sw * di) * 1e6, "i_rms": val["iout_trip"],
-                      "i_pk": val["iout_pk_limit"], "min_retained": 0.5,
-                      "basis": f"L = V_bus / (4 f_sw ΔI), ΔI = {r:g} × rated peak; RMS at the overload level; must hold up to the hardware peak limit"}
+        out["out"] = {"name": "Output filter inductor", "l_uh": vbus / (4 * f_sw * di) * 1e6, "i_rms": val["iout_rated"],
+                      "i_pk": math.sqrt(2) * val["iout_rated"] + di / 2, "min_retained": 0.8,
+                      "basis": f"L = V_bus / (4 f_sw ΔI), ΔI = {r:g} × rated peak; half-bridge or unipolar full bridge assumed (bipolar PWM needs twice the L); "
+                               f"sized at rated current plus ripple; the {val['iout_pk_limit']:.1f} A hardware limit is a brief fault event, checked separately; {shared}"}
     return out
 
 

@@ -163,11 +163,14 @@ def _inductor_checks(d: Design, core: Core, limits: dict) -> list[Check]:
         out.append(Check("inductance", "Stated inductance matches A_L × N²", FLAG, f"cannot read inductance {d.l_text!r}", tex))
     else:
         err = (l_stated - l_calc) / l_calc
-        ok = abs(err) <= core.al_tol_pct / 100
-        tex.append(rf"\text{{drawing: }} {_f(l_stated, 4)}\,\mu\mathrm{{H}} \quad ({err * 100:+.1f}\%,\ \text{{core tolerance}} \pm {_f(core.al_tol_pct)}\%)")
-        hint = "" if ok else (" (looks like a unit slip)" if abs(math.log10(l_stated / l_calc)) > 0.9 else " (check the turns count)")
+        band_ok = core.al_tol_pct <= d.l_tol_pct  # the core's A_L spread must fit inside the drawing's tolerance
+        ok = abs(err) <= core.al_tol_pct / 100 and band_ok
+        tex.append(rf"\text{{drawing: }} {_f(l_stated, 4)}\,\mu\mathrm{{H}} \pm {_f(d.l_tol_pct)}\% \quad ({err * 100:+.1f}\%;\ \text{{core }} A_L \pm {_f(core.al_tol_pct)}\%)")
+        hint = "" if abs(err) <= core.al_tol_pct / 100 else (" (looks like a unit slip)" if abs(math.log10(l_stated / l_calc)) > 0.9 else " (check the turns count)")
+        band = (f"; the core's ±{_f(core.al_tol_pct)}% A_L spread fits the drawing's ±{_f(d.l_tol_pct)}%" if band_ok
+                else f"; the core's ±{_f(core.al_tol_pct)}% A_L spread is wider than the drawing's ±{_f(d.l_tol_pct)}%")
         out.append(Check("inductance", "Stated inductance matches A_L × N²", PASS if ok else FLAG,
-                         f"drawing {d.l_text} vs {_f(l_calc, 4)} µH from the core and turns: {err * 100:+.1f}%{hint}", tex))
+                         f"drawing {d.l_text} vs {_f(l_calc, 4)} µH from the core and turns: {err * 100:+.1f}%{hint}{band}", tex))
     if core.family == "toroid":
         h_oe = 0.4 * math.pi * w.turns * d.i_pk_a / (core.le_mm / 10)
         lim = core.h80_oe if limits["toroid_bias_limit"] == "h80" else core.h50_oe
@@ -226,10 +229,11 @@ def bobbin_build(core: Core, windings: list[tuple[str, int, int, int]], limits: 
         for layer in range(n_layers):
             cnt = n // n_layers + (1 if layer < n % n_layers else 0)
             pitch = (y1 - y0) / cnt
+            step = d * limits.get("build_factor", 1.0)  # layers never nest perfectly: allow some bulge
             for j in range(cnt):
-                conductors.append((k, x + d / 2, y0 + pitch * (j + 0.5), d / 2))
-            layers.append((name, d, cnt))
-            x += d
+                conductors.append((k, x + step / 2, y0 + pitch * (j + 0.5), d / 2))
+            layers.append((name, step, cnt))
+            x += step
         spans.append((k, x_start, x))
         t = tape * (limits["tape_layers_between"] if k < len(windings) - 1 else limits["tape_layers_outer"])
         tapes.append((x, x + t))
@@ -264,13 +268,14 @@ def _copper_checks(d: Design, core: Core, limits: dict) -> list[Check]:
                          [rf"\text{{build}} = \underbrace{{{_f(b['wall'])}}}_{{\text{{bobbin}}}} + \underbrace{{{terms}}}_{{\text{{layers}} \times d}} + \underbrace{{{_f(tape_total)}}}_{{\text{{tape}}}} = {b['build']:.2f}\,\mathrm{{mm}} \le {b['w']:.2f}\,\mathrm{{mm}}",
                           rf"\text{{breadth between margins}} = {_f(b['h'])} - 2({_f(b['wall'])} + {_f(b['margin'])}) = {_f(b['y1'] - b['y0'])}\,\mathrm{{mm}} \quad \text{{(assumptions)}}"]))
         return out
-    cu = sum(w.turns * w.strands * awg_area_mm2(w.awg) for w in d.windings)
+    # winding factor counts wire with its enamel, as Magnetics' 40% winding factor does
+    cu = sum(w.turns * w.strands * math.pi * _wire_od(w.awg) ** 2 / 4 for w in d.windings)
     fill = cu / core.wa_mm2
     lim = limits["fill_max_toroid"]
     ok = fill <= lim
-    out.append(Check("window_fill", "Copper fits the core window", PASS if ok else FLAG,
-                     f"{fill * 100:.0f}% of the window vs {lim * 100:.0f}% limit" + ("" if ok else ": the winding won't fit"),
-                     [rf"\frac{{\sum N \cdot n \cdot A_{{wire}}}}{{W_a}} = \frac{{{_f(cu)}\,\mathrm{{mm^2}}}}{{{_f(core.wa_mm2)}\,\mathrm{{mm^2}}}} = {fill * 100:.0f}\% \quad (\text{{limit }} {lim * 100:.0f}\%,\ \text{{assumption}})"]))
+    out.append(Check("window_fill", "Winding fits the core window", PASS if ok else FLAG,
+                     f"wire (with enamel) fills {fill * 100:.0f}% of the window vs a {lim * 100:.0f}% winding factor" + ("" if ok else ": the winding won't fit"),
+                     [rf"\frac{{\sum N \cdot n \cdot \pi d_{{ins}}^2/4}}{{W_a}} = \frac{{{_f(cu)}\,\mathrm{{mm^2}}}}{{{_f(core.wa_mm2)}\,\mathrm{{mm^2}}}} = {fill * 100:.0f}\% \quad (\text{{limit }} {lim * 100:.0f}\%\ \text{{winding factor}})"]))
     return out
 
 
@@ -477,11 +482,11 @@ def _named_figures(core: Core | None, d: Design, limits: dict) -> dict[str, str 
     win = svg_window(core, [(w.name, w.turns, w.strands, w.awg) for w in d.windings], limits=limits)
     curve = (svg_l_vs_i(core, d.windings[0].turns, d.i_pk_a, parse_inductance_uh(d.l_text), ref_at="zero")
              if d.kind == "inductor" and core.family == "toroid" else None)
-    flux = svg_flux(core, d) if d.kind == "transformer" and core.bsat_mt else None
+    flux = svg_flux(core, d, limits["bsat_margin"]) if d.kind == "transformer" and core.bsat_mt else None
     return {"curve": curve, "flux": flux, "winding": win}
 
 
-def svg_flux(core: Core, d: Design, margin: float = 0.80) -> str:
+def svg_flux(core: Core, d: Design, margin: float) -> str:
     """Transformer evidence: peak flux density (square-wave drive) against the core's B_sat."""
     p = d.windings[0]
     b = d.v_pri / (4 * d.f_khz * 1e3 * p.turns * core.ae_mm2 * 1e-6) * 1e3
@@ -580,9 +585,13 @@ def retained(core: Core, h_oe: float) -> float | None:
 
 
 def pick_wire(i_rms: float, j_max: float) -> tuple[int, int, float]:
-    """Smallest bare copper (AWG 10-24, 1-6 strands) carrying i_rms at or below j_max; fewer strands on ties."""
+    """Copper (AWG 10-24, 1-6 strands) carrying i_rms at or below j_max: among choices within 10% of
+    the smallest area, the fewest strands (a winder prefers one wire unless skin depth argues
+    otherwise, which this first pass doesn't model)."""
     need = i_rms / j_max
-    awg, n = min((w for w in WIRES if awg_area_mm2(w[0]) * w[1] >= need), key=lambda w: (awg_area_mm2(w[0]) * w[1], w[1]))
+    ok = [w for w in WIRES if awg_area_mm2(w[0]) * w[1] >= need]
+    smallest = min(awg_area_mm2(a) * n for a, n in ok)
+    awg, n = min((w for w in ok if awg_area_mm2(w[0]) * w[1] <= smallest * 1.10), key=lambda w: (w[1], awg_area_mm2(w[0]) * w[1]))
     return awg, n, awg_area_mm2(awg) * n
 
 
@@ -614,7 +623,7 @@ def size_inductor(cores: dict[str, Core], limits: dict, l_uh: float, i_rms: floa
                 continue
             turns, h, f, l_pk = found
             awg, strands, cu = pick_wire(i_rms, j_max)
-            fill = turns * cu / core.wa_mm2
+            fill = turns * strands * math.pi * _wire_od(awg) ** 2 / 4 / core.wa_mm2  # with enamel, as the check
             if fill > fill_max:
                 reason = f"{n}x: {turns} turns of {strands} x {awg} AWG fill {fill * 100:.0f}% of the window (limit {fill_max * 100:.0f}%)"
                 continue
@@ -623,6 +632,7 @@ def size_inductor(cores: dict[str, Core], limits: dict, l_uh: float, i_rms: floa
                 "core": core.name, "stack": n, "turns": turns, "awg": awg, "strands": strands,
                 "l0_uh": l0, "l_pk_uh": l_pk, "retained": f, "h_oe": h, "j": i_rms / cu, "fill": fill,
                 "core_volume_mm3": core.ve_mm3 * n, "copper_mm2": cu, "material": core.material,
+                "height_mm": (core.ht_mm or 0) * n,  # core stack height, before winding
                 "fig": {"curve": svg_l_vs_i(core, turns, i_pk, l_uh, n), "winding": svg_window(core, [("W1", turns, strands, awg)], n)},
                 "latex": [
                     rf"H_{{pk}} = \frac{{0.4\pi \times {turns} \times {_f(i_pk)}\,\mathrm{{A}}}}{{{_f(le_cm)}\,\mathrm{{cm}}}} = {_f(h)}\,\mathrm{{Oe}} \;\Rightarrow\; {f * 100:.0f}\%\ \text{{of }} A_L \text{{ remains}}",
@@ -667,7 +677,7 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
     """Cross-section through the core window with every wire drawn to scale.
     windings: (name, turns, strands, awg). Wires are packed in layers along the window edge."""
     wires = [(k, _wire_od(awg)) for k, (_, turns, strands, awg) in enumerate(windings) for _ in range(turns * strands)]
-    cu = sum(t * n * awg_area_mm2(a) for _, t, n, a in windings)
+    cu = sum(t * n * math.pi * _wire_od(a) ** 2 / 4 for _, t, n, a in windings)  # with enamel
     fill = cu / core.wa_mm2
     placed, overflow = [], 0
     if core.family == "toroid":
@@ -745,7 +755,7 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
     size = "bigfig" if overflow else ("thumbfig" if core.family == "toroid" else "winfig")
     return (f'<figure class="mfig {size}"><svg viewBox="{view}" role="img" aria-label="Winding view: {label}; copper fills {fill * 100:.0f}% of the window">'
             f"{body}{circles}</svg><figcaption>{'Toroid, top view: each turn passes through the hole and returns around the outside' if core.family == 'toroid' else 'E-core window (one side)'}{f', {stack} stacked' if stack > 1 else ''} · {label} · "
-            f"bare copper {fill * 100:.0f}% of the window · {note}</figcaption></figure>")
+            f"wire with enamel fills {fill * 100:.0f}% of the window · {note}</figcaption></figure>")
 
 
 def svg_l_vs_i(core: Core, turns: int, i_pk: float, l_req_uh: float | None, stack: int = 1, ref_at: str = "peak") -> str:

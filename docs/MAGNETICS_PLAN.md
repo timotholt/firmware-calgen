@@ -52,7 +52,7 @@ About a day. No paid model calls in v1. New dependencies: a PDF writer for the g
 
 **Sizing engine (Python, `calgen.magnetics.size_inductor`, runs in the browser via Pyodide):**
 - Inputs: required inductance *at peak current*, RMS current, peak current, switching frequency, minimum inductance retained at peak (80% conservative, 50% common for PFC; user picks).
-- Cores: the Kool Mµ toroids in the catalog, stacked 1–3 high (A_L, A_e, V_e scale with the stack; l_e and window don't). Two larger real cores are added (0077110A7, 0077908A7), cited like the rest. Ferrite E cores are excluded: they need a gap for inductors and the catalog holds ungapped A_L only.
+- Cores: the Kool Mµ toroids in the catalog, stacked 1–3 high (as built: 1–4, since a 1500 VA PFC inductor needed four) (A_L, A_e, V_e scale with the stack; l_e and window don't). Two larger real cores are added (0077110A7, 0077908A7), cited like the rest. Ferrite E cores are excluded: they need a gap for inductors and the catalog holds ungapped A_L only.
 - Inductance at peak current: A_L·N² times the fraction of permeability left at the peak magnetizing force, linearly interpolated between the data sheet's points (0 → 100%, H₈₀ → 80%, H₅₀ → 50%); the real curve sits above these lines at low bias, so this is conservative. Beyond H₅₀ the core is rejected (no extrapolation).
 - For each core and stack: smallest turns meeting the inductance; smallest copper (AWG 10–24, 1–6 strands) meeting the current-density limit; then window fill. Passing candidates are ranked by core volume, then copper; failures show their first reason.
 - Closest past designs: the existing records ranked by inductance and current.
@@ -85,3 +85,10 @@ About a day. No paid model calls in v1. New dependencies: a PDF writer for the g
 **Check:** `window_fill` for E cores becomes a build check: bobbin wall + all layers + tape ≤ window width (bare (B − C)/2 from the core data). Message gives used vs available mm. Toroids keep the bare-copper fill check (no bobbin).
 **Drawing:** window with bobbin, margin tape blocks, tape lines between windings, and conductors in their layers, to scale.
 **Answer key:** unchanged (both transformers still fit; XFMR-002 is flagged only for its turns ratio).
+
+## Review fixes (2026-10-17, second expert review)
+- Sizer defaults to keeping 80% at peak (what the drawing check requires); the 50% option and the PFC link say a drawing of the result would be flagged.
+- Output filter requirement sized at rated current plus ripple (not at the hardware fault limit); topology (half-bridge or unipolar) and the shared f_sw are stated in the basis.
+- Ripple fraction and flux margin read from `limits.yaml` (no duplicated constants).
+- Toroid fill counts wire with enamel against the 40% winding factor; bobbin layers include a 1.1 build factor; wire choice prefers fewer strands within 10% of the smallest area; the inductance check also requires the core's A_L spread to fit the drawing's tolerance.
+- Passing designs redrawn with realistic, varied margins (59–78% of the bias limit); answer key unchanged.

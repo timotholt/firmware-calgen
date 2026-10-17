@@ -143,7 +143,9 @@ def test_playground_requirements_and_known_sizing_outcomes():
     # L = V_bus / (4 f_sw dI), dI = 0.3 x sqrt(2) x 20 A at 410 V, 20 kHz
     assert pfc["l_uh"] == pytest.approx(410 / (4 * 20e3 * 0.3 * 2 ** 0.5 * 20) * 1e6)
     assert pfc["i_pk"] == pytest.approx(2 ** 0.5 * 20 * 1.15)
-    assert out["i_pk"] == pytest.approx(43.75)  # the inductor must hold up to the hardware peak limit
+    # output filter sized at rated peak + ripple/2 (the 43.75 A hardware limit is a fault event, checked separately)
+    assert out["i_pk"] == pytest.approx(2 ** 0.5 * 12.5 * 1.15) and out["i_rms"] == pytest.approx(12.5)
+    assert out["min_retained"] == 0.8 and pfc["min_retained"] == 0.5
     big = mg.size_inductor(CORES, LIMITS, pfc["l_uh"], pfc["i_rms"], pfc["i_pk"], pfc["min_retained"])
     assert [(c["core"], c["stack"]) for c in big["candidates"]] == [("0077908A7", 4)]
     assert mg.size_inductor(CORES, LIMITS, out["l_uh"], out["i_rms"], out["i_pk"], out["min_retained"])["candidates"] == []
@@ -202,8 +204,8 @@ def test_default_tab_opens_the_evidence_for_the_verdict():
 def test_transformer_build_includes_bobbin_margins_and_tape():
     d = {x.id: x for x in DESIGNS}["XFMR-001"]
     b = mg.bobbin_build(CORES[d.core], [(w.name, w.turns, w.strands, w.awg) for w in d.windings], LIMITS)
-    # 24 x 20 AWG in 2 layers, 12 x 16 AWG in 2 layers, on a 1 mm bobbin with 3 + 2 tape layers of 0.05 mm
-    expect = 1.0 + 2 * mg._wire_od(20) + 2 * mg._wire_od(16) + 5 * 0.05
+    # 24 x 20 AWG in 2 layers, 6 x 14 AWG in 1 layer (each layer 1.1 x wire OD), 1 mm bobbin, 3 + 2 tape layers of 0.05 mm
+    expect = 1.0 + LIMITS["build_factor"] * (2 * mg._wire_od(20) + mg._wire_od(14)) + 5 * 0.05
     assert b["build"] == pytest.approx(expect) and b["fits"]
     assert b["y1"] - b["y0"] == pytest.approx(2 * 11.2 - 2 * (1.0 + 3.0))  # breadth between the margin tapes
     assert all(b["y0"] <= y - r and y + r <= b["y1"] + 1e-9 for _, _, y, r in b["conductors"])  # no wire in the margins
@@ -215,6 +217,27 @@ def test_transformer_build_includes_bobbin_margins_and_tape():
 def test_transformer_layers_are_balanced_and_spread():
     d = {x.id: x for x in DESIGNS}["XFMR-001"]
     b = mg.bobbin_build(CORES[d.core], [(w.name, w.turns, w.strands, w.awg) for w in d.windings], LIMITS)
-    assert [cnt for _, _, cnt in b["layers"]] == [12, 12, 6, 6]  # 24 primary turns as 12 + 12; 12 secondary conductors as 6 + 6
+    assert [cnt for _, _, cnt in b["layers"]] == [12, 12, 6]  # 24 primary turns as 12 + 12, not 16 + 8; secondary in one layer
     first = sorted(y for k, x, y, r in b["conductors"] if k == 0 and x < b["conductors"][0][1] + 1e-9)
     assert first[0] > b["y0"] and first[-1] < b["y1"] and (first[-1] - first[0]) > 0.8 * (b["y1"] - b["y0"])  # spans the breadth
+
+
+
+def test_wire_choice_prefers_one_wire_over_many_thin_ones():
+    awg, strands, area = mg.pick_wire(4.0, LIMITS["j_max_a_per_mm2"])  # needs 0.8 mm²
+    assert strands == 1 and area >= 0.8  # 18 AWG (0.823 mm²), not 4 x 24 AWG
+
+
+def test_inductance_check_requires_core_tolerance_inside_drawing_tolerance():
+    import dataclasses
+
+    d = dataclasses.replace({x.id: x for x in DESIGNS}["MAG-001"], l_tol_pct=5)  # tighter than the core's ±8% A_L
+    c = next(c for c in mg.check(d, CORES, LIMITS) if c.id == "inductance")
+    assert c.status == mg.FLAG and "wider than the drawing's ±5%" in c.message
+
+
+def test_ripple_fraction_has_one_source():
+    import re
+
+    for f in ("src/calgen/playground.py", "src/calgen/magnetics.py"):
+        assert not re.search(r"RIPPLE_FRACTION\s*=|ripple_fraction\s*=\s*0", (ROOT / f).read_text()), f
