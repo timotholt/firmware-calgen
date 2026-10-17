@@ -68,3 +68,15 @@ def test_license_notices_and_ai_optout_on_every_page(site):
 def test_no_unfilled_template_fields(site):
     for p in site.rglob("*.html"):
         assert not re.search(r"\{(ai|counts|opts|default)\[", p.read_text()), p
+
+
+
+@needs_vendor
+def test_pages_carry_link_preview_tags(site):
+    assert (site / "assets" / "preview.png").exists()
+    for p in site.rglob("*.html"):
+        text = p.read_text()
+        if "<nav>" not in text:
+            continue  # only full site pages
+        for tag in ('property="og:image"', 'property="og:title"', 'property="og:description"', 'name="twitter:card"'):
+            assert tag in text, (p.name, tag)
