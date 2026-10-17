@@ -1,6 +1,6 @@
 # firmware-calgen
 
-**Generate firmware calibration and configuration constants from engineering specs: traceable to the data sheet, checked by gates, and reviewed before they reach C.**
+**From data sheet to firmware C code: calibration and configuration constants generated from engineering specs, with every constant traced to its source and checked before it goes into the code.**
 
 **[Open the demo site →](https://timotholt.github.io/firmware-calgen/)** It runs entirely in your browser (no install, no server, nothing uploaded).
 
