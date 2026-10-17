@@ -137,15 +137,15 @@ def _page(title: str, active: str, body: str, depth: int = 0, extra_head: str = 
     up = "../" * depth
     primary = [("index.html", "Overview"), ("playground.html", "Firmware"), ("magnetics.html", "Magnetics")]
     evidence = [(href, label) for href, label in NAV if href not in {h for h, _ in primary} and href != "backstory.html"]
-    nav = '<div class="navlinks">' + "".join(f'<a href="{up}{href}" class="{"on" if href == active else ""}" {"aria-current=page" if href == active else ""}>{_e(label)}</a>' for href, label in primary)
+    nav = '<div class="navlinks">' + "".join(f'<a href="{up}{href}?v={ASSET_VERSION}" class="{"on" if href == active else ""}" {"aria-current=page" if href == active else ""}>{_e(label)}</a>' for href, label in primary)
     nav += '<details class="navmore' + (' on' if active in {h for h, _ in evidence} else '') + '"><summary>Evidence</summary><div class="navmenu">'
-    nav += "".join(f'<a href="{up}{href}" class="{"on" if href == active else ""}">{_e(label)}</a>' for href, label in evidence) + '</div></details></div>'
-    nav += f'<div class="navpersonal"><a href="{up}backstory.html">Tim Otholt</a><a href="{REPO}">Source ↗</a></div>'
+    nav += "".join(f'<a href="{up}{href}?v={ASSET_VERSION}" class="{"on" if href == active else ""}">{_e(label)}</a>' for href, label in evidence) + '</div></details></div>'
+    nav += f'<div class="navpersonal"><a href="{up}backstory.html?v={ASSET_VERSION}">Tim Otholt</a><a href="{REPO}">Source ↗</a></div>'
     body_class = "workspace-page" if active == "playground.html" else ""
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{_e(title)}</title><meta name="description" content="{_e(SITE_BLURB)}"><meta property="og:type" content="website"><meta property="og:site_name" content="firmware-calgen"><meta property="og:title" content="{_e(title)}"><meta property="og:description" content="{_e(SITE_BLURB)}"><meta property="og:url" content="{SITE_URL}{_e(active)}"><meta property="og:image" content="{SITE_URL}assets/preview.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="Magnetics and firmware constants, checked from the spec: a toroid winding and an inductance-versus-current chart"><meta name="twitter:card" content="summary_large_image"><meta name="robots" content="noai, noimageai"><meta name="tdm-reservation" content="1"><meta name="tdm-policy" content="https://github.com/timotholt/firmware-calgen/blob/main/LICENSE"><link rel="stylesheet" href="{up}assets/katex/katex.min.css"><link rel="stylesheet" href="{up}assets/site.css?v={ASSET_VERSION}">{extra_head}</head>
-<body class="{body_class}"><main><nav><a class="brand" href="{up}index.html"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 14h5V8h5v12h5V4h5v10h4"/><circle cx="2" cy="14" r="1"/><circle cx="26" cy="14" r="1"/></svg>firmware-calgen</a>{nav}</nav>
-{notice_html()}
+<body class="{body_class}"><header class="site-header"><nav><a class="brand" href="{up}index.html?v={ASSET_VERSION}"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 14h5V8h5v12h5V4h5v10h4"/><circle cx="2" cy="14" r="1"/><circle cx="26" cy="14" r="1"/></svg>firmware-calgen</a>{nav}</nav></header>
+<main>{notice_html()}
 {body}
 <footer>© 2026 Timothy Otholt. All rights reserved: you may view and run this demo to evaluate my work; no copying, reuse, or AI training (<a href="{up}LICENSE.txt">license</a>, <a href="{up}THIRD_PARTY_NOTICES.md">third-party notices</a>). Independent demo; product ratings from public IntelliPower data sheets (cited per value); all circuit values, gains, firmware names, and legacy code are invented. <a href="{REPO}">Source and tests</a>.</footer>
 </main><script src="{up}assets/katex/katex.min.js"></script>

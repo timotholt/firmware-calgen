@@ -89,3 +89,15 @@ def test_workspace_typography_requires_no_new_font_downloads(site):
     assert 'font-family:system-ui' in css
     assert '@font-face' not in css and '@import' not in css
     assert not re.search(r'url\([^)]*\.(?:woff2?|ttf|otf)', css, re.I)
+
+
+@needs_vendor
+def test_shared_header_is_independent_of_page_content_width(site):
+    for name in ['index.html', 'playground.html', 'magnetics.html', 'audit.html', 'how.html', 'ai.html', 'backstory.html', 'reports/index.html']:
+        html = (site / name).read_text()
+        assert '<header class="site-header"><nav>' in html
+        assert html.index('</nav></header>') < html.index('<main>')
+        assert '<iframe' not in html
+        # Following site navigation bypasses HTML cached from older deployments.
+        header = html.split('<header class="site-header">', 1)[1].split('</header>', 1)[0]
+        assert 'playground.html?v=' in header and 'magnetics.html?v=' in header
