@@ -201,7 +201,7 @@ def page_home(counts: dict[str, int], ai: dict[str, float], mag: dict) -> str:
 <section class="init">
 <div class="kicker">Initiative 2 · Firmware modification and calibration</div>
 <h2>See what a hardware change breaks.</h2>
-<p>Choose a product, board, and processor. Trace the resulting limits and register values to their sources, and inspect the C that passes the checks.</p>
+<p>Choose a product, board, and processor. Trace the resulting limits and register values to their sources, and inspect the C code that passes the checks.</p>
 <p><a class="primary-link" href="playground.html?v={ASSET_VERSION}">Explore Firmware →</a></p>
 <div class="try-story"><b>Try this</b> On the 1500 VA product, select Board Rev B. See why generation stops, then apply a suggested repair.</div>
 <div class="thumb miniflow">{flow}<div class="sub" style="width:100%;margin-top:6px">rev B on the 1500 VA unit: the sensor saturates before the peak limit fires, so nothing is written.</div></div>
@@ -256,7 +256,7 @@ def page_reports(out: Path, specs: Path, rules) -> str:
         v = b.variant
         status = '<span class="pill ok">all gates pass</span>' if b.ok else f'<span class="pill bad">{len(b.failures)} failure(s), nothing written</span>'
         rows.append(f'<tr><td><a href="{_e(name)}.html" class="mono">{_e(name)}</a></td><td>{_e(v.datasheet.part)}</td><td>rev {_e(v.board.extra.get("rev"))}</td><td>{_e(v.target.name[:1].upper() + v.target.name[1:])}</td><td>{status}</td><td class="sub">{_e(v.path.read_text().split("description:")[1].split(chr(10))[0].strip() if "description:" in v.path.read_text() else "")}</td></tr>')
-    body = f"""<h1>Review reports</h1><p class="sub">One report per variant: the document an engineer signs. Click a constant to see its derivation, sources, and generated C. Print for a sign-off copy.</p>
+    body = f"""<h1>Review reports</h1><p class="sub">One report per variant: the document an engineer signs. Click a constant to see its derivation, sources, and generated C code. Print for a sign-off copy.</p>
 <table><tr><th>Variant</th><th>Product</th><th>Board</th><th>Target</th><th>Result</th><th>Scenario</th></tr>{''.join(rows)}</table>
 <p class="sub">Board rev B shows the alternate-component story: the replacement current-sense amplifier has twice the gain, so the 1500 VA unit's hardware peak-current limit no longer fits the sensor's range. The tool refuses to generate and says why. The same board is fine for the 650 VA unit.</p>"""
     return _page("Review reports", "reports/index.html", body, depth=1)
@@ -363,7 +363,7 @@ def page_audit(root: Path, specs: Path, rules) -> str:
 <h2>How the AI is used, and where it is not</h2>
 <ul><li>The model sees one file at a time and answers in a strict JSON schema; every answer is validated.</li>
 <li>Its output is a draft mapping for review. It never edits firmware or specs.</li>
-<li>The firmware path (spec → constants → gates → C) never calls a model.</li>
+<li>The firmware path (spec → constants → gates → C code) never calls a model.</li>
 <li>On controlled data (vendor-confidential, CUI, ITAR), run a local model behind the same interface, or turn the step off.</li></ul>"""
     return _page("Legacy firmware audit", "audit.html", body)
 
@@ -387,14 +387,14 @@ def page_how(specs: Path, rules) -> str:
 <p class="sub">IntelliPower doesn't publish its firmware, board, or magnetics designs, so these are stated, not known. Values that rest on them are tagged <i>assumption</i> in the tools.</p>
 {ASSUMPTIONS_HTML}
 <h2>Engineering principles</h2>
-<ol><li><b>Single source of truth.</b> Generated C is never hand-edited; a test fails if it is.</li>
+<ol><li><b>Single source of truth.</b> Generated C code is never hand-edited; a test fails if it is.</li>
 <li><b>Traceability.</b> Every constant cites its formula and inputs, down to the data sheet quote.</li>
 <li><b>Units are checked.</b> A formula that adds volts to amps is an error.</li>
 <li><b>Numeric honesty.</b> Stated rounding, overflow is an error not a saturation, quantization error reported.</li>
 <li><b>Fail closed.</b> Any failure, nothing written.</li>
 <li><b>Deterministic.</b> Same inputs, byte-identical output, so diffs show only real changes.</li>
 <li><b>Separation of concerns.</b> Product, board, chip, and engineer design choices are independent inputs.</li>
-<li><b>Evidence, not assertion.</b> Hand-worked known answers are checked in C on every build.</li>
+<li><b>Evidence, not assertion.</b> Hand-worked known answers are checked in compiled C code on every build.</li>
 <li><b>Human authority.</b> AI drafts; people approve.</li>
 <li><b>Stated limits.</b> See below.</li></ol>
 <h2>Worked example: FA10507 current protection, data sheet to register</h2>
@@ -479,7 +479,7 @@ def page_ai(ai: dict[str, float]) -> str:
 
 <section class="sblock thesis"><div class="slabel">1 · This demo was built with AI agents</div>
 <p><b>Spec first.</b> A written plan (<span class="mono">docs/PLAN.md</span> in the repository) was approved before any code. Claude Code then built the tool in milestones over about a day of directed sessions, each step a small commit with its own tests. I chose the problem, approved the plan, and reviewed and redirected the work; the AI wrote most of the code.</p>
-<p><b>Gates on AI output.</b> Every change passes the test suite before it ships: generated files must match a fresh generation, typeset math must equal the computed values, and the generated C must build and pass known-answer tests. One early commit went out with stale generated headers; the freshness test caught it, and since then every commit waits for the test run.</p>
+<p><b>Gates on AI output.</b> Every change passes the test suite before it ships: generated files must match a fresh generation, typeset math must equal the computed values, and the generated C code must build and pass known-answer tests. One early commit went out with stale generated headers; the freshness test caught it, and since then every commit waits for the test run.</p>
 <p><b>AI reviewing AI.</b> An AI reviewer, prompted to act as a power-electronics firmware lead, found a real physics error: the timed RMS overload was wired to the fast hardware comparator. A second review found five more issues (a 60 Hz-only input window on a 50/60 Hz unit, "fixed-point" code doing float math, an include-order hazard, stale corpus notes, overstated AI wording). All were fixed, and each code fix got a test so it can't come back.</p>
 </section>
 
@@ -523,7 +523,7 @@ def page_backstory(ai: dict[str, float]) -> str:
 
 def page_playground(default: dict) -> str:
     opts = playground.options()
-    body = f"""<header class="workspace-heading"><div><h1>Firmware workspace</h1><p>Trace every change from specification to C.</p></div><div id="configuration" class="configuration" aria-label="Product and hardware"></div></header>
+    body = f"""<header class="workspace-heading"><div><h1>Firmware workspace</h1><p>Trace every change from specification to C code.</p></div><div id="configuration" class="configuration" aria-label="Product and hardware"></div></header>
 <details id="product-specs" class="product-specs"><summary id="product-spec-summary">Product specs</summary><div id="product-spec-content"></div></details>
 <div class="workspace-meta"><p>Synthetic hardware · Public product ratings · Local computation</p><div id="engine" class="engine" role="status">Showing pre-computed results · loading the in-browser engine…</div></div>
 <div class="pg">

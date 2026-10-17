@@ -158,7 +158,7 @@
     var invalid = inputFinding();
     var senseFail = DATA.checks.some(function (k) { return k.id === "iout_sense_range" && k.status === "fail"; });
     var busFail = DATA.checks.some(function (k) { return k.id === "bus_above_output_peak" && k.status === "fail"; });
-    if (pending) { headline = "Updating your experiment"; message = "Rechecking the edited inputs before generating C."; }
+    if (pending) { headline = "Updating your experiment"; message = "Rechecking the edited inputs before generating C code."; }
     else if (inputError) { headline = "Check your input"; message = inputError; }
     else if (invalid) { headline = invalid.describe; message = invalid.fix; }
     else if (senseFail && DATA.protection) {
@@ -171,11 +171,11 @@
     } else if (DATA.staleness.some(function (x) { return x.status === "fail"; })) {
       headline = "Loop gains need review"; message = "The achieved switching frequency differs from the frequency used to tune these gains.";
     } else if (!DATA.ok) {
-      headline = "An engineering check failed"; message = "Review the affected input and the check details below. No C is generated while a gate fails.";
+      headline = "An engineering check failed"; message = "Review the affected input and the check details below. No C code is generated while a gate fails.";
     }
     var count = (DATA.changed || []).length;
     var findings = DATA.datasheet || [];
-    var h = '<div class="result-status' + (blocked ? ' bad' : '') + '">' + (pending ? 'Updating…' : blocked ? '● Generation blocked' : '✓ C generated · modeled checks pass') + '</div>' +
+    var h = '<div class="result-status' + (blocked ? ' bad' : '') + '">' + (pending ? 'Updating…' : blocked ? '● Generation blocked' : '✓ C code generated · modeled checks pass') + '</div>' +
       '<h2>' + esc(headline) + '</h2><p>' + esc(message) + '</p>';
     if (!pending && !inputError && !DATA.ok) h += fixHtml(all);
     if (findings.length) h += '<div class="review-note"><details><summary>' + findings.length + ' source finding' + (findings.length === 1 ? '' : 's') + ' for review</summary>' + findings.map(function (d) {
@@ -183,7 +183,7 @@
     }).join('') + '</details></div>';
     h += '<h3>What changed</h3>' + (count ? '<div class="changes-list">' + changeRows(5) + '</div>' + (count > 5 ? '<button class="text-button" id="all-changes">View all ' + count + ' changes →</button>' : '') : '<p>Matches the shipped product’s values.</p>');
     if (all.length && !pending && !inputError) h += '<details><summary>View ' + all.length + ' failed check' + (all.length === 1 ? '' : 's') + '</summary><ul>' + all.map(function (x) { return '<li>' + esc(x.msg) + '</li>'; }).join('') + '</ul></details>';
-    h += '<p class="evidence-note">' + (blocked ? 'No C available until the inputs and checks pass.' : 'Synthetic hardware · modeled checks only. Engineering sign-off is still required.') + '</p>';
+    h += '<p class="evidence-note">' + (blocked ? 'No C code available until the inputs and checks pass.' : 'Synthetic hardware · modeled checks only. Engineering sign-off is still required.') + '</p>';
     $("probs").innerHTML = h;
     $("probs").querySelectorAll('.applyfix').forEach(function (button) {
       button.onclick = function () { mutate(function () { state.edits[button.dataset.k] = parseFloat(button.dataset.v); groupsOpen.Board = true; }); };
@@ -345,7 +345,7 @@
       ['<span class="tag tag-derived">derived</span>', "Computed only from data sheet values and public chip facts"],
       ['<span class="tag tag-assumption">assumption</span>', "Computed from an invented board value or design choice (shunt, gain, margin, factor, timing) or a generic chemistry figure"],
       ['<span class="tag tag-design">design</span>', "Engineer-supplied value carried through unchanged (loop gains)"],
-      ['<span class="tag tag-override">what-if</span>', "Your override of a data sheet value (marked OVERRIDE in the C)"],
+      ['<span class="tag tag-override">what-if</span>', "Your override of a data sheet value (marked OVERRIDE in the C code)"],
       ['<span class="lgchg"><span class="was">12.5</span> → <b>16.7</b></span>', "Differs from the shipped product (rev A board, F28004x-class, default design)"],
       ['<span class="lgbad">red indicator</span>', "A gate failed in this stage; why, and how to fix it, appear in Results"],
       ["1φ*", "Single-phase is implied by the IEC C14 inlet and NEMA 5-15 outlets, not stated as a rating"]
@@ -451,7 +451,7 @@
   function isOpen(c) { return state.open[c.id] !== undefined ? state.open[c.id] : c.status === "fail"; } // changed rows show old -> new in the row itself
 
   function renderFormulas() {
-    var tabs = [["changes", "Changes"], ["math", "Derivations"], ["c", "Generated C"], ["diff", "Diff vs shipped"]];
+    var tabs = [["changes", "Changes"], ["math", "Derivations"], ["c", "Generated C code"], ["diff", "Diff vs shipped"]];
     $("fhead").textContent = state.tab === "math" ? "Derivations · " + DATA.blocks[state.stage] + " (click a stage to switch)" : "Output";
     $("tabs").innerHTML = tabs.map(function (t) { return '<button type="button" class="pill tab' + (state.tab === t[0] ? " on" : "") + '" data-t="' + t[0] + '" aria-pressed="' + (state.tab === t[0]) + '">' + t[1] + "</button>"; }).join("");
     $("tabs").querySelectorAll(".tab").forEach(function (e) {
@@ -461,7 +461,7 @@
     });
     var out = "";
     if (inputError || pendingBefore) {
-      out = '<p class="sub">' + esc(inputError || 'Rechecking your changes…') + ' C downloads are unavailable until the inputs pass.</p>';
+      out = '<p class="sub">' + esc(inputError || 'Rechecking your changes…') + ' C code downloads are unavailable until the inputs pass.</p>';
     } else if (state.tab === "changes") {
       var changedConstants = DATA.constants.filter(function (c) { return changed(c.id); });
       out = changedConstants.length ? '<table class="change-table"><thead><tr><th>Constant</th><th>Shipped</th><th>Current</th></tr></thead><tbody>' + changedConstants.map(function (c) {
@@ -488,7 +488,7 @@
       out = DATA.diff ? "<pre>" + DATA.diff.split("\n").map(function (l) {
         var cls = l[0] === "+" && l.slice(0, 3) !== "+++" ? "add" : l[0] === "-" && l.slice(0, 3) !== "---" ? "del" : "";
         return '<span class="' + cls + '">' + esc(l) + "</span>"; }).join("\n") + "</pre>"
-        : '<p class="sub">' + (Object.keys(state.edits).length ? "No difference, or nothing generated." : "Change an input to see what changes in the generated C.") + "</p>";
+        : '<p class="sub">' + (Object.keys(state.edits).length ? "No difference, or nothing generated." : "Change an input to see what changes in the generated C code.") + "</p>";
     }
     $("formulas").innerHTML = out;
     $("formulas").querySelectorAll(".frow > button").forEach(function (btn) {
