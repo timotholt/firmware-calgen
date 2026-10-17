@@ -1,6 +1,11 @@
 # firmware-calgen — Plan
 
-Status: draft v2 for Tim's approval, 2026-10-16. No code until approved.
+Status: approved 2026-10-16; v1 built M0–M9 on 2026-10-16. Deviations from this plan, as built:
+- Site is static on GitHub Pages with the engine running in the browser (Pyodide); no hosted server, no live AI on the site (decided with Tim). KaTeX renders client-side from a local copy; pages fall back to readable LaTeX text without JavaScript.
+- KaTeX 0.16.22, Pyodide 0.27.7, and PyYAML's Pyodide wheel are pinned and checksum-verified by `calgen vendor`; nothing loads from a CDN at runtime.
+- AI comparison: gpt-5.4-nano recorded and passing (91% category, 97% units). Claude Haiku 5.5 / Sonnet 5.5 not recorded yet (no Anthropic key available); the table says so.
+- Calibration add-on (S6) not built; listed as a limitation.
+- The AI audit corpus is the clean-room synthetic corpus only; TI SDK firmware is not used for any published result (license).
 Repo: `github.com/timotholt/firmware-calgen` (private until Tim approves going public). CLI name: `calgen`.
 Yardstick: `~/Projects/jobhunter/applications/ametek-ai-intern/THESIS.md` (problems 1a–1f, user stories S1–S9, assumptions A1–A7, principles 1–10). Every feature names the story it serves.
 
