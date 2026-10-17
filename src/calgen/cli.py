@@ -125,12 +125,12 @@ def cmd_audit(args: argparse.Namespace) -> int:
 
         res = ai.classify(root, unmapped, b.rules, _backend(args.ai, root))
         print(f"AI draft for unexplained constants ({args.ai}) -- for human review, nothing applied:")
-        by_id = {i.id: i for r in res for i in r.items}
+        by_id = {(r.file, i.id): i for r in res for i in r.items}
         per_file: dict[str, int] = {}
         for c in unmapped:
             n = per_file.get(c.file, 0)
             per_file[c.file] = n + 1
-            item = by_id.get(ai.candidate_id(c, n))
+            item = by_id.get((c.file, ai.candidate_id(c, n)))
             text = f"{item.category}, {item.units}, {item.confidence}: {item.reason}" if item else "no valid answer"
             print(f"  {c.file}:{c.line:<4} {c.symbol:<14} {c.literal:<10} {text}")
     return 1 if n_mis else 0
@@ -154,7 +154,15 @@ def cmd_eval(args: argparse.Namespace) -> int:
     print(f"model {s.model}: {s.n} keyed constants, {s.answered} valid answers")
     for label, v in (("category", s.category), ("units", s.units), ("typed/derived", s.typed), ("rule mapping", s.rule)):
         print(f"  {label:<14} {v:>3}/{s.n}  {s.pct(v):5.1f}%")
-    print(f"  tokens in/out  {s.input_tokens}/{s.output_tokens}   latency {s.latency_s:.1f}s")
+    cost = ""
+    prices_file = root / "ai_runs" / "prices.yaml"
+    if prices_file.exists():
+        import yaml
+
+        p = (yaml.safe_load(prices_file.read_text(encoding="utf-8")) or {}).get(s.model)
+        if p:
+            cost = f"   cost ${(s.input_tokens * p['input'] + s.output_tokens * p['output']) / 1e6:.4f} (list price {p['checked']})"
+    print(f"  tokens in/out  {s.input_tokens}/{s.output_tokens}   latency {s.latency_s:.1f}s{cost}")
     for e in s.errors:
         print(f"  miss: {e}")
     return 0

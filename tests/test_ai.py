@@ -128,3 +128,23 @@ def test_prompt_numbers_lines(corpus):
     root, cands = corpus
     prompt, ids = build_prompt(SRC, "cfg.h", cands, RULES)
     assert "   2| #define TRIP_I" in prompt and len(ids) == 2
+
+
+def test_ids_repeat_across_files_and_scoring_keeps_them_apart(tmp_path):
+    (tmp_path / "a.h").write_text("#define A_TRIP 14.0f\n")
+    (tmp_path / "b.h").write_text("#define B_BAUD 9600\n")
+    cands = scan(tmp_path)
+
+    class PerFile:
+        name, model = "pf", "pf"
+
+        def complete(self, system, prompt, schema):
+            trip = "A_TRIP" in prompt
+            return {"items": [{"id": "c1", "category": "trip_limit" if trip else "comms_or_buffer",
+                               "units": "A" if trip else "baud", "typed": True,
+                               "maps_to_rule": "iout_trip" if trip else None, "confidence": "high", "reason": ""}]}, 1, 1
+
+    key = [KeyEntry("a.h", 1, "A_TRIP", "14.0f", 14.0, "trip_limit", "A", True, "iout_trip", "mismatch", 15.0),
+           KeyEntry("b.h", 1, "B_BAUD", "9600", 9600.0, "comms_or_buffer", "baud", True, None, "not_applicable", None)]
+    s = score("pf", cands, key, classify(tmp_path, cands, RULES, PerFile()))
+    assert (s.category, s.rule) == (2, 2)

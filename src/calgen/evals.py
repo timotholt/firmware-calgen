@@ -125,7 +125,7 @@ def score(model: str, cands: list[Candidate], key: list[KeyEntry], results: list
     answers = {}
     for r in results:
         for item in r.items:
-            answers[item.id] = item
+            answers[(r.file, item.id)] = item  # ids are per file
     s = Score(model, len(pairs), 0, 0, 0, 0, 0,
               sum(r.input_tokens for r in results), sum(r.output_tokens for r in results), sum(r.latency_s for r in results))
     s.missed_by_scanner = [f"{k.file}:{k.line} {k.symbol} {k.literal}" for k in unmatched]
@@ -135,7 +135,7 @@ def score(model: str, cands: list[Candidate], key: list[KeyEntry], results: list
             if i not in pairs:
                 continue
             k = pairs[i]
-            a = answers.get(candidate_id(c, local))
+            a = answers.get((c.file, candidate_id(c, local)))
             if a is None:
                 s.errors.append(f"no valid answer for {c.file}:{c.line} {c.symbol}")
                 continue

@@ -52,10 +52,25 @@ of the listed spec rules (after an obvious unit conversion), give that rule id;
 otherwise null. "typed" is true when the value is a hand-typed literal and false
 when it is computed from other macros. Units: use one of V, A, Hz, s, ms, us,
 counts, ratio, V/count, A/count, baud, bytes, none. Comments in the code may be
-wrong; trust the value and how it is used over the comment."""
+wrong; trust the value and how it is used over the comment.
+
+Categories:
+- sense_full_scale: the physical value (V or A) a sensor channel reads at full scale, or the converter's full-scale count
+- sense_scale_factor: physical units per ADC count
+- trip_limit: a level that trips protection (shutdown, bypass, hardware comparator), including comparator codes for it
+- protection_threshold: an operating-window or band edge (input transfer limits, output regulation band) that is not itself a trip
+- setpoint: a value the controller regulates to
+- timing: clock, PWM period, dead time, delays, time windows
+- control_gain: control-loop gains and coefficients
+- battery: battery string voltages and battery thresholds
+- pin_map: GPIO and peripheral pin assignments
+- comms_or_buffer: baud rates, buffer and log sizes, retry counts
+- version_or_id: firmware versions, model or product identifiers
+- other: anything else, including product ratings that are not regulated or tripped on"""
 
 
-def output_schema(rule_ids: list[str]) -> dict:
+def output_schema(rule_ids: list[str], ids: list[str] | None = None) -> dict:
+    id_schema: dict = {"type": "string", "enum": ids} if ids else {"type": "string"}
     return {
         "type": "object",
         "properties": {
@@ -64,7 +79,7 @@ def output_schema(rule_ids: list[str]) -> dict:
                 "items": {
                     "type": "object",
                     "properties": {
-                        "id": {"type": "string"},
+                        "id": id_schema,
                         "category": {"type": "string", "enum": CATEGORIES},
                         "units": {"type": "string"},
                         "typed": {"type": "boolean"},
@@ -83,7 +98,8 @@ def output_schema(rule_ids: list[str]) -> dict:
 
 
 def candidate_id(c: Candidate, index: int) -> str:
-    return f"{c.file}:{c.line}:{c.symbol}:{index}"
+    """Short per-file id; the schema restricts answers to exactly these ids."""
+    return f"c{index + 1}"
 
 
 def build_prompt(file_text: str, file_name: str, cands: list[Candidate], rules: Rules) -> tuple[str, list[str]]:
@@ -221,6 +237,7 @@ class ReplayBackend:
         entry = self.data["responses"].get(sha)
         if entry is None:
             raise LookupError(f"{self.path.name}: no recording for this prompt (prompt or rules changed; re-record)")
+        self.last_latency = entry.get("latency_s") or 0.0  # report the live run's latency, not replay's
         return entry["raw"], entry["input_tokens"], entry["output_tokens"]
 
 
@@ -235,14 +252,14 @@ def prompt_sha(system: str, prompt: str, schema: dict) -> str:
 def classify(root: Path, candidates: list[Candidate], rules: Rules, backend: Backend) -> list[FileResult]:
     """One model call per file, so the model sees each constant in context."""
     rule_ids = [r.id for r in rules.constants if r.kind == "numeric"]
-    schema = output_schema(rule_ids)
     out = []
     for file in sorted({c.file for c in candidates}):
         cands = [c for c in candidates if c.file == file]
         prompt, ids = build_prompt((root / file).read_text(encoding="utf-8"), file, cands, rules)
+        schema = output_schema(rule_ids, ids)
         start = time.monotonic()
         raw, tin, tout = backend.complete(SYSTEM_PROMPT, prompt, schema)
-        latency = time.monotonic() - start
+        latency = getattr(backend, "last_latency", None) or (time.monotonic() - start)
         items, invalid = validate(raw, ids, rule_ids)
         out.append(FileResult(file, prompt_sha(SYSTEM_PROMPT, prompt, schema), items, invalid, tin, tout, latency, raw))
     return out

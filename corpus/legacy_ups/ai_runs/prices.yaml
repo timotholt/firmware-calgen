@@ -1,0 +1,17 @@
+# USD per 1M tokens, list prices at the time of the recorded runs. Used only to
+# report cost per eval run; check the source before relying on them.
+gpt-5.4-nano:
+  input: 0.20
+  output: 1.25
+  source: https://developers.openai.com/docs/models/gpt-5.4-nano
+  checked: 2026-10-16
+claude-haiku-5-5:
+  input: 0.10
+  output: 0.50
+  source: Anthropic models table (claude-api reference, cached 2026-10-06)
+  checked: 2026-10-16
+claude-sonnet-5-5:
+  input: 2.00
+  output: 10.00
+  source: Anthropic models table (claude-api reference, cached 2026-10-06)
+  checked: 2026-10-16
