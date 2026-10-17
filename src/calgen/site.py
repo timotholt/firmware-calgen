@@ -141,7 +141,7 @@ def _page(title: str, active: str, body: str, depth: int = 0, extra_head: str = 
     nav += '<details class="navmore' + (' on' if active in {h for h, _ in evidence} else '') + '"><summary>Evidence</summary><div class="navmenu">'
     nav += "".join(f'<a href="{up}{href}?v={ASSET_VERSION}" class="{"on" if href == active else ""}">{_e(label)}</a>' for href, label in evidence) + '</div></details></div>'
     nav += f'<div class="navpersonal"><a href="{up}backstory.html?v={ASSET_VERSION}">Tim Otholt</a><a href="{REPO}">Source ↗</a></div>'
-    body_class = "workspace-page" if active == "playground.html" else ""
+    body_class = "workspace-page" if active == "playground.html" else "magnetics-page" if active == "magnetics.html" else ""
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{_e(title)}</title><meta name="description" content="{_e(SITE_BLURB)}"><meta property="og:type" content="website"><meta property="og:site_name" content="firmware-calgen"><meta property="og:title" content="{_e(title)}"><meta property="og:description" content="{_e(SITE_BLURB)}"><meta property="og:url" content="{SITE_URL}{_e(active)}"><meta property="og:image" content="{SITE_URL}assets/preview.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="Magnetics and firmware constants, checked from the spec: a toroid winding and an inductance-versus-current chart"><meta name="twitter:card" content="summary_large_image"><meta name="robots" content="noai, noimageai"><meta name="tdm-reservation" content="1"><meta name="tdm-policy" content="https://github.com/timotholt/firmware-calgen/blob/main/LICENSE"><link rel="stylesheet" href="{up}assets/katex/katex.min.css"><link rel="stylesheet" href="{up}assets/site.css?v={ASSET_VERSION}">{extra_head}</head>
 <body class="{body_class}"><header class="site-header"><nav><a class="brand" href="{up}index.html?v={ASSET_VERSION}"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 14h5V8h5v12h5V4h5v10h4"/><circle cx="2" cy="14" r="1"/><circle cx="26" cy="14" r="1"/></svg>firmware-calgen</a>{nav}</nav></header>
@@ -423,16 +423,11 @@ def page_magnetics(data: dict, key_match: tuple[int, int]) -> str:
         f"<td>{c['ae_mm2']:g}</td><td>{c['le_mm']:g}</td><td>{c['wa_mm2']:g}{' *' if c['wa_basis'] != 'data sheet' else ''}</td>"
         f"<td>{'—' if c['h80_oe'] is None else format(c['h80_oe'], 'g') + ' Oe'}</td><td>{'—' if c['bsat_mt'] is None else format(c['bsat_mt'], 'g') + ' mT'}</td><td class='sub'>{_e(c['source'])}</td></tr>"
         for c in data["cores"])
-    body = f"""<h1>Magnetics</h1>
-<p class="lead">The posting's first initiative is an AI tool that speeds up inductor and transformer design using past designs. That tool needs two things first, and this page demonstrates both: past drawings turned into structured, checked, searchable data, and a first-pass sizing tool that turns a requirement into checked starting designs from real cores. Neither replaces a magnetics engineer; they shorten the path to the first good prototype.</p>
-<div class="proof">
-<div><b>{len(recs)}</b><span>synthetic component drawings (PDF), read back from their text layer</span></div>
-<div><b>{len(data['cores'])}</b><span>real cores, values transcribed from vendor data sheets with citations</span></div>
-<div><b>{nflag} flagged</b><span>for review by physics checks; agrees with the blind answer key on {key_match[0]} of {key_match[1]} drawings</span></div>
-</div>
+    body = f"""<header class="mag-heading"><div><h1>Magnetics workspace</h1><p>Turn requirements into starting designs. Review the evidence.</p></div><nav class="mag-jumps" aria-label="Magnetics sections"><a href="#size">Size an inductor</a><a href="#past-designs">Past designs</a></nav></header>
+<div class="mag-meta"><span>{len(data['cores'])} real cores · {len(recs)} synthetic drawings · {nflag} need review</span><span>Local computation · DC-bias screening only</span></div>
 <section class="sizer" id="size">
-<h2>Size an inductor</h2>
-<p class="sub">Enter a requirement; every Kool Mµ toroid in the catalog, stacked one to four high, is tried with the fewest turns estimated to reach the inductance <i>at peak current</i>, the smallest wire that meets the current-density limit (fewest strands when within 10%), and a window-fill check. Computed in your browser by the same Python as the checks below. DC-bias screening only: adjusted curves are estimates; AC excitation, losses, and temperature need separate validation.</p>
+<div class="mag-requirements"><h2>Size an inductor</h2><p class="sub">Set your requirements to compare starting designs.</p>
+<details class="sizing-method"><summary>Screening method and limits</summary><p class="sub">Enter a requirement; every Kool Mµ toroid in the catalog, stacked one to four high, is tried with the fewest turns estimated to reach the inductance <i>at peak current</i>, the smallest wire that meets the current-density limit (fewest strands when within 10%), and a window-fill check. Computed in your browser by the same Python as the checks below. DC-bias screening only: adjusted curves are estimates; AC excitation, losses, and temperature need separate validation.</p></details>
 <p class="sub" id="sz-from"></p>
 <div class="msearch">
 <label>Inductance at peak (µH) <input id="sz-l" type="number" min="0" step="any" value="330" placeholder="µH"></label>
@@ -441,9 +436,9 @@ def page_magnetics(data: dict, key_match: tuple[int, int]) -> str:
 <label>Keep at peak <select id="sz-ret"><option value="0.8">≥ 80% (what the drawing check requires)</option><option value="0.5">≥ 50% (common for PFC; fails the 80% drawing check)</option></select></label>
 <button id="sz-go" class="btn primary-btn" type="button">Size it</button>
 </div>
-<div id="sz-out" aria-live="polite"><p class="sub">Loading the in-browser engine…</p></div>
+</div><div class="mag-results"><h2>Candidate designs</h2><div id="sz-out" aria-live="polite"><p class="sub">Loading the in-browser engine…</p></div></div>
 </section>
-<h2>Past designs (synthetic drawings)</h2>
+<section class="mag-library" id="past-designs"><header class="mag-library-heading"><h2>Past designs</h2><p class="sub">Select a drawing to inspect its checks, curve, and winding. All drawings are synthetic.</p></header>
 <div class="msearch">
 <label>Kind <select id="f-kind"><option value="">All</option><option value="inductor">Inductors</option><option value="transformer">Transformers</option></select></label>
 <label>Inductance from <input id="f-lmin" type="number" min="0" step="any" placeholder="µH"></label>
@@ -454,23 +449,23 @@ def page_magnetics(data: dict, key_match: tuple[int, int]) -> str:
 <button id="f-reset" class="btn" type="button">Clear</button>
 </div>
 <p class="sub" id="m-count"></p>
-<table class="mlist"><thead><tr><th>Drawing</th><th>Title</th><th>Core</th><th>Inductance (transformers: L<sub>m</sub> min)</th><th>Current (largest winding)</th><th>Checks</th></tr></thead><tbody id="m-list"></tbody></table>
-<div id="m-detail"></div>
-<h2>How it works</h2>
+<div class="mag-table-scroll" tabindex="0" role="region" aria-label="Past design comparison"><table class="mlist"><thead><tr><th>Drawing</th><th>Title</th><th>Core</th><th>Inductance (transformers: L<sub>m</sub> min)</th><th>Current (largest winding)</th><th>Checks</th></tr></thead><tbody id="m-list"></tbody></table></div>
+<div id="m-detail"></div></section>
+<details class="mag-reference"><summary>How it works</summary>
 <ol class="prose">
 <li><b>Extract.</b> Each drawing's PDF text layer is parsed into fields (core, winding table, electrical table, title block). Every field keeps the text it came from. These drawings share one template; real drawings vary, so the first real step would be sampling about ten of yours to fix the schema, with a vision model and human review for scans.</li>
 <li><b>Check.</b> Textbook physics against vendor data: stated inductance vs A<sub>L</sub>·N² (within the core's A<sub>L</sub> tolerance), DC bias on powder cores (peak magnetizing force vs the data sheet's 80%-permeability point), transformer peak flux vs B<sub>sat</sub>, turns ratio, current density, and window fill. Anything that fails goes to review with the reason and the math.</li>
 <li><b>Search.</b> Filter checked records, and rank the closest past designs, the question a design engineer actually asks first.</li>
-</ol>
-<h2>Core catalog (real data)</h2>
-<table><tr><th>Core</th><th>Type</th><th>A<sub>L</sub> (nH/turn²)</th><th>A<sub>e</sub> (mm²)</th><th>l<sub>e</sub> (mm)</th><th>W<sub>a</sub> (mm²)</th><th>DC bias at 80% (min)</th><th>B<sub>sat</sub> (min, 100 °C)</th><th>Source</th></tr>{core_rows}</table>
+</ol></details>
+<details class="mag-reference"><summary>Core catalog · real vendor data</summary><div class="mag-table-scroll" tabindex="0" role="region" aria-label="Core catalog">
+<table><tr><th>Core</th><th>Type</th><th>A<sub>L</sub> (nH/turn²)</th><th>A<sub>e</sub> (mm²)</th><th>l<sub>e</sub> (mm)</th><th>W<sub>a</sub> (mm²)</th><th>DC bias at 80% (min)</th><th>B<sub>sat</sub> (min, 100 °C)</th><th>Source</th></tr>{core_rows}</table></div>
 <p class="sub">Powder toroids are limited by DC bias (the magnetizing force at which permeability falls to 80%, data sheet minimum); ferrite E cores by saturation flux density. * E-core window derived from nominal dimensions as (B − C)/2 × 2E, before the coil former.</p>
-<h2>Assumptions and limits</h2>
+</details><details class="mag-reference"><summary>Assumptions, limits, and validation</summary>
 <ul class="prose">
 <li>Drawings, part numbers, and designs are <b>synthetic</b>; seeded mistakes are listed in a blind answer key the checks never read.</li>
 <li>Design limits are textbook assumptions: current density ≤ {lim['j_max_a_per_mm2']:g} A/mm²; toroid window fill ≤ {lim['fill_max_toroid'] * 100:.0f}% of the window, counting wire with its enamel (Magnetics' winding factor); transformer windings must fit the bobbin with a {lim['bobbin_wall_mm']:g} mm coil former, {lim['margin_mm']:g} mm margin tape at each end, and {lim['tape_layers_between']} tape layers between windings (real values come from the safety standard and the bobbin's data sheet); transformer flux ≤ {lim['bsat_margin'] * 100:.0f}% of B<sub>sat</sub>; turns ratio within {lim['ratio_tol_pct']:g}%.</li>
 <li>First-order physics only: no core-loss, AC winding-loss, or thermal model yet. Those, and the design recommendations, are the next steps once real data exists, and they belong to your magnetics engineers.</li>
-</ul>
+</ul><p class="sub">Drawing checks agree with the blind answer key on {key_match[0]} of {key_match[1]} synthetic drawings.</p></details>
 <script id="mag-data" type="application/json">{_script_json(data)}</script>"""
     scripts = '<script src="assets/pyodide/pyodide.js"></script><script src="assets/magnetics.js?v=' + ASSET_VERSION + '"></script>'
     return _page("Magnetics", "magnetics.html", body, scripts=scripts)
