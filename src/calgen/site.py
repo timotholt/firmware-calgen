@@ -191,34 +191,44 @@ def page_home(counts: dict[str, int], ai: dict[str, float], mag: dict) -> str:
     flow = "".join(f'<span class="ministage{" bad" if s == "AC output" else ""}">{s}</span>' + ('<span class="miniarrow">→</span>' if i < 4 else "")
                    for i, s in enumerate(["AC input", "Rectifier / PFC", "DC bus", "Inverter", "AC output"]))
     body = f"""
-<h1 class="hero">Both initiatives from AMETEK IntelliPower's AI Automation Intern posting, worked end to end</h1>
-<p class="lead">Built with AI agents under my direction, with every number traced to its source and checked before it is used. Runs entirely in your browser.</p>
+<div class="overview-intro">
+<div class="kicker">Independent demo · AMETEK IntelliPower AI Automation Intern</div>
+<h1 class="hero">From engineering requirements to checked designs and firmware.</h1>
+<p class="lead">Explore two working tools built around the posting’s two initiatives. Size an inductor from real core data, or change a product’s hardware and see which firmware constants pass the modeled checks.</p>
+<p class="overview-meta">Runs locally in your browser · No install or account · Nothing uploaded</p>
+</div>
 <div class="initiatives">
 <section class="init">
 <div class="kicker">Initiative 1 · Magnetics design automation</div>
-<h2>Past designs into checked data; requirements into candidate designs</h2>
-<p>The posting asks for an AI tool that speeds up inductor and transformer design using past designs. This builds the step that tool needs first: drawings read into structured records, checked against real core data, and searchable, plus a sizing tool that turns a requirement into checked starting designs.</p>
+<h2>Find a starting point for an inductor.</h2>
+<p>Enter inductance and current requirements to compare candidate windings on real cores. Explore checked, searchable records from past synthetic drawings.</p>
+<p><a class="primary-link" href="magnetics.html?v={ASSET_VERSION}">Explore Magnetics →</a></p>
+<div class="try-story"><b>Try this</b> Change the peak current and compare which candidates still pass the modeled constraints.</div>
 <div class="thumb">{mag["thumb"]}</div>
 <ul class="mini"><li><b>{mag["drawings"]}</b> synthetic drawings, read back from PDF</li><li><b>{mag["cores"]}</b> real cores with cited data</li><li>checks agree with the blind key on <b>{mag["agree"]} of {mag["drawings"]}</b></li></ul>
-<p><a class="primary-link" href="magnetics.html">Open Magnetics →</a></p>
+<p class="sub">First-pass screening. Core loss, AC winding loss, temperature rise, and engineering validation remain outside this model.</p>
 </section>
 <section class="init">
 <div class="kicker">Initiative 2 · Firmware modification and calibration</div>
-<h2>Data sheets into firmware constants, gated</h2>
-<p>Calibration gains, limits, and register values are generated from the product data sheet, the board, and the chip, with every value traced. Gates refuse to write C when anything is inconsistent: try the alternate amplifier on the 1500 VA unit.</p>
+<h2>See what a hardware change breaks.</h2>
+<p>Choose a product, board, and processor. Trace the resulting limits and register values to their sources, and inspect the C that passes the checks.</p>
+<p><a class="primary-link" href="playground.html?v={ASSET_VERSION}">Explore Firmware →</a></p>
+<div class="try-story"><b>Try this</b> On the 1500 VA product, select Board Rev B. See why generation stops, then apply a suggested repair.</div>
 <div class="thumb miniflow">{flow}<div class="sub" style="width:100%;margin-top:6px">rev B on the 1500 VA unit: the sensor saturates before the peak limit fires, so nothing is written.</div></div>
 <ul class="mini"><li><b>3</b> real IntelliPower data sheets, cited per value</li><li><b>{counts['contradicts']} of {counts['total']}</b> legacy constants contradict the data sheet</li><li><b>0</b> values written when any gate fails</li></ul>
-<p><a class="primary-link" href="playground.html">Open the firmware playground →</a></p>
+<p class="sub">Generation stops when a modeled gate fails. Passing checks still requires engineering review.</p>
 </section>
 </div>
-<div class="connect"><b>How they connect.</b> The firmware playground's rectifier stage estimates its PFC inductor (FA10507: ≈ {pfc['l_uh']:.0f} µH, {pfc['i_rms']:.3g} A RMS, {pfc['i_pk']:.1f} A peak) <span class="miniarrow">→</span> one click sizes it in Magnetics against real cores <span class="miniarrow">→</span> with the closest past designs alongside. Same products, both initiatives.</div>
+<section class="overview-connection"><h2>Two tools, connected by the same requirements.</h2><div class="connect"><b>Follow a requirement.</b> The firmware playground's rectifier stage estimates its PFC inductor (FA10507: ≈ {pfc['l_uh']:.0f} µH, {pfc['i_rms']:.3g} A RMS, {pfc['i_pk']:.1f} A peak) <span class="miniarrow">→</span> one click sizes it in Magnetics against real cores <span class="miniarrow">→</span> with the closest past designs alongside. Same products, both initiatives.</div><p class="sub">Start with either tool; Firmware can also hand an estimated inductor requirement directly to Magnetics.</p></section>
+<section class="overview-evidence"><h2>What supports the results?</h2><p>Built with AI agents under my direction. Calculations and gates are deterministic; AI drafts legacy-constant classifications for human review. <a href="ai.html">See the measured AI results →</a></p>
 <div class="key">
 <div><b>Real</b>IntelliPower product data sheets; Magnetics Inc. and Ferroxcube core data; the posting.</div>
 <div><b>Synthetic</b>The legacy firmware corpus, the magnetics drawings, and their blind answer keys.</div>
 <div><b>Assumed</b>Control board, design choices, inductor ripple, processor pairing. Tagged in the tools; listed in <a href="how.html#assumptions">How it works</a>.</div>
 </div>
 <p class="sub">Not claimed: power-electronics design, loop tuning, finished magnetics designs, EMI, or certification. Engineers own those; these tools carry and check their numbers.</p>
-<details class="more-box" open><summary>The posting, my assumptions, and how I'd check them in week one</summary>
+</section>
+<details class="more-box"><summary>Why I built this: the posting, assumptions, and week-one checks</summary>
 <figure class="posting"><div class="shot"><a href="assets/ametek_posting.jpg" target="_blank" rel="noopener"><img src="assets/ametek_posting.jpg" alt="Screenshot of the AI Automation Intern posting on AMETEK's careers site: about us, job summary with two initiatives (magnetics design automation; firmware modification and calibration automation), and key responsibilities" loading="lazy" width="1040" height="806"></a></div>
 <figcaption>The posting on AMETEK's careers site, posted Oct 15, 2026, captured Oct 16, 2026 (<span class="mono">jobs.ametek.com/job/Orange-AI-Automation-Intern-CA-92865/1420689600</span>). Scroll inside the box, or click for full size.</figcaption></figure>
 <p>The posting describes six problems: magnetics design iterations, hand-edited firmware constants, specs that aren't machine-usable, provable validation, undocumented process, and responsible AI adoption. This demo addresses the first two (magnetics: the data step and first-pass sizing; firmware constants: end to end) and supports the next four.</p>

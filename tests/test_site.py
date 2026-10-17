@@ -102,3 +102,15 @@ def test_shared_header_is_independent_of_page_content_width(site):
         header = html.split('<header class="site-header">', 1)[1].split('</header>', 1)[0]
         assert 'playground.html?v=' in header and 'magnetics.html?v=' in header
         assert header.index('index.html?v=') < header.index('magnetics.html?v=') < header.index('playground.html?v=')
+
+
+@needs_vendor
+def test_overview_offers_two_tasks_and_preserves_portfolio_context(site):
+    html = (site / 'index.html').read_text()
+    assert 'Explore Magnetics →' in html and 'Explore Firmware →' in html
+    assert html.index('Explore Magnetics →') < html.index('Explore Firmware →')
+    assert 'On the 1500 VA product, select Board Rev B' in html
+    assert 'Why I built this: the posting, assumptions, and week-one checks' in html
+    assert '<details class="more-box"><summary>Why I built this' in html
+    assert 'A7' in html and 'Nothing uploaded' in html
+    assert 'Core loss, AC winding loss, temperature rise' in html
