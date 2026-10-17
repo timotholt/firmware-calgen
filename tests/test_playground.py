@@ -61,3 +61,15 @@ def test_input_voltage_what_if_moves_the_bus():
     r = run(SPECS, edits={"ds.vin_max": 277})
     assert {"vin_max", "vbus_min", "vbus_set"} <= set(r["changed"])
     assert next(c for c in r["constants"] if c["id"] == "vbus_set")["display"] == "420 V"  # ceil(391.7*1.07/10)*10
+
+
+def test_tags_trace_values_to_their_weakest_root():
+    tags = {c["id"]: c["tag"] for c in run(SPECS, product="FA10449")["constants"]}
+    assert tags["vbat_nom"] == "datasheet"  # "92.4 VDC" on the sheet
+    assert tags["vbat_cutoff"] == "assumption"  # uses a generic LiFePO4 ratio
+    assert tags["iout_trip"] == "derived"  # data sheet values only
+    assert tags["vbus_set"] == "assumption"  # invented bus margin
+    assert tags["iout_trip_dac_hi"] == "assumption"  # invented shunt and amplifier
+    assert tags["vloop_kp"] == "design"
+    what_if = {c["id"]: c["tag"] for c in run(SPECS, edits={"ds.power_va": 2000})["constants"]}
+    assert what_if["iout_rated"] == "assumption"  # now rests on an override

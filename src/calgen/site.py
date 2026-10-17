@@ -42,7 +42,25 @@ a{color:inherit}.btn{display:inline-block;border:1px solid var(--line);border-ra
 .flowmap{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:12px 0}.step{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;background:var(--bg)}
 .arrow{color:var(--muted)}
 :root{--acc:#185fa5;--accbg:#e6f1fb}@media (prefers-color-scheme:dark){:root{--acc:#85b7eb;--accbg:#0c2c4c}}
-.tag{font-size:10px;padding:1px 6px;border-radius:999px;margin-left:4px}.tag-datasheet{background:var(--accbg);color:var(--acc)}.tag-derived{background:var(--soft);color:var(--muted)}.tag-design{background:var(--warnbg);color:var(--warn)}
+.tag{font-size:10px;padding:1px 6px;border-radius:999px;margin-left:4px}.tag-datasheet{background:var(--accbg);color:var(--acc)}.tag-derived{background:var(--soft);color:var(--muted)}.tag-design{background:var(--warnbg);color:var(--warn)}.tag-assumption{background:transparent;color:var(--warn);border:1px dashed var(--warn)}
+.ptabs{display:flex;flex-wrap:wrap;gap:0;border-bottom:1px solid var(--line);margin:12px 0 0}
+.ptab{padding:10px 16px;cursor:pointer;border:1px solid transparent;border-bottom:0;border-radius:8px 8px 0 0;margin-bottom:-1px;font-size:14px;background:transparent;color:var(--muted)}
+.ptab b{display:block;font-family:var(--mono);color:var(--fg);font-size:14px}.ptab:hover{background:var(--soft)}
+.ptab.on{border-color:var(--line);background:var(--bg);color:var(--fg)}.ptab.on b{color:var(--fg)}
+.statusbar{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:8px 0;display:flex;flex-wrap:wrap;gap:4px 16px;align-items:center}
+.statusbar .pills{margin:0}
+.pg{display:grid;grid-template-columns:minmax(260px,340px) minmax(0,1fr);grid-template-areas:"stages ins" "stages fms";grid-template-rows:auto 1fr;gap:16px 24px;margin-top:16px}
+.stages{grid-area:stages}.ins{grid-area:ins}.fms{grid-area:fms}
+.colhead{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 8px}
+.stages .fb{margin:0}.vdown{text-align:center;color:var(--muted);font-size:16px;line-height:1;margin:4px 0}
+.busrow{display:grid;grid-template-columns:minmax(0,1fr) 22px minmax(0,0.9fr);align-items:center;gap:0}.side{color:var(--muted);text-align:center}
+.inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:20px}
+.inputs .card{background:transparent;border:1px solid var(--line);border-radius:8px;padding:10px 12px}.inputs .card h3{font-size:13px;color:var(--fg);font-weight:600;margin:0 0 6px}
+.frow{border-bottom:1px solid var(--line)}.frow>button{all:unset;box-sizing:border-box;display:flex;width:100%;gap:8px;align-items:center;padding:8px 4px;cursor:pointer;font-family:var(--mono);font-size:12.5px}
+.frow>button:focus-visible{outline:2px solid var(--fg)}.frow .chev{width:12px;color:var(--muted)}.frow .sym{flex:1;min-width:0;overflow-wrap:anywhere}.frow .val{color:var(--muted)}
+.frow.open>button{background:var(--sel);color:var(--selfg)}.frow.open>button .val,.frow.open>button .chev{color:var(--selfg)}
+.fbody{padding:8px 4px 14px}
+@media (max-width:820px){.pg{grid-template-columns:1fr;grid-template-areas:"ins" "stages" "fms"}}
 .fgrid{display:grid;grid-template-columns:minmax(0,1fr) 16px minmax(0,1fr) 16px minmax(0,1fr) 16px minmax(0,1fr) 16px minmax(0,1fr);gap:4px;width:100%;align-items:stretch}
 .farrow{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:16px}.fvert{grid-column:5;text-align:center;color:var(--muted);font-size:16px;line-height:1}
 .sum{font-size:11px;color:var(--muted);margin:-2px 0 6px;line-height:1.35}.fb.sel .sum{color:var(--selfg)}
@@ -273,15 +291,15 @@ def page_how(specs: Path, rules) -> str:
 def page_playground(default: dict) -> str:
     opts = playground.options()
     body = f"""<h1>Playground</h1>
-<p class="sub">Pick a product, change the board or a design choice, and watch the firmware constants, gates, and generated C follow. Computed in your browser by the same Python code as the command-line tool. Nothing is uploaded.</p>
-<div id="engine" class="sub">Showing pre-computed results · loading the in-browser engine…</div>
-<div class="md" style="grid-template-columns:200px minmax(0,1fr)">
-<div class="list" id="products"></div>
-<div><div id="flow" class="flowmap"></div>
-<div id="inputs" class="cards" style="margin-top:4px"></div></div></div>
-<div id="gates" class="pills"></div><div id="failmsg"></div>
-<div class="md"><div class="list"><div id="clist"></div><div class="hint">Choose a constant to see how it's derived</div></div>
-<div class="detail"><div class="pills" id="tabs"></div><div id="cdetail"></div></div></div>
+<p class="sub">Choose a product, change an input, and watch every stage's firmware constants, gates, and generated C follow. Computed in your browser by the same Python code as the command-line tool; nothing is uploaded.</p>
+<div class="ptabs" id="products" role="tablist" aria-label="Product data sheet"></div>
+<div class="statusbar"><div id="gates" class="pills"></div><div id="engine" class="sub">Showing pre-computed results · loading the in-browser engine…</div></div>
+<div id="failmsg"></div>
+<div class="pg">
+<section class="stages" aria-label="UPS power flow, top to bottom"><div class="colhead">Power flow · click a stage</div><div id="flow"></div></section>
+<section class="ins"><div class="colhead">Inputs</div><div id="inputs" class="inputs"></div></section>
+<section class="fms"><div class="colhead" id="fhead">Formulas</div><div class="pills" id="tabs"></div><div id="formulas"></div></section>
+</div>
 <script id="default-data" type="application/json">{_script_json(default)}</script>
 <script id="options" type="application/json">{_script_json(opts)}</script>"""
     scripts = '<script src="assets/pyodide/pyodide.js"></script><script src="assets/playground.js"></script>'

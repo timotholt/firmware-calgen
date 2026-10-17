@@ -53,19 +53,35 @@ def _with_params(ps: ParamSet, edits: dict[str, float]) -> ParamSet:
     return dataclasses.replace(ps, params=params)
 
 
-def _tag(b: Build, rule_id: str) -> str:
+def _roots(b: Build, rule_id: str, seen: set[str] | None = None) -> set[str]:
+    """Input kinds a constant ultimately depends on: ds, board, target, design (transitively)."""
+    seen = seen or set()
     c = b.constant(rule_id)
-    if any(s.override for s in c.sources) and dotted_name(parse(c.rule.formula).tree) is not None:
+    names = [c.rule.formula] if c.rule.kind == "enum" else parse(c.rule.formula).names
+    out: set[str] = set()
+    for n in names:
+        kind = n.split(".", 1)[0] if "." in n else None
+        if kind:
+            out.add("override" if kind == "ds" and n[3:] in b.variant.overrides else kind)
+        elif n not in seen:
+            seen.add(n)
+            out |= _roots(b, n, seen)
+    return out
+
+
+def _tag(b: Build, rule_id: str) -> str:
+    """data sheet | derived (from data sheet and public chip facts only) | assumption | design | what-if."""
+    c = b.constant(rule_id)
+    roots = _roots(b, rule_id)
+    direct = dotted_name(parse(c.rule.formula).tree) if c.rule.kind == "numeric" else c.rule.formula
+    if "override" in roots and direct and direct.startswith("ds."):
         return "override"
-    if c.rule.supplied:
+    if c.rule.supplied or (direct and direct.startswith("design.")):
         return "design"
-    if c.rule.kind == "enum":
+    if direct and direct.startswith("ds."):
         return "datasheet"
-    name = dotted_name(parse(c.rule.formula).tree)
-    if name and name.startswith("ds."):
-        return "datasheet"
-    if name and name.startswith("design."):
-        return "design"
+    if roots & {"board", "design", "override"}:
+        return "assumption"
     return "derived"
 
 

@@ -1,11 +1,12 @@
-/* Playground front end. All engineering math runs in Python (calgen.playground)
- * inside the browser via Pyodide; this file only renders its JSON.
- * Self-contained: every asset is loaded from this site. */
+/* Playground front end (plain JavaScript, no framework, no build step).
+ * All engineering math runs in Python (calgen.playground) inside the browser
+ * via Pyodide; this file only renders its JSON. Every asset is served by this
+ * site; nothing is uploaded. */
 (function () {
   "use strict";
   var DATA = JSON.parse(document.getElementById("default-data").textContent);
   var OPTS = JSON.parse(document.getElementById("options").textContent);
-  var state = { product: "FA10507", board: "A", target: "f28004x", edits: {}, sel: null, block: null, tab: "math" };
+  var state = { product: "FA10507", board: "A", target: "f28004x", edits: {}, stage: "out", open: {}, tab: "math" };
   var engine = null;
   var prev = null; // id -> display from the previous computation, for flashing what just changed
   var FLOW = {
@@ -16,11 +17,12 @@
     "out": ["iout_rated", "iout_trip", "iout_fs_pk", "iout_trip_dac_hi"],
     "batt": ["vbat_nom", "vbat_cutoff"]
   };
-  var TAGNAME = { datasheet: "data sheet", derived: "derived", design: "design", override: "what-if" };
+  var TAGNAME = { datasheet: "data sheet", derived: "derived", assumption: "assumption", design: "design", override: "what-if" };
 
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function byId(id) { for (var i = 0; i < DATA.constants.length; i++) { if (DATA.constants[i].id === id) return DATA.constants[i]; } return null; }
+  function keyed(el, fn) { el.onclick = fn; el.onkeydown = function (ev) { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); fn(); } }; }
   function tex(el) {
     if (!window.katex) return;
     el.querySelectorAll(".tex").forEach(function (t) {
@@ -29,29 +31,30 @@
     });
   }
   function dot(status) { return status === "ok" ? "d-ok" : status === "fail" ? "d-bad" : "d-na"; }
-
-  function renderProducts() {
-    var html = "";
-    Object.keys(OPTS.products).forEach(function (k) {
-      var parts = OPTS.products[k].split(" · ");
-      html += '<div class="it' + (k === state.product ? " sel" : "") + '" data-p="' + esc(k) + '" role="button" tabindex="0">' +
-        '<span>' + esc(parts[0]) + '<br><span class="v" style="font-family:system-ui;font-size:11px">' + esc(parts.slice(1).join(" · ")) + "</span></span></div>";
-    });
-    $("products").innerHTML = '<div class="blk">Product (public data sheet)</div>' + html;
-    $("products").querySelectorAll(".it").forEach(function (e) {
-      var go = function () { if (!engine) return; state.product = e.dataset.p; state.edits = {}; recompute(); };
-      e.onclick = go; e.onkeydown = function (ev) { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); go(); } };
-    });
-  }
-
   function changed(id) { return (DATA.changed || []).indexOf(id) >= 0; }
   function shown(c) {
     if (!changed(c.id) || !DATA.baseline) return esc(c.display);
-    return '<span class="was">' + esc(DATA.baseline[c.id]) + '</span> → <b>' + esc(c.display) + "</b>";
+    return '<span class="was">' + esc(DATA.baseline[c.id]) + "</span> → <b>" + esc(c.display) + "</b>";
+  }
+  function stageBad(b) {
+    return DATA.constants.some(function (c) { return c.block === b && c.status === "fail"; }) ||
+      DATA.checks.some(function (k) { return k.block === b && k.status === "fail"; });
   }
 
-  function flowBox(b) {
-    var title = DATA.blocks[b];
+  // ---- product tabs ------------------------------------------------------
+  function renderTabs() {
+    $("products").innerHTML = Object.keys(OPTS.products).map(function (k) {
+      var parts = OPTS.products[k].split(" · ");
+      var on = k === state.product;
+      return '<div class="ptab' + (on ? " on" : "") + '" role="tab" aria-selected="' + on + '" tabindex="0" data-p="' + esc(k) + '"><b>' + esc(parts[0]) + "</b>" + esc(parts.slice(1).join(" · ")) + "</div>";
+    }).join("");
+    $("products").querySelectorAll(".ptab").forEach(function (e) {
+      keyed(e, function () { if (!engine || e.dataset.p === state.product) return; state.product = e.dataset.p; state.edits = {}; state.open = {}; recompute(); });
+    });
+  }
+
+  // ---- vertical power flow -----------------------------------------------
+  function stageBox(b) {
     var rows = FLOW[b].map(function (id) {
       var c = byId(id); if (!c) return "";
       return '<div class="r' + (changed(id) ? " chg" : "") + '" data-vid="' + esc(id) + '" title="' + esc(c.symbol) + '">' + shown(c) + '<span class="tag tag-' + c.tag + '">' + esc(TAGNAME[c.tag]) + "</span></div>";
@@ -61,29 +64,27 @@
       var sat = DATA.summaries.sense.indexOf("SATURATES") >= 0;
       summary += '<div class="sense' + (sat ? " bad" : "") + '">' + esc(DATA.summaries.sense) + "</div>";
     }
-    var bad = DATA.constants.some(function (c) { return c.block === b && c.status === "fail"; }) ||
-      DATA.checks.some(function (k) { return k.block === b && k.status === "fail"; });
     var any = DATA.constants.some(function (c) { return c.block === b && changed(c.id); });
-    return '<div class="fb' + (state.block === b ? " sel" : "") + (bad ? " bad" : "") + (any ? " has-chg" : "") + '" data-b="' + b + '" role="button" tabindex="0"><div class="t">' + esc(title) + "</div>" + summary + rows + "</div>";
+    return '<div class="fb' + (state.stage === b ? " sel" : "") + (stageBad(b) ? " bad" : "") + (any ? " has-chg" : "") +
+      '" data-b="' + b + '" role="button" tabindex="0" aria-pressed="' + (state.stage === b) + '"><div class="t">' + esc(DATA.blocks[b]) + "</div>" + summary + rows + "</div>";
   }
 
   function renderFlow() {
-    var arrow = '<div class="farrow" aria-hidden="true">→</div>';
-    var main = ["in", "rect", "bus", "inv", "out"].map(flowBox).join(arrow);
-    $("flow").innerHTML = '<div class="fgrid">' + main +
-      '<div class="fvert" aria-hidden="true">↕</div><div class="under">' + flowBox("batt") + "</div></div>" +
-      '<div class="sub" style="width:100%">Power flows left to right; the battery charges from and discharges into the DC bus. ' +
-      'Click a block to filter the constants below. Highlighted values differ from the product as shipped (board rev A, F28004x-class, default design values).<br>' +
-      esc(DATA.footnote || "") + "</div>";
+    var down = '<div class="vdown" aria-hidden="true">↓</div>';
+    $("flow").innerHTML = stageBox("in") + down + stageBox("rect") + down +
+      '<div class="busrow">' + stageBox("bus") + '<div class="side" aria-hidden="true">↔</div>' + stageBox("batt") + "</div>" +
+      down + stageBox("inv") + down + stageBox("out") +
+      '<p class="sub" style="margin-top:10px">Highlighted values differ from the product as shipped (board rev A, F28004x-class, default design values). ' + esc(DATA.footnote || "") + "</p>" +
+      '<p class="sub"><span class="tag tag-datasheet">data sheet</span> public rating · <span class="tag tag-derived">derived</span> from data sheet and public chip facts only · <span class="tag tag-assumption">assumption</span> uses an invented board part, margin, or generic chemistry figure · <span class="tag tag-design">design</span> engineer-supplied · <span class="tag tag-override">what-if</span> your override</p>';
     $("flow").querySelectorAll(".fb").forEach(function (e) {
-      var go = function () { state.block = state.block === e.dataset.b ? null : e.dataset.b; state.sel = null; render(); };
-      e.onclick = go; e.onkeydown = function (ev) { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); go(); } };
+      keyed(e, function () { state.stage = e.dataset.b; render(); });
     });
   }
 
+  // ---- inputs --------------------------------------------------------------
   function renderInputs() {
-    var owners = {};
     var dis = engine ? "" : " disabled";
+    var owners = {};
     owners.Board = '<div class="inp"><label for="board">Control board revision</label><select id="board"' + dis + '><option value="A">rev A (original amplifier)</option><option value="B">rev B (alternate amplifier)</option></select></div>';
     owners.Chip = '<div class="inp"><label for="target">Target processor</label><select id="target"' + dis + '><option value="f28004x">F28004x-class (float32)</option><option value="f2803x">F2803x-class (IQ20, legacy)</option></select></div>';
     OPTS.editable.forEach(function (e) {
@@ -91,16 +92,14 @@
       var unit = e.unit === "ratio" ? "V/V" : e.unit === "mohm" ? "mΩ" : e.unit;
       owners[e.owner] = (owners[e.owner] || "") + '<div class="inp"><label for="i-' + esc(e.key) + '">' + esc(e.label) + " (" + esc(unit) + ')</label><input type="number" step="any" min="0" id="i-' + esc(e.key) + '" data-k="' + esc(e.key) + '" value="' + esc(v) + '"' + dis + "></div>";
     });
-    var order = [["Product what-if", "overrides the data sheet"], ["Board", "hardware engineer"], ["Chip", "processor profile"], ["Design choice", "power engineer"]];
+    var order = [["Product what-if", "overrides the data sheet"], ["Board", "hardware engineer"], ["Chip", "processor"], ["Design choice", "power engineer"]];
     $("inputs").innerHTML = order.map(function (o) {
-      var note = o[0] === "Product what-if" ? '<p class="sub" style="margin:0 0 6px">Start a new variant: values here replace the data sheet and are marked OVERRIDE in the generated C.</p>' : "";
-      return '<div class="card"><h3>' + o[0] + " · " + o[1] + "</h3>" + note + (owners[o[0]] || "") + "</div>";
-    }).join("") + '<div class="card"><button id="reset" class="btn" type="button"' + dis + '>Reset to shipped product</button></div>';
-    var reset = $("reset");
-    if (reset) reset.onclick = function () { state.edits = {}; state.board = "A"; state.target = "f28004x"; recompute(); };
+      return '<div class="card"><h3>' + o[0] + ' <span class="sub" style="font-weight:400">· ' + o[1] + "</span></h3>" + (owners[o[0]] || "") + "</div>";
+    }).join("") + '<div class="card"><h3>Reset</h3><p class="sub" style="margin:0 0 6px">Product what-ifs are marked OVERRIDE in the generated C.</p><button id="reset" class="btn" type="button"' + dis + ">Back to shipped product</button></div>";
     $("board").value = state.board; $("target").value = state.target;
     $("board").onchange = function () { state.board = this.value; recompute(); };
     $("target").onchange = function () { state.target = this.value; recompute(); };
+    $("reset").onclick = function () { state.edits = {}; state.board = "A"; state.target = "f28004x"; recompute(); };
     var timer = null;
     $("inputs").querySelectorAll("input[data-k]").forEach(function (inp) {
       inp.oninput = function () {
@@ -108,89 +107,87 @@
         if (!(x > 0)) { inp.setCustomValidity("Enter a positive number"); inp.reportValidity(); return; }
         inp.setCustomValidity("");
         state.edits[inp.dataset.k] = x;
-        clearTimeout(timer); timer = setTimeout(function () {
-          var key = inp.dataset.k, pos = inp.selectionStart;
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+          var key = inp.dataset.k;
           recompute();
           var again = document.querySelector('input[data-k="' + key + '"]');
-          if (again) { again.focus(); try { again.setSelectionRange(pos, pos); } catch (e) { /* number inputs */ } }
+          if (again) again.focus();
         }, 400);
       };
     });
   }
 
+  // ---- status bar ------------------------------------------------------------
   function renderGates() {
     var nfail = DATA.constants.filter(function (c) { return c.status === "fail"; }).length;
     var kfail = DATA.checks.filter(function (k) { return k.status === "fail"; }).length;
     var stale = DATA.staleness.filter(function (s) { return s.status === "fail"; }).length;
     var dsb = DATA.datasheet.filter(function (d) { return d.status === "blocking"; }).length;
     var dsf = DATA.datasheet.length - dsb;
+    var n = (DATA.changed || []).length;
     var pills = [
       [nfail ? "bad" : "ok", "Constants " + (DATA.constants.length - nfail) + "/" + DATA.constants.length],
       [kfail ? "bad" : "ok", "Checks " + (kfail ? kfail + " failed" : "pass")],
       [dsb ? "bad" : dsf ? "warn" : "ok", "Data sheet " + (dsb ? "blocking" : dsf ? dsf + " for review" : "consistent")],
       [stale ? "bad" : "ok", "Staleness " + (stale ? stale + " stale" : "current")],
-      [DATA.ok ? "ok" : "bad", DATA.ok ? "C generated" : "Nothing written (fail closed)"]
+      [DATA.ok ? "ok" : "bad", DATA.ok ? "C generated" : "Nothing written (fail closed)"],
+      [n ? "chgpill" : "na", n ? n + " value" + (n === 1 ? "" : "s") + " changed vs shipped" : "matches shipped product"]
     ];
-    var n = (DATA.changed || []).length;
-    pills.push([n ? "chgpill" : "na", n ? n + " value" + (n === 1 ? "" : "s") + " changed vs shipped" : "matches shipped product"]);
     $("gates").innerHTML = pills.map(function (p) { return '<span class="pill ' + p[0] + '">' + esc(p[1]) + "</span>"; }).join("");
     var msgs = DATA.checks.filter(function (k) { return k.status === "fail"; }).map(function (k) { return k.message; })
       .concat(DATA.staleness.filter(function (s) { return s.status === "fail"; }).map(function (s) { return s.param + ": " + s.message; }))
       .concat(DATA.constants.filter(function (c) { return c.status === "fail"; }).map(function (c) { return c.symbol + ": " + c.message; }));
-    $("failmsg").innerHTML = msgs.length ? '<ul style="color:var(--bad);font-size:13px">' + msgs.map(function (m) { return "<li>" + esc(m) + "</li>"; }).join("") + "</ul>" : "";
+    $("failmsg").innerHTML = msgs.length ? '<ul style="color:var(--bad);font-size:13px;margin:8px 0">' + msgs.map(function (m) { return "<li>" + esc(m) + "</li>"; }).join("") + "</ul>" : "";
   }
 
-  function visible() {
-    return DATA.constants.filter(function (c) { return !state.block || c.block === state.block; });
+  // ---- formulas for the selected stage --------------------------------------
+  function eqs(lines) { return lines.map(function (l) { return '<div class="eq"><div class="tex">' + esc(l) + "</div></div>"; }).join(""); }
+
+  function constantBody(c) {
+    return '<p class="sub" style="margin:0">' + esc(c.describe) + ' <span class="tag tag-' + c.tag + '">' + esc(TAGNAME[c.tag]) + "</span></p>" +
+      (c.message ? '<p class="pill ' + (c.status === "fail" ? "bad" : "na") + '" style="display:inline-block">' + esc(c.message) + "</p>" : "") +
+      eqs(c.latex) +
+      (c.sources.length ? "<table><tr><th>Input</th><th>From</th><th>Data sheet text / note</th></tr>" + c.sources.map(function (s) {
+        return "<tr><td class='mono'>" + esc(s.name) + "</td><td>" + esc(s.origin) + "</td><td>" + esc(s.quote) + "</td></tr>"; }).join("") + "</table>" : "");
   }
 
-  function renderList() {
-    var list = visible();
-    if (!state.sel || !list.some(function (c) { return c.id === state.sel; })) {
-      var bad = list.filter(function (c) { return c.status === "fail"; })[0];
-      state.sel = (bad || list[0] || {}).id;
-    }
-    var html = "", last = null;
-    list.forEach(function (c) {
-      if (c.block !== last) { html += '<div class="blk">' + esc(DATA.blocks[c.block]) + "</div>"; last = c.block; }
-      html += '<div class="it' + (c.id === state.sel ? " sel" : "") + '" data-id="' + esc(c.id) + '" role="button" tabindex="0" aria-pressed="' + (c.id === state.sel) + '">' +
-        "<span>" + esc(c.symbol) + '</span><span style="display:flex;gap:6px;align-items:center"><span class="v' + (changed(c.id) ? " chg" : "") + '" data-vid="' + esc(c.id) + '">' + shown(c) + '</span><span class="dot ' + dot(c.status) + '"></span></span></div>';
-    });
-    $("clist").innerHTML = html;
-    $("clist").querySelectorAll(".it").forEach(function (e) {
-      var go = function () { state.sel = e.dataset.id; renderList(); renderDetail(); };
-      e.onclick = go; e.onkeydown = function (ev) { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); go(); } };
-    });
-  }
+  function isOpen(c) { return state.open[c.id] !== undefined ? state.open[c.id] : (c.status === "fail" || changed(c.id)); }
 
-  function renderDetail() {
-    var tabs = [["math", "Derivation"], ["c", "Generated C"], ["diff", "Diff vs unedited"]];
+  function renderFormulas() {
+    var tabs = [["math", "Derivations"], ["c", "Generated C"], ["diff", "Diff vs shipped"]];
+    $("fhead").textContent = state.tab === "math" ? "Formulas · " + DATA.blocks[state.stage] : "Output";
     $("tabs").innerHTML = tabs.map(function (t) { return '<span class="pill tab' + (state.tab === t[0] ? " on" : "") + '" data-t="' + t[0] + '" role="button" tabindex="0">' + t[1] + "</span>"; }).join("");
-    $("tabs").querySelectorAll(".tab").forEach(function (e) { e.onclick = function () { state.tab = e.dataset.t; renderDetail(); }; });
-    var c = byId(state.sel), out = "";
-    if (state.tab === "math" && c) {
-      out = '<h3 class="mono" style="margin:4px 0">' + esc(c.symbol) + '</h3><p class="sub">' + esc(c.describe) + ' <span class="tag tag-' + c.tag + '">' + esc(TAGNAME[c.tag]) + "</span></p>" +
-        (c.message ? '<p class="pill ' + (c.status === "fail" ? "bad" : "na") + '" style="display:inline-block">' + esc(c.message) + "</p>" : "") +
-        c.latex.map(function (l) { return '<div class="eq"><div class="tex">' + esc(l) + "</div></div>"; }).join("") +
-        (c.sources.length ? "<table><tr><th>Input</th><th>From</th><th>Data sheet text / note</th></tr>" + c.sources.map(function (s) {
-          return "<tr><td class='mono'>" + esc(s.name) + "</td><td>" + esc(s.origin) + "</td><td>" + esc(s.quote) + "</td></tr>"; }).join("") + "</table>" : "");
-      var checks = DATA.checks.filter(function (k) { return k.block === c.block; });
+    $("tabs").querySelectorAll(".tab").forEach(function (e) { keyed(e, function () { state.tab = e.dataset.t; renderFormulas(); }); });
+    var out = "";
+    if (state.tab === "math") {
+      var list = DATA.constants.filter(function (c) { return c.block === state.stage; });
+      out = list.map(function (c) {
+        var open = isOpen(c);
+        return '<div class="frow' + (open ? " open" : "") + '"><button type="button" aria-expanded="' + open + '" data-id="' + esc(c.id) + '">' +
+          '<span class="chev">' + (open ? "▾" : "▸") + '</span><span class="sym">' + esc(c.symbol) + '</span><span class="val' + (changed(c.id) ? " chg" : "") + '" data-vid="' + esc(c.id) + '">' + shown(c) + '</span><span class="dot ' + dot(c.status) + '"></span></button>' +
+          (open ? '<div class="fbody">' + constantBody(c) + "</div>" : "") + "</div>";
+      }).join("");
+      var checks = DATA.checks.filter(function (k) { return k.block === state.stage; });
       if (checks.length) {
-        out += '<h3 style="font-size:13px;margin-top:16px">Checks on this block</h3>' + checks.map(function (k) {
-          return '<p class="sub"><span class="pill ' + (k.status === "ok" ? "ok" : k.status === "fail" ? "bad" : "na") + '">' + esc(k.id) + "</span> " + esc(k.describe) + "</p>" +
-            k.latex.map(function (l) { return '<div class="eq"><div class="tex">' + esc(l) + "</div></div>"; }).join(""); }).join("");
+        out += '<div class="colhead" style="margin-top:16px">Checks on this stage</div>' + checks.map(function (k) {
+          return '<p class="sub" style="margin:8px 0 0"><span class="pill ' + (k.status === "ok" ? "ok" : k.status === "fail" ? "bad" : "na") + '">' + esc(k.id) + "</span> " + esc(k.describe) + "</p>" + eqs(k.latex);
+        }).join("");
       }
     } else if (state.tab === "c") {
-      out = DATA.header ? '<p><a class="btn" id="dl" href="#">Download calgen_' + esc(DATA.variant) + '.h</a></p><pre>' + esc(DATA.header) + "</pre>"
+      out = DATA.header ? '<p><a class="btn" id="dl" href="#">Download calgen_' + esc(DATA.variant) + ".h</a></p><pre>" + esc(DATA.header) + "</pre>"
         : '<p class="pill bad" style="display:inline-block">Not generated: ' + esc(DATA.gate_message) + "</p>";
-    } else if (state.tab === "diff") {
+    } else {
       out = DATA.diff ? "<pre>" + DATA.diff.split("\n").map(function (l) {
         var cls = l[0] === "+" && l.slice(0, 3) !== "+++" ? "add" : l[0] === "-" && l.slice(0, 3) !== "---" ? "del" : "";
         return '<span class="' + cls + '">' + esc(l) + "</span>"; }).join("\n") + "</pre>"
-        : '<p class="sub">' + (Object.keys(state.edits).length ? "No difference, or nothing generated." : "Edit a board or design value to see what changes in the generated C.") + "</p>";
+        : '<p class="sub">' + (Object.keys(state.edits).length ? "No difference, or nothing generated." : "Change an input to see what changes in the generated C.") + "</p>";
     }
-    $("cdetail").innerHTML = out;
-    tex($("cdetail"));
+    $("formulas").innerHTML = out;
+    $("formulas").querySelectorAll(".frow > button").forEach(function (btn) {
+      btn.onclick = function () { var c = byId(btn.dataset.id); state.open[c.id] = !isOpen(c); renderFormulas(); };
+    });
+    tex($("formulas"));
     var dl = $("dl");
     if (dl) dl.onclick = function (ev) {
       ev.preventDefault();
@@ -200,21 +197,18 @@
     };
   }
 
+  // ---- flash what just changed -----------------------------------------------
   function flashChanges() {
     if (!prev) return;
     document.querySelectorAll("[data-vid]").forEach(function (el) {
       var c = byId(el.dataset.vid);
       if (c && prev[c.id] !== undefined && prev[c.id] !== c.display) {
-        el.classList.remove("flash");
-        void el.offsetWidth; // restart the animation
-        el.classList.add("flash");
+        el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
       }
     });
     var sense = document.querySelector(".sense");
     if (sense && prev.__sense !== undefined && prev.__sense !== (DATA.summaries || {}).sense) sense.classList.add("flash");
   }
-
-  function render() { renderProducts(); renderFlow(); renderInputs(); renderGates(); renderList(); renderDetail(); flashChanges(); }
 
   function snapshot() {
     var m = {};
@@ -223,6 +217,15 @@
     return m;
   }
 
+  function firstFailingStage() {
+    var c = DATA.constants.filter(function (x) { return x.status === "fail"; })[0];
+    if (c) return c.block;
+    var k = DATA.checks.filter(function (x) { return x.status === "fail"; })[0];
+    return k ? k.block : null;
+  }
+
+  function render() { renderTabs(); renderGates(); renderFlow(); renderInputs(); renderFormulas(); flashChanges(); prev = null; }
+
   function recompute() {
     if (!engine) return;
     $("engine").textContent = "Computing…";
@@ -230,8 +233,9 @@
       var req = JSON.stringify({ product: state.product, board: state.board, target: state.target, edits: state.edits });
       prev = snapshot();
       DATA = JSON.parse(engine.run_json("/calgen/specs", req));
-      if (!DATA.ok) { state.sel = null; state.block = null; }  // jump to the first failure
-      $("engine").textContent = "Live: computed in your browser by calgen " + (DATA.ok ? "· all gates pass" : "· gates failed, nothing written");
+      var bad = firstFailingStage();
+      if (bad) state.stage = bad; // show the failure where it happens
+      $("engine").textContent = "Live · computed in your browser by calgen";
     } catch (e) {
       $("engine").textContent = "Engine error: " + e.message;
     }
@@ -251,7 +255,7 @@
       });
       py.runPython("import sys; sys.path.insert(0, '/calgen/src')");
       engine = py.pyimport("calgen.playground");
-      $("engine").textContent = "Live: the in-browser engine is ready. Change an input.";
+      $("engine").textContent = "Live · the in-browser engine is ready; change an input";
       render();
     } catch (e) {
       $("engine").textContent = "In-browser engine failed to load (" + e.message + "); showing pre-computed results.";
