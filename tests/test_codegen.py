@@ -19,7 +19,7 @@ def test_header_is_deterministic_and_ascii():
     h1, h2 = header(b("fa10507")), header(b("fa10507"))
     assert h1 == h2
     h1.encode("ascii")
-    assert "#define UPS_IOUT_PKLIM_DAC_HI      3133u" in h1
+    assert "#define UPS_IOUT_PKLIM_DAC_HI      3134u" in h1
     assert "#define UPS_FOUT_MODE              UPS_FOUT_CHANGER" in h1
     assert "NOT GENERATED" in h1  # alarm current, absent from this data sheet
 

@@ -264,7 +264,7 @@
   function renderFlow() {
     var down = '<div class="vdown" aria-hidden="true">↓</div>';
     $("flow").innerHTML = stageBox("in") + down + stageBox("rect") + down +
-      '<div class="busrow">' + stageBox("bus") + '<div class="side" aria-hidden="true">↔</div>' + stageBox("batt") + "</div>" +
+      '<div class="busrow">' + stageBox("bus") + '<div class="side" title="bidirectional DC-DC stage (not modelled)"><span aria-hidden="true">↔</span><span class="sidel">DC-DC</span></div>' + stageBox("batt") + "</div>" +
       down + stageBox("inv") + down + stageBox("out") +
       legendHtml();
     $("flow").querySelectorAll(".sizelink").forEach(function (l) { l.onclick = function (ev) { ev.stopPropagation(); }; });

@@ -5,12 +5,15 @@
  *           ratings from DS-10434 Rev.09172021 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f28004x (default format float32)
- * inputs  : sha256 98e4b7bae04b62d8c2d5451be307a4fee292ba0d590e92a200c4659c3720d445
+ * inputs  : sha256 dc14c70856e199d8f78835b93755dde18028fd7707b4b093636cfbdb00ebe9d5
  *
  * OVERRIDE ds.iin_max: DS-10434 Rev.09172021 prints "7.4 Amps @90VAC Input,
  *   560W Output" in the Input Frequency row and "50 or 60 Hz" in the Input Max
  *   Current row; the labels are swapped. Value taken from the Input Frequency
- *   row. Reviewer must confirm with the data sheet owner.
+ *   row. Its 90 VAC test point is also below the sheet's own 102 V minimum
+ *   input (120 V - 15%), so the input tolerance may be misprinted too (the
+ *   sibling FA10449 reads -25%). Reviewer must confirm both with the data
+ *   sheet owner.
  * OVERRIDE ds.batt_series_cells: DS-10434 lists three 12 V LiFePO4 modules in
  *   one string but not the cell count; 12 V LiFePO4 modules are normally 4
  *   cells in series, so 3 x 4 = 12. Assumption for the demo; confirm with the
@@ -82,9 +85,9 @@ typedef float calgen_num_t;  /* float target */
 #define UPS_VBUS_FS_V              498.3f         /* 498.3 V */
 
 /* Volts of bus per ADC count
- * = vbus_fs / target.adc_max
- *   target.adc_max = 4095 counts  [target f28004x.yaml] */
-#define UPS_VBUS_V_PER_COUNT       0.121684976f   /* 0.121685 V */
+ * = vbus_fs / target.adc_div
+ *   target.adc_div = 4096 counts  [target f28004x.yaml] */
+#define UPS_VBUS_V_PER_COUNT       0.12165527f    /* 0.121655 V */
 
 /* ==== Inverter ============================================================== */
 
@@ -127,7 +130,7 @@ typedef float calgen_num_t;  /* float target */
 #define UPS_PWM_PERIOD_CNT         2500u          /* 2500 counts, uint16 */
 
 /* Dead-time register
- * = round(design.t_deadband * target.f_pwmclk)
+ * = ceil(design.t_deadband * target.f_pwmclk)
  *   design.t_deadband = 1 us  [design fa10434.yaml]
  *   target.f_pwmclk = 100 MHz  [target f28004x.yaml] */
 #define UPS_PWM_DEADBAND_CNT       100u           /* 100 counts, uint16 */
@@ -168,20 +171,20 @@ typedef float calgen_num_t;  /* float target */
 #define UPS_IOUT_FS_PK_A           82.5f          /* 82.5 A */
 
 /* Comparator DAC code for the positive hardware peak-current limit
- * = round((target.v_ref / 2 + iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
+ * = floor((target.v_ref / 2 + iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_div)
  *   target.v_ref = 3.3 V  [target f28004x.yaml]
  *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
  *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]
- *   target.dac_max = 4095 counts  [target f28004x.yaml] */
+ *   target.dac_div = 4096 counts  [target f28004x.yaml] */
 #define UPS_IOUT_PKLIM_DAC_HI      2627u          /* 2627 counts, uint16 */
 
 /* Comparator DAC code for the negative hardware peak-current limit
- * = round((target.v_ref / 2 - iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
+ * = ceil((target.v_ref / 2 - iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_div)
  *   target.v_ref = 3.3 V  [target f28004x.yaml]
  *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
  *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]
- *   target.dac_max = 4095 counts  [target f28004x.yaml] */
-#define UPS_IOUT_PKLIM_DAC_LO      1468u          /* 1468 counts, uint16 */
+ *   target.dac_div = 4096 counts  [target f28004x.yaml] */
+#define UPS_IOUT_PKLIM_DAC_LO      1469u          /* 1469 counts, uint16 */
 
 /* What the unit does when the RMS overload persists past the delay
  * = ds.overload_action

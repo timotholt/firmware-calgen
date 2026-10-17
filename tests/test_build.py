@@ -32,9 +32,10 @@ def test_fa10507_known_answers():
     assert value(x, "iout_trip") == pytest.approx(12.5 * 1.20)  # 15.0 A
     assert value(x, "iout_pk_limit") == pytest.approx(3.5 * 12.5)  # 43.75 A hardware peak limit
     assert value(x, "iout_fs_pk") == pytest.approx(1.65 / (0.002 * 10))  # 82.5 A
-    # (1.65 V + 43.75 A * 0.02 V/A) / 3.3 V * 4095 = 3133.30 -> 3133
-    assert value(x, "iout_pklim_dac_hi") == 3133
-    # (1.65 V - 0.875 V) / 3.3 V * 4095 = 961.70 -> 962
+    # CMPSS DAC, V = code * V_ref / 4096; rounded toward mid-rail (never above the design limit):
+    # (1.65 V + 43.75 A * 0.02 V/A) / 3.3 V * 4096 = 3134.06 -> floor 3134
+    assert value(x, "iout_pklim_dac_hi") == 3134
+    # (1.65 V - 0.875 V) / 3.3 V * 4096 = 961.94 -> ceil 962
     assert value(x, "iout_pklim_dac_lo") == 962
     assert value(x, "overload_delay") == 30000  # 30 s, invented design value
     assert value(x, "vbus_min") == pytest.approx(265 * 2**0.5, rel=1e-6)  # 374.77 V
@@ -89,8 +90,9 @@ def test_legacy_target_uses_iq20_and_10bit_dac():
     c = x.constant("vbus_set")
     assert c.fmt == "iq20" and c.encoded.code == 410 * (1 << 20)
     assert value(x, "pwm_period") == 1500  # 60 MHz / (2 * 20 kHz)
-    # (1.65 + 0.875) / 3.3 * 1023 = 782.75 -> 783
-    assert value(x, "iout_pklim_dac_hi") == 783
+    # 10-bit comparator DAC, V = DACVAL * VDDA / 1023 (SPRUGE5F 2.3.1): 782.75 -> floor 782, lo 240.25 -> ceil 241
+    assert value(x, "iout_pklim_dac_hi") == 782
+    assert value(x, "iout_pklim_dac_lo") == 241
 
 
 def test_legacy_target_with_iq24_overflows_volt_scaled_constants():

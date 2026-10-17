@@ -8,5 +8,7 @@ params:
   f_pwmclk:  {value: 100, unit: MHz, note: EPWMCLK = SYSCLK assumed}
   adc_max:   {value: 4095, unit: counts, note: 12-bit ADC}
   dac_max:   {value: 4095, unit: counts, note: 12-bit comparator (CMPSS) DAC}
+  adc_div:   {value: 4096, unit: counts, note: "ADC transfer function: 1 LSB = V_ref / 4096 (TRM)"}
+  dac_div:   {value: 4096, unit: counts, note: "CMPSS DAC: V = DACVAL x V_ref / 4096 (TRM)"}
   v_ref:     {value: 3.3, unit: V, note: internal 3.3 V ADC range selected}
   db_max:    {value: 16383, unit: counts, note: 14-bit dead-band counter}

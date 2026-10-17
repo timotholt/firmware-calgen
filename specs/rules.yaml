@@ -38,6 +38,10 @@ symbols:
   target.v_ref: 'V_{\text{ref}}'
   target.adc_max: 'N_{\text{ADC}}'
   target.dac_max: 'N_{\text{DAC}}'
+  target.adc_div: 'D_{\text{ADC}}'
+  target.dac_div: 'D_{\text{DAC}}'
+  design.crest_factor: 'CF'
+  design.m_max: 'm_{\max}'
   target.f_pwmclk: 'f_{\text{clk}}'
   design.f_sw: 'f_{\text{sw}}'
   design.t_deadband: 't_{\text{DB}}'
@@ -160,7 +164,8 @@ constants:
   - id: vbus_scale
     symbol: UPS_VBUS_V_PER_COUNT
     describe: Volts of bus per ADC count
-    formula: vbus_fs / target.adc_max
+    # 1 LSB = V_ref / 2^n on C2000 ADCs (TRM transfer function), hence adc_div, not adc_max
+    formula: vbus_fs / target.adc_div
     unit: V
     format: target
     block: bus
@@ -171,6 +176,7 @@ constants:
   - id: vout_set
     symbol: UPS_VOUT_SET_V
     describe: Output voltage setpoint (RMS); for units with a selectable output, one header is generated per option
+    # (no 240 V variant is built yet: a selectable option would be its own variant file and header)
     formula: ds.vout_nom
     unit: V
     format: target
@@ -238,7 +244,8 @@ constants:
   - id: pwm_deadband
     symbol: UPS_PWM_DEADBAND_CNT
     describe: Dead-time register
-    formula: round(design.t_deadband * target.f_pwmclk)
+    # DBRED/DBFED counts at TBCLK = EPWMCLK (assumed); rounded up so dead time is never shorter than designed
+    formula: ceil(design.t_deadband * target.f_pwmclk)
     unit: counts
     format: uint16
     block: inv
@@ -308,7 +315,8 @@ constants:
   - id: iout_pklim_dac_hi
     symbol: UPS_IOUT_PKLIM_DAC_HI
     describe: Comparator DAC code for the positive hardware peak-current limit
-    formula: round((target.v_ref / 2 + iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
+    # rounded toward mid-rail so the realised limit never exceeds the design limit
+    formula: floor((target.v_ref / 2 + iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_div)
     unit: counts
     format: uint16
     block: out
@@ -317,7 +325,8 @@ constants:
   - id: iout_pklim_dac_lo
     symbol: UPS_IOUT_PKLIM_DAC_LO
     describe: Comparator DAC code for the negative hardware peak-current limit
-    formula: round((target.v_ref / 2 - iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
+    # rounded toward mid-rail so the realised limit never exceeds the design limit
+    formula: ceil((target.v_ref / 2 - iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_div)
     unit: counts
     format: uint16
     block: out
@@ -388,10 +397,10 @@ constants:
 
 checks:
   - id: bus_above_output_peak
-    describe: The inverter can only make an output peak lower than the DC bus
+    describe: The output peak at the top of the regulation band must fit under the bus at the inverter's maximum modulation index (room for modulation limits, dead time and device drop)
     lhs: sqrt(2) * vout_hi
-    op: "<"
-    rhs: vbus_set
+    op: "<="
+    rhs: design.m_max * vbus_set
     block: bus
     fix: "Raise the DC bus margin, or lower the output voltage or its regulation band."
 
@@ -420,12 +429,20 @@ checks:
     fix: "Lower the current shunt or the amplifier gain so the sensor covers the peak limit (keep the original amplifier, or use a smaller shunt with the alternate one). Lowering the peak-limit factor is a design change: it risks nuisance trips on crest-factor loads."
 
   - id: overload_below_pk_limit
-    describe: The timed RMS overload must act before the hardware limit, so normal overloads don't trip the fast protection
+    describe: A sinusoidal overload at the RMS trip level must stay under the hardware limit, so the timed overload acts first (crest-factor loads above rated are clipped by the hardware limit, as on real units)
     lhs: sqrt(2) * iout_trip
     op: "<"
     rhs: iout_pk_limit
     block: out
     fix: "Raise the peak-limit factor, or lower the overload trip level."
+
+  - id: crest_clears_pk_limit
+    describe: The peak of a rated nonlinear load (the data sheet's crest factor at rated current) must clear the hardware limit, or normal loads trip the fast protection
+    lhs: design.crest_factor * iout_rated
+    op: "<"
+    rhs: iout_pk_limit
+    block: out
+    fix: "Raise the peak-limit factor (and check the current sensor still covers it), or lower the rated crest factor."
 
   - id: dac_hi_in_range
     describe: Positive peak-limit DAC code must exist on this chip's comparator DAC

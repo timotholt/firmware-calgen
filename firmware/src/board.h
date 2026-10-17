@@ -31,9 +31,9 @@
 #define UPS_VBUS_FS_V              498.3f         /* 498.3 V */
 
 /* Volts of bus per ADC count
- * = vbus_fs / target.adc_max
- *   target.adc_max = 4095 counts  [target f28004x.yaml] */
-#define UPS_VBUS_V_PER_COUNT       0.121684976f   /* 0.121685 V */
+ * = vbus_fs / target.adc_div
+ *   target.adc_div = 4096 counts  [target f28004x.yaml] */
+#define UPS_VBUS_V_PER_COUNT       0.12165527f    /* 0.121655 V */
 /* CALGEN:END bus */
 
 /* CALGEN:BEGIN out */
@@ -70,19 +70,19 @@
 #define UPS_IOUT_FS_PK_A           82.5f          /* 82.5 A */
 
 /* Comparator DAC code for the positive hardware peak-current limit
- * = round((target.v_ref / 2 + iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
+ * = floor((target.v_ref / 2 + iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_div)
  *   target.v_ref = 3.3 V  [target f28004x.yaml]
  *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
  *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]
- *   target.dac_max = 4095 counts  [target f28004x.yaml] */
-#define UPS_IOUT_PKLIM_DAC_HI      3133u          /* 3133 counts, uint16 */
+ *   target.dac_div = 4096 counts  [target f28004x.yaml] */
+#define UPS_IOUT_PKLIM_DAC_HI      3134u          /* 3134 counts, uint16 */
 
 /* Comparator DAC code for the negative hardware peak-current limit
- * = round((target.v_ref / 2 - iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
+ * = ceil((target.v_ref / 2 - iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_div)
  *   target.v_ref = 3.3 V  [target f28004x.yaml]
  *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
  *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]
- *   target.dac_max = 4095 counts  [target f28004x.yaml] */
+ *   target.dac_div = 4096 counts  [target f28004x.yaml] */
 #define UPS_IOUT_PKLIM_DAC_LO      962u           /* 962 counts, uint16 */
 
 /* What the unit does when the RMS overload persists past the delay

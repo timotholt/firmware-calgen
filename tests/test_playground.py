@@ -21,7 +21,7 @@ def test_alternate_amplifier_changes_exactly_the_current_sense_chain():
     r = run(SPECS, product="FA10507", board_rev="B")
     assert not r["ok"]
     assert set(r["changed"]) == {"iout_fs_pk", "iout_pklim_dac_hi", "iout_pklim_dac_lo"}
-    assert r["baseline"]["iout_pklim_dac_hi"] == "3133"
+    assert r["baseline"]["iout_pklim_dac_hi"] == "3134"
 
 
 def test_target_switch_ignores_quantization_noise():

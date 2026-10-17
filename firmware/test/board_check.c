@@ -6,7 +6,7 @@
 
 int main(void)
 {
-    if ((unsigned)UPS_IOUT_PKLIM_DAC_HI != 3133u || (unsigned)BOARD_LED_FAULT_GPIO != 31u) {
+    if ((unsigned)UPS_IOUT_PKLIM_DAC_HI != 3134u || (unsigned)BOARD_LED_FAULT_GPIO != 31u) {
         printf("FAIL board.h values\n");
         return 1;
     }

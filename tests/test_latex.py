@@ -29,9 +29,9 @@ def test_rendered_value_equals_evaluated_value_for_every_constant(name):
 def test_trip_dac_derivation_reads_like_hand_math():
     b = build(load_variant(SPECS / "variants" / "fa10507.yaml"), RULES)
     lines = derive_constant(b, "iout_pklim_dac_hi").lines
-    assert lines[0].startswith(r"N_{\text{DAC,hi}} = \operatorname{round}")
+    assert lines[0].startswith(r"N_{\text{DAC,hi}} = \left\lfloor")
     assert r"\frac{V_{\text{ref}}}{2}" in lines[0]
-    assert "3133.3" in lines[2] and lines[2].endswith("3133")
+    assert "3134.06" in lines[2] and lines[2].endswith("3134")
 
 
 def test_render_fraction_and_parentheses():

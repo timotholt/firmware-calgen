@@ -91,19 +91,21 @@ Each generated line carries its formula and inputs, down to the data sheet quote
 
 ```c
 /* Comparator DAC code for the positive hardware peak-current limit
- * = round((target.v_ref / 2 + iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
+ * = floor((target.v_ref / 2 + iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_div)
  *   target.v_ref = 3.3 V  [target f28004x.yaml]
  *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
  *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]
- *   target.dac_max = 4095 counts  [target f28004x.yaml] */
-#define UPS_IOUT_PKLIM_DAC_HI      3133u          /* 3133 counts, uint16 */
+ *   target.dac_div = 4096 counts  [target f28004x.yaml] */
+#define UPS_IOUT_PKLIM_DAC_HI      3134u          /* 3134 counts, uint16 */
 ```
 
 Worked by hand (the review report and site typeset this from the same syntax tree the evaluator runs; a test checks they agree):
 
 $$I_\text{rated} = \frac{S}{V_\text{out}} = \frac{1500\ \text{VA}}{120\ \text{V}} = 12.5\ \text{A} \qquad I_\text{OL} = 12.5\ \text{A} \times 1.20 = 15\ \text{A RMS (timed)} \qquad I_\text{pk,lim} = 3.5 \times 12.5\ \text{A} = 43.75\ \text{A}$$
 
-$$N_\text{DAC,hi} = \mathrm{round}\!\left(\frac{\tfrac{3.3}{2}\ \text{V} + 43.75\ \text{A}\cdot 2\ \text{m}\Omega \cdot 10}{3.3\ \text{V}}\cdot 4095\right) = \mathrm{round}(3133.30) = 3133$$
+$$N_\text{DAC,hi} = \left\lfloor\frac{\tfrac{3.3}{2}\ \text{V} + 43.75\ \text{A}\cdot 2\ \text{m}\Omega \cdot 10}{3.3\ \text{V}}\cdot 4096\right\rfloor = \lfloor 3134.06 \rfloor = 3134$$
+
+(The CMPSS DAC gives V = code × V_ref / 4096; the code rounds toward mid-rail so the realised limit, 43.747 A, never exceeds the design limit.)
 
 ## Where AI is used, and where it is not
 

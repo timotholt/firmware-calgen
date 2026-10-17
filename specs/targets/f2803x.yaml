@@ -10,5 +10,7 @@ params:
   f_pwmclk:  {value: 60, unit: MHz, note: ePWM clocked from SYSCLKOUT}
   adc_max:   {value: 4095, unit: counts, note: 12-bit ADC}
   dac_max:   {value: 1023, unit: counts, note: 10-bit comparator DAC}
+  adc_div:   {value: 4096, unit: counts, note: "ADC transfer function: 1 LSB = V_ref / 4096 (TI SPRUGE5F 1.x)"}
+  dac_div:   {value: 1023, unit: counts, note: "comparator DAC: V = DACVAL x (VDDA - VSSA) / 1023 (TI SPRUGE5F 2.3.1)"}
   v_ref:     {value: 3.3, unit: V, note: fixed 0-3.3 V internal reference}
   db_max:    {value: 1023, unit: counts, note: 10-bit dead-band counter}

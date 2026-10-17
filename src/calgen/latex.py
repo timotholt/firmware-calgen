@@ -184,10 +184,12 @@ def derive_constant(build, rule_id: str) -> Derivation:
     head = rf"{r.latex} = {rd.symbolic}"
     if r.supplied:
         return Derivation([rf"{r.latex} = {_quantity_tex(value, r.unit)} \quad (\text{{engineer-supplied}})"], value)
-    if isinstance(tree, ast.Call) and tree.func.id == "round":
+    if isinstance(tree, ast.Call) and tree.func.id in ("round", "floor", "ceil"):
         inner = render(ast.unparse(tree.args[0]), _symbols_for(build), build.env, build.units)
         inner_v = from_si(inner.value, r.unit)
-        lines = [head, rf"= \operatorname{{round}}\!\left({inner.substituted}\right)", rf"= \operatorname{{round}}({number_tex(round(inner_v, 4))}) = {_quantity_tex(value, r.unit)}"]
+        wrap = {"round": (r"\operatorname{round}\!\left(", r"\right)"), "floor": (r"\left\lfloor ", r" \right\rfloor"),
+                "ceil": (r"\left\lceil ", r" \right\rceil")}[tree.func.id]
+        lines = [head, rf"= {wrap[0]}{inner.substituted}{wrap[1]}", rf"= {wrap[0]}{number_tex(round(inner_v, 4))}{wrap[1]} = {_quantity_tex(value, r.unit)}"]
     elif rd.substituted == rd.symbolic or dotted_name(tree) is not None:
         lines = [rf"{head} = {_quantity_tex(value, r.unit)}"]
     else:

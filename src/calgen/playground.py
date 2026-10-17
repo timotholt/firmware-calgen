@@ -80,6 +80,7 @@ def preset_edits(base_datasheet, key: str) -> dict[str, float]:
         return q.value if q is not None and q.numeric else None
 
     v_out = num("vout_nom") or 120.0
+    v_in = num("vin_nom") or v_out  # the input window scales with the nominal input, when the sheet gives one
     edits = {"ds.vout_nom": p["v"], "ds.fout_hz": p["f"]}
     f_lo, f_hi = num("fin_nom_lo"), num("fin_nom_hi")
     single_freq = not (f_lo and f_hi and f_lo != f_hi)  # 50/60 Hz products keep both
@@ -87,8 +88,8 @@ def preset_edits(base_datasheet, key: str) -> dict[str, float]:
         edits["ds.fin_nom_lo"] = edits["ds.fin_nom_hi"] = p["f"]
     vmin, vmax = num("vin_min"), num("vin_max")
     if vmin and vmax and vmax / vmin < 2.0:  # narrow input: scale with the market voltage
-        edits["ds.vin_min"] = round(vmin * p["v"] / v_out, 1)
-        edits["ds.vin_max"] = round(vmax * p["v"] / v_out, 1)
+        edits["ds.vin_min"] = round(vmin * p["v"] / v_in, 1)
+        edits["ds.vin_max"] = round(vmax * p["v"] / v_in, 1)
     tol = num("fin_tol_hz")
     if single_freq and tol:  # a tolerance in Hz scales with the mains frequency; one in % already does
         edits["ds.fin_tol_hz"] = round(tol / (f_hi or 60.0) * p["f"], 2)
@@ -231,9 +232,6 @@ def _sense_line(val: dict, headroom_pct: float | None) -> str:
     return f"Current sensor ±{fs.value:.1f} A peak · hardware peak limit {pk.value:.1f} A uses {used:.0f}% (max {limit:g}%) · {verdict}"
 
 
-CREST_FACTOR = 3.0  # illustrative computer-type load (peak / RMS), the case pk_limit_factor is chosen to clear
-
-
 def protection(b: Build) -> dict | None:
     """Current-protection numbers for the gauge and waveform, in amps (drawing only; no new math)."""
     import math
@@ -244,11 +242,12 @@ def protection(b: Build) -> dict | None:
         return None
     rated = val["iout_rated"].value
     head = b.env.get("design.sense_headroom")
+    cf = b.env["design.crest_factor"].value if "design.crest_factor" in b.env else 3.0
     return {
         "rated_rms": rated,
         "rated_pk": math.sqrt(2) * rated,
-        "crest": CREST_FACTOR,
-        "crest_pk": CREST_FACTOR * rated,
+        "crest": cf,
+        "crest_pk": cf * rated,
         "overload_rms": val["iout_trip"].value,
         "peak_limit": val["iout_pk_limit"].value,
         "sensor_fs": val["iout_fs_pk"].value,
@@ -314,12 +313,17 @@ def inductor_requirements(b: Build) -> dict[str, dict]:
                        "i_pk": math.sqrt(2) * i_rms + di / 2, "min_retained": 0.5,
                        "basis": f"L = V_bus / (4 f_sw ΔI), ΔI = {r:g} × line peak at the data sheet's max input current; boost, worst case at V_in = V_bus/2; {shared}; "
                                 "keeps ≥ 50% at peak, common for PFC, so a drawing of it would fail the 80% drawing check"}
-    if all(k in val for k in ("iout_trip", "iout_rated", "iout_pk_limit")):
+    if all(k in val for k in ("iout_trip", "iout_rated", "iout_pk_limit", "vout_hi")):
         di = r * math.sqrt(2) * val["iout_rated"]
-        out["out"] = {"name": "Output filter inductor", "l_uh": vbus / (4 * f_sw * di) * 1e6, "i_rms": val["iout_rated"],
-                      "i_pk": math.sqrt(2) * val["iout_rated"] + di / 2, "min_retained": 0.8,
-                      "basis": f"L = V_bus / (4 f_sw ΔI), ΔI = {r:g} × rated peak; half-bridge assumed (a unipolar full bridge needs half this L, a bipolar one twice); "
-                               f"sized at rated current plus ripple; the {val['iout_pk_limit']:.1f} A hardware limit is a brief fault event, checked separately; {shared}"}
+        # A half-bridge swings ±V_bus/2, so it can only serve outputs whose peak fits under half the bus;
+        # otherwise a full bridge (unipolar PWM: ripple at 2 f_sw, worst case V_bus / (8 f_sw L)).
+        half = vbus / 2 > math.sqrt(2) * val["vout_hi"]
+        k, topo = (4, "half-bridge (V_bus/2 clears the output peak)") if half else (8, "unipolar full bridge (V_bus/2 can't reach the output peak; ripple at 2 f_sw)")
+        out["out"] = {"name": "Output filter inductor", "l_uh": vbus / (k * f_sw * di) * 1e6, "i_rms": val["iout_rated"],
+                      "i_pk": math.sqrt(2) * val["iout_trip"] + di / 2, "min_retained": 0.8,
+                      "basis": f"L = V_bus / ({k} f_sw ΔI), ΔI = {r:g} × rated peak; {topo}; "
+                               f"peak at the {val['iout_trip']:.1f} A RMS overload the unit must ride through, RMS (heating) at rated; "
+                               f"the {val['iout_pk_limit']:.1f} A hardware limit is a brief fault event, checked separately; {shared}"}
     return out
 
 

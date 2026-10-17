@@ -5,7 +5,7 @@
  *           ratings from DS-10507 Rev.101119 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f2803x (default format iq20)
- * inputs  : sha256 fda2c7fd116905756773081cf64a29dc7f758561cf4d5e975a03d7929a56635b
+ * inputs  : sha256 6badd9a9be681acd514a45b00782a479a7d1e1a9b35fa0a1c482520f3f99d96f
  *
  * SYNTHETIC DEMO: firmware names and circuit values are invented; product ratings
  * come from the public data sheet cited above. Not from any vendor SDK.
@@ -17,7 +17,7 @@
 
 #define CALGEN_GLOBAL_Q 20  /* fixed-point target: values below are IQ20 integers */
 typedef calgen_iq_t calgen_num_t;  /* measurements are compared as IQ20 integers, no float */
-#define CALGEN_NUM(x)  ((calgen_num_t)((x) * 1048576.0))  /* constant expressions only */
+#define CALGEN_NUM(x)  ((calgen_num_t)((x) * 1048576.0 + ((x) >= 0 ? 0.5 : -0.5)))  /* rounds to nearest, like the generator; constant expressions only */
 #define CALGEN_REAL(x) ((float)(x) / 1048576.0f)  /* host-side checks only */
 
 /* ==== AC input ============================================================== */
@@ -70,9 +70,9 @@ typedef calgen_iq_t calgen_num_t;  /* measurements are compared as IQ20 integers
 #define UPS_VBUS_FS_V              522505421L     /* 498.3 V, iq20, err 3.8e-08% */
 
 /* Volts of bus per ADC count
- * = vbus_fs / target.adc_max
- *   target.adc_max = 4095 counts  [target f2803x.yaml] */
-#define UPS_VBUS_V_PER_COUNT       127596L        /* 0.121685 V, iq20, err 3.8e-05% */
+ * = vbus_fs / target.adc_div
+ *   target.adc_div = 4096 counts  [target f2803x.yaml] */
+#define UPS_VBUS_V_PER_COUNT       127565L        /* 0.121655 V, iq20, err 0.00016% */
 
 /* ==== Inverter ============================================================== */
 
@@ -115,7 +115,7 @@ typedef calgen_iq_t calgen_num_t;  /* measurements are compared as IQ20 integers
 #define UPS_PWM_PERIOD_CNT         1500u          /* 1500 counts, uint16 */
 
 /* Dead-time register
- * = round(design.t_deadband * target.f_pwmclk)
+ * = ceil(design.t_deadband * target.f_pwmclk)
  *   design.t_deadband = 1 us  [design fa10507_f2803x.yaml]
  *   target.f_pwmclk = 60 MHz  [target f2803x.yaml] */
 #define UPS_PWM_DEADBAND_CNT       60u            /* 60 counts, uint16 */
@@ -155,20 +155,20 @@ typedef calgen_iq_t calgen_num_t;  /* measurements are compared as IQ20 integers
 #define UPS_IOUT_FS_PK_A           86507520L      /* 82.5 A, iq20 */
 
 /* Comparator DAC code for the positive hardware peak-current limit
- * = round((target.v_ref / 2 + iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
+ * = floor((target.v_ref / 2 + iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_div)
  *   target.v_ref = 3.3 V  [target f2803x.yaml]
  *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
  *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]
- *   target.dac_max = 1023 counts  [target f2803x.yaml] */
-#define UPS_IOUT_PKLIM_DAC_HI      783u           /* 783 counts, uint16 */
+ *   target.dac_div = 1023 counts  [target f2803x.yaml] */
+#define UPS_IOUT_PKLIM_DAC_HI      782u           /* 782 counts, uint16 */
 
 /* Comparator DAC code for the negative hardware peak-current limit
- * = round((target.v_ref / 2 - iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
+ * = ceil((target.v_ref / 2 - iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_div)
  *   target.v_ref = 3.3 V  [target f2803x.yaml]
  *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
  *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]
- *   target.dac_max = 1023 counts  [target f2803x.yaml] */
-#define UPS_IOUT_PKLIM_DAC_LO      240u           /* 240 counts, uint16 */
+ *   target.dac_div = 1023 counts  [target f2803x.yaml] */
+#define UPS_IOUT_PKLIM_DAC_LO      241u           /* 241 counts, uint16 */
 
 /* What the unit does when the RMS overload persists past the delay
  * = ds.overload_action

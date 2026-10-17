@@ -143,8 +143,12 @@ def test_playground_requirements_and_known_sizing_outcomes():
     # L = V_bus / (4 f_sw dI), dI = 0.3 x sqrt(2) x 20 A at 410 V, 20 kHz
     assert pfc["l_uh"] == pytest.approx(410 / (4 * 20e3 * 0.3 * 2 ** 0.5 * 20) * 1e6)
     assert pfc["i_pk"] == pytest.approx(2 ** 0.5 * 20 * 1.15)
-    # output filter sized at rated peak + ripple/2 (the 43.75 A hardware limit is a fault event, checked separately)
-    assert out["i_pk"] == pytest.approx(2 ** 0.5 * 12.5 * 1.15) and out["i_rms"] == pytest.approx(12.5)
+    # output filter: peak at the 15 A RMS overload plus ripple/2, heating at rated; 410 V bus -> half-bridge (205 V > 175 V peak)
+    assert out["i_pk"] == pytest.approx(2 ** 0.5 * 15 + 0.15 * 2 ** 0.5 * 12.5) and out["i_rms"] == pytest.approx(12.5)
+    assert out["l_uh"] == pytest.approx(410 / (4 * 20e3 * 0.3 * 2 ** 0.5 * 12.5) * 1e6) and "half-bridge" in out["basis"]
+    # 210 V bus: half of it (105 V) can't reach a 175 V output peak, so a unipolar full bridge, L = V_bus / (8 f_sw dI)
+    small = run(specs, "FA10434")["inductors"]["out"]
+    assert small["l_uh"] == pytest.approx(210 / (8 * 20e3 * 0.3 * 2 ** 0.5 * 800 / 120) * 1e6) and "full bridge" in small["basis"]
     assert out["min_retained"] == 0.8 and pfc["min_retained"] == 0.5
     big = mg.size_inductor(CORES, LIMITS, pfc["l_uh"], pfc["i_rms"], pfc["i_pk"], pfc["min_retained"])
     assert [(c["core"], c["stack"]) for c in big["candidates"]] == [("0077908A7", 4)]
@@ -233,7 +237,16 @@ def test_inductance_check_requires_core_tolerance_inside_drawing_tolerance():
 
     d = dataclasses.replace({x.id: x for x in DESIGNS}["MAG-001"], l_tol_pct=5)  # tighter than the core's ±8% A_L
     c = next(c for c in mg.check(d, CORES, LIMITS) if c.id == "inductance")
-    assert c.status == mg.FLAG and "wider than the drawing's ±5%" in c.message
+    assert c.status == mg.FLAG and "leaves the drawing's" in c.message
+
+
+def test_inductance_check_flags_offset_that_pushes_the_spread_out_of_band():
+    """A +7% offset is inside the core's ±8% but a -8% core then misses the drawing's -10% limit."""
+    import dataclasses
+
+    d = dataclasses.replace({x.id: x for x in DESIGNS}["MAG-001"], l_text="355 µH")
+    c = next(c for c in mg.check(d, CORES, LIMITS) if c.id == "inductance")
+    assert c.status == mg.FLAG and "leaves the drawing's" in c.message
 
 
 def test_ripple_fraction_has_one_source():
@@ -250,7 +263,29 @@ def test_sizer_math_lines_reproduce_their_results():
 
     for c in mg.size_inductor(CORES, LIMITS, 330, 4, 4.5, 0.8)["candidates"]:
         l_line, j_line = c["latex"][1], c["latex"][3]
-        n, al, turns, f, l_pk = (float(v) for v in re.match(r"L\(I_\{pk\}\) = (\d+) \\times ([\d.]+)\\,\\mathrm\{nH\} \\times (\d+)\^2 \\times ([\d.]+) = ([\d.]+)", l_line).groups())
-        assert n * al * turns ** 2 * f / 1000 == pytest.approx(l_pk, rel=1e-3)
+        n, al, k, turns, f, l_pk = (float(v) for v in re.match(r"L\(I_\{pk\}\) = (\d+) \\times ([\d.]+)\\,\\mathrm\{nH\} \\times ([\d.]+)_\{\\,\\min A_L\} \\times (\d+)\^2 \\times ([\d.]+) = ([\d.]+)", l_line).groups())
+        assert n * al * k * turns ** 2 * f / 1000 == pytest.approx(l_pk, rel=1e-3)
         t, s, d, wa, pct = (float(v) for v in re.search(r"\\frac\{(\d+) \\times (\d+) \\times \\pi \\times ([\d.]+)\^2/4\}\{([\d.]+)\\,\\mathrm\{mm\^2\}\} = (\d+)", j_line).groups())
         assert round(t * s * math.pi * d ** 2 / 4 / wa * 100) == pytest.approx(pct, abs=1)
+
+
+def test_check_lines_reproduce_their_results():
+    """Printed inputs in the record checks reproduce the printed results (H, J, toroid fill)."""
+    import math
+    import re
+
+    num = r"([\d.]+)"
+    for d in DESIGNS:
+        if d.core not in CORES:
+            continue
+        for c in mg.check(d, CORES, LIMITS):
+            for line in c.latex:
+                if m := re.search(rf"\\frac{{0.4\\pi \\times {num} \\times {num}\\,\\mathrm{{A}}}}{{{num}\\,\\mathrm{{cm}}}} = {num}", line):
+                    n, i, le, h = map(float, m.groups())
+                    assert 0.4 * math.pi * n * i / le == pytest.approx(h, rel=6e-3), (d.id, line)
+                if m := re.search(rf"\\frac{{{num}\\,\\mathrm{{A}}}}{{{num} \\times {num}\\,\\mathrm{{mm\^2}}.*?= {num}\\,\\mathrm{{A/mm\^2}}", line):
+                    i, n, a, j = map(float, m.groups())
+                    assert i / (n * a) == pytest.approx(j, rel=6e-3), (d.id, line)
+                if m := re.search(rf"\\frac{{{num}\\,\\mathrm{{mm\^2}}}}{{{num}\\,\\mathrm{{mm\^2}}}} = (\d+)\\%", line):
+                    cu, wa, pct = map(float, m.groups())
+                    assert round(cu / wa * 100) == pct, (d.id, line)

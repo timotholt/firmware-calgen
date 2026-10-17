@@ -163,22 +163,25 @@ def _inductor_checks(d: Design, core: Core, limits: dict) -> list[Check]:
         out.append(Check("inductance", "Stated inductance matches A_L × N²", FLAG, f"cannot read inductance {d.l_text!r}", tex))
     else:
         err = (l_stated - l_calc) / l_calc
-        band_ok = core.al_tol_pct <= d.l_tol_pct  # the core's A_L spread must fit inside the drawing's tolerance
-        ok = abs(err) <= core.al_tol_pct / 100 and band_ok
-        tex.append(rf"\text{{drawing: }} {_f(l_stated, 4)}\,\mu\mathrm{{H}} \pm {_f(d.l_tol_pct)}\% \quad ({err * 100:+.1f}\%;\ \text{{core }} A_L \pm {_f(core.al_tol_pct)}\%)")
-        hint = "" if abs(err) <= core.al_tol_pct / 100 else (" (looks like a unit slip)" if abs(math.log10(l_stated / l_calc)) > 0.9 else " (check the turns count)")
-        band = (f"; the core's ±{_f(core.al_tol_pct)}% A_L spread fits the drawing's ±{_f(d.l_tol_pct)}%" if band_ok
-                else f"; the core's ±{_f(core.al_tol_pct)}% A_L spread is wider than the drawing's ±{_f(d.l_tol_pct)}%")
+        # every core in the A_L spread must land inside the drawing's band, not just the nominal one
+        at, lt = core.al_tol_pct / 100, d.l_tol_pct / 100
+        lo, hi, d_lo, d_hi = l_calc * (1 - at), l_calc * (1 + at), l_stated * (1 - lt), l_stated * (1 + lt)
+        ok = lo >= d_lo and hi <= d_hi
+        tex.append(rf"\text{{core spread: }} {_f(lo, 4)}\text{{ to }} {_f(hi, 4)}\,\mu\mathrm{{H}}\ (\pm {_f(core.al_tol_pct)}\%) \quad \text{{drawing: }} {_f(d_lo, 4)}\text{{ to }} {_f(d_hi, 4)}\,\mu\mathrm{{H}}\ ({_f(l_stated, 4)} \pm {_f(d.l_tol_pct)}\%)")
+        hint = "" if abs(err) <= at else (" (looks like a unit slip)" if abs(math.log10(l_stated / l_calc)) > 0.9 else " (check the turns count)")
+        band = (f"; every core in the ±{_f(core.al_tol_pct)}% A_L spread ({_f(lo, 4)} to {_f(hi, 4)} µH) lands inside the drawing's {_f(d_lo, 4)} to {_f(d_hi, 4)} µH" if ok
+                else f"; the ±{_f(core.al_tol_pct)}% A_L spread ({_f(lo, 4)} to {_f(hi, 4)} µH) leaves the drawing's {_f(d_lo, 4)} to {_f(d_hi, 4)} µH band")
         out.append(Check("inductance", "Stated inductance matches A_L × N²", PASS if ok else FLAG,
                          f"drawing {d.l_text} vs {_f(l_calc, 4)} µH from the core and turns: {err * 100:+.1f}%{hint}{band}", tex))
     if core.family == "toroid":
         h_oe = 0.4 * math.pi * w.turns * d.i_pk_a / (core.le_mm / 10)
-        lim = core.h80_oe if limits["toroid_bias_limit"] == "h80" else core.h50_oe
+        pct = 80 if limits["toroid_bias_limit"] == "h80" else 50
+        lim = core.h80_oe if pct == 80 else core.h50_oe
         ok = h_oe <= lim
-        tex = [rf"H_{{pk}} = \frac{{0.4\pi N I_{{pk}}}}{{l_e}} = \frac{{0.4\pi \times {w.turns} \times {_f(d.i_pk_a)}\,\mathrm{{A}}}}{{{_f(core.le_mm / 10)}\,\mathrm{{cm}}}} = {_f(h_oe)}\,\mathrm{{Oe}}",
-               rf"\text{{limit: }} H_{{80\%}} = {_f(lim)}\,\mathrm{{Oe}} \quad \text{{(data sheet: keeps }} \geq 80\% \text{{ of the inductance at peak current)}}"]
-        out.append(Check("dc_bias", "Peak current keeps 80% of the inductance", PASS if ok else FLAG,
-                         f"{_f(h_oe)} Oe at {_f(d.i_pk_a)} A peak vs {_f(lim)} Oe limit" + ("" if ok else ": the core loses more than 20% of its inductance"), tex))
+        tex = [rf"H_{{pk}} = \frac{{0.4\pi N I_{{pk}}}}{{l_e}} = \frac{{0.4\pi \times {w.turns} \times {_f(d.i_pk_a)}\,\mathrm{{A}}}}{{{_f(core.le_mm / 10, 4)}\,\mathrm{{cm}}}} = {_f(h_oe)}\,\mathrm{{Oe}}",
+               rf"\text{{limit: }} H_{{{pct}\%}} = {_f(lim)}\,\mathrm{{Oe}} \quad \text{{(data sheet: keeps }} \geq {pct}\% \text{{ of the inductance at peak current)}}"]
+        out.append(Check("dc_bias", f"Peak current keeps {pct}% of the inductance", PASS if ok else FLAG,
+                         f"{_f(h_oe)} Oe at {_f(d.i_pk_a)} A peak vs {_f(lim)} Oe limit" + ("" if ok else f": the core loses more than {100 - pct}% of its inductance"), tex))
     return out
 
 
@@ -249,7 +252,7 @@ def _copper_checks(d: Design, core: Core, limits: dict) -> list[Check]:
         a = awg_area_mm2(w.awg) * w.strands
         j = w.i_rms_a / a
         worst = max(worst, j)
-        tex.append(rf"J_{{{w.name}}} = \frac{{{_f(w.i_rms_a)}\,\mathrm{{A}}}}{{{w.strands} \times {_f(awg_area_mm2(w.awg))}\,\mathrm{{mm^2}}\ (\mathrm{{{w.awg}\ AWG}})}} = {_f(j)}\,\mathrm{{A/mm^2}}")
+        tex.append(rf"J_{{{w.name}}} = \frac{{{_f(w.i_rms_a)}\,\mathrm{{A}}}}{{{w.strands} \times {_f(awg_area_mm2(w.awg), 4)}\,\mathrm{{mm^2}}\ (\mathrm{{{w.awg}\ AWG}})}} = {_f(j)}\,\mathrm{{A/mm^2}}")
     ok = worst <= limits["j_max_a_per_mm2"]
     tex.append(rf"\text{{limit: }} {_f(limits['j_max_a_per_mm2'])}\,\mathrm{{A/mm^2}} \quad \text{{(assumption)}}")
     out.append(Check("current_density", "Wire is thick enough for the current", PASS if ok else FLAG,
@@ -265,7 +268,7 @@ def _copper_checks(d: Design, core: Core, limits: dict) -> list[Check]:
                          f"winding build {b['build']:.2f} mm of the {b['w']:.2f} mm window ({b['build'] / b['w'] * 100:.0f}%), "
                          f"with a {_f(b['wall'])} mm bobbin, {_f(b['margin'])} mm margin tape at each end, and tape between and over the windings"
                          + ("" if b["fits"] else ": it won't fit with this insulation"),
-                         [rf"\text{{build}} = \underbrace{{{_f(b['wall'])}}}_{{\text{{bobbin}}}} + \underbrace{{{terms}}}_{{\text{{layers}} \times d}} + \underbrace{{{_f(tape_total)}}}_{{\text{{tape}}}} = {b['build']:.2f}\,\mathrm{{mm}} \le {b['w']:.2f}\,\mathrm{{mm}}",
+                         [rf"\text{{build}} = \underbrace{{{_f(b['wall'])}}}_{{\text{{bobbin}}}} + \underbrace{{{terms}}}_{{\text{{layers}} \times {limits.get('build_factor', 1.0):g}\,d_{{ins}}}} + \underbrace{{{_f(tape_total)}}}_{{\text{{tape}}}} = {b['build']:.2f}\,\mathrm{{mm}} \le {b['w']:.2f}\,\mathrm{{mm}}",
                           rf"\text{{breadth between margins}} = {_f(b['h'])} - 2({_f(b['wall'])} + {_f(b['margin'])}) = {_f(b['y1'] - b['y0'])}\,\mathrm{{mm}} \quad \text{{(assumptions)}}"]))
         return out
     # winding factor counts wire with its enamel, as Magnetics' 40% winding factor does
@@ -275,7 +278,7 @@ def _copper_checks(d: Design, core: Core, limits: dict) -> list[Check]:
     ok = fill <= lim
     out.append(Check("window_fill", "Winding fits the core window", PASS if ok else FLAG,
                      f"wire (with enamel) fills {fill * 100:.0f}% of the window vs a {lim * 100:.0f}% winding factor" + ("" if ok else ": the winding won't fit"),
-                     [rf"\frac{{\sum N \cdot n \cdot \pi d_{{ins}}^2/4}}{{W_a}} = \frac{{{_f(cu)}\,\mathrm{{mm^2}}}}{{{_f(core.wa_mm2)}\,\mathrm{{mm^2}}}} = {fill * 100:.0f}\% \quad (\text{{limit }} {lim * 100:.0f}\%\ \text{{winding factor}})"]))
+                     [rf"\frac{{\sum N \cdot n \cdot \pi d_{{ins}}^2/4}}{{W_a}} = \frac{{{_f(cu, 4)}\,\mathrm{{mm^2}}}}{{{_f(core.wa_mm2, 4)}\,\mathrm{{mm^2}}}} = {fill * 100:.0f}\% \quad (\text{{limit }} {lim * 100:.0f}\%\ \text{{winding factor}})"]))
     return out
 
 
@@ -605,7 +608,7 @@ def size_inductor(cores: dict[str, Core], limits: dict, l_uh: float, i_rms: floa
     for core in (c for c in cores.values() if c.family == "toroid"):
         reason = ""
         for n in range(1, MAX_STACK + 1):
-            al = core.al_nh * n
+            al = core.al_nh * n * (1 - core.al_tol_pct / 100)  # minimum A_L: every core in the spread must make it
             le_cm = core.le_mm / 10
             found = None
             for turns in range(1, 600):
@@ -633,11 +636,11 @@ def size_inductor(cores: dict[str, Core], limits: dict, l_uh: float, i_rms: floa
                 "l0_uh": l0, "l_pk_uh": l_pk, "retained": f, "h_oe": h, "j": i_rms / cu, "fill": fill,
                 "core_volume_mm3": core.ve_mm3 * n, "copper_mm2": cu, "material": core.material,
                 "height_mm": (core.ht_mm or 0) * n,  # core stack height, before winding
-                "fig": {"curve": svg_l_vs_i(core, turns, i_pk, l_uh, n), "winding": svg_window(core, [("W1", turns, strands, awg)], n)},
+                "fig": {"curve": svg_l_vs_i(core, turns, i_pk, l_uh, n, al_scale=1 - core.al_tol_pct / 100), "winding": svg_window(core, [("W1", turns, strands, awg)], n)},
                 "latex": [
-                    rf"H_{{pk}} = \frac{{0.4\pi \times {turns} \times {_f(i_pk)}\,\mathrm{{A}}}}{{{_f(le_cm)}\,\mathrm{{cm}}}} = {_f(h)}\,\mathrm{{Oe}} \;\Rightarrow\; {f * 100:.0f}\%\ \text{{of }} A_L \text{{ remains}}",
-                    rf"L(I_{{pk}}) = {n} \times {_f(core.al_nh)}\,\mathrm{{nH}} \times {turns}^2 \times {f:.4f} = {_f(l_pk, 4)}\,\mu\mathrm{{H}} \geq {_f(l_uh, 4)}\,\mu\mathrm{{H}}",
-                    rf"J = \frac{{{_f(i_rms)}\,\mathrm{{A}}}}{{{strands} \times {_f(awg_area_mm2(awg))}\,\mathrm{{mm^2}}}} = {_f(i_rms / cu)}\,\mathrm{{A/mm^2}}",
+                    rf"H_{{pk}} = \frac{{0.4\pi \times {turns} \times {_f(i_pk)}\,\mathrm{{A}}}}{{{_f(le_cm, 4)}\,\mathrm{{cm}}}} = {_f(h)}\,\mathrm{{Oe}} \;\Rightarrow\; {f * 100:.0f}\%\ \text{{of }} A_L \text{{ remains}}",
+                    rf"L(I_{{pk}}) = {n} \times {_f(core.al_nh)}\,\mathrm{{nH}} \times {1 - core.al_tol_pct / 100:g}_{{\,\min A_L}} \times {turns}^2 \times {f:.4f} = {_f(l_pk, 4)}\,\mu\mathrm{{H}} \geq {_f(l_uh, 4)}\,\mu\mathrm{{H}}",
+                    rf"J = \frac{{{_f(i_rms)}\,\mathrm{{A}}}}{{{strands} \times {_f(awg_area_mm2(awg), 4)}\,\mathrm{{mm^2}}}} = {_f(i_rms / cu)}\,\mathrm{{A/mm^2}}",
                     rf"\text{{fill}} = \frac{{{turns} \times {strands} \times \pi \times {_wire_od(awg):.3f}^2/4}}{{{_f(core.wa_mm2)}\,\mathrm{{mm^2}}}} = {fill * 100:.0f}\%\ \text{{(wire with enamel)}}",
                 ],
             })
@@ -759,7 +762,7 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
             f"wire with enamel fills {fill * 100:.0f}% of the window · {note}</figcaption></figure>")
 
 
-def svg_l_vs_i(core: Core, turns: int, i_pk: float, l_req_uh: float | None, stack: int = 1, ref_at: str = "peak") -> str:
+def svg_l_vs_i(core: Core, turns: int, i_pk: float, l_req_uh: float | None, stack: int = 1, ref_at: str = "peak", al_scale: float = 1.0) -> str:
     """Inductance vs DC current over the design's operating range (0 to 1.5x peak).
     Solid: the curve the checks count on (vendor curve derated to the data sheet minimums).
     Faint: the vendor's typical curve. Squares: the data sheet's guaranteed 80% and 50% points.
@@ -768,7 +771,7 @@ def svg_l_vs_i(core: Core, turns: int, i_pk: float, l_req_uh: float | None, stac
     le_cm = core.le_mm / 10
     amps_per_oe = le_cm / (0.4 * math.pi * turns)
     h = lambda i: i / amps_per_oe  # noqa: E731
-    l0 = core.al_nh * stack * turns * turns / 1000
+    l0 = core.al_nh * al_scale * stack * turns * turns / 1000
     i_max = 1.5 * i_pk
     W, H, ml, mb, mt, mr = 420, 190, 52, 30, 10, 12
     pw, ph = W - ml - mr, H - mb - mt
@@ -780,7 +783,7 @@ def svg_l_vs_i(core: Core, turns: int, i_pk: float, l_req_uh: float | None, stac
     for frac, lab in ((0.8, "80%"), (0.5, "50%")):
         g.append(f'<line class="mc-g" x1="{ml}" x2="{ml + pw}" y1="{y(l0 * frac):.1f}" y2="{y(l0 * frac):.1f}"/><text class="mc-t" x="{ml + pw}" y="{y(l0 * frac) - 3:.1f}" text-anchor="end">{lab}</text>')
     if core.fit:
-        faint = " ".join(f"{x(i):.1f},{y(l0 * typical(core, h(i))):.1f}" for i in (i_max * k / 120 for k in range(121)))
+        faint = " ".join(f"{x(i):.1f},{y(l0 * typical(core, h(i))):.1f}" for i in (i_end * k / 120 for k in range(121)))  # fit valid only on the data sheet's range
         g.append(f'<polyline class="mc-typ" points="{faint}"/>')
     g.append(f'<polyline class="mc-l" points="{solid}"/>')
     for hmin, frac in ((core.h80_oe, 0.8), (core.h50_oe, 0.5)):
@@ -799,12 +802,12 @@ def svg_l_vs_i(core: Core, turns: int, i_pk: float, l_req_uh: float | None, stac
     g.append(f'<text class="mc-t" x="{ml}" y="{mt + ph + 14}" text-anchor="middle">0</text><text class="mc-t" x="{ml + pw}" y="{mt + ph + 14}" text-anchor="end">{i_max:.3g} A</text>'
              f'<text class="mc-t" x="{ml + pw / 2:.0f}" y="{H - 4}" text-anchor="middle">DC current</text>'
              f'<text class="mc-t" x="4" y="{mt + 8}">{l0:.0f} µH</text><text class="mc-t" x="4" y="{mt + ph}">0</text>')
-    cap = (f"{core.name}{f' ×{stack}' if stack > 1 else ''}, {turns} turns: {l0:.0f} µH at 0 A; "
+    cap = (f"{core.name}{f' ×{stack}' if stack > 1 else ''}, {turns} turns: {l0:.0f} µH at 0 A{' (minimum A_L)' if al_scale < 1 else ''}; "
            + (f"{l0 * f_pk:.0f} µH ({f_pk * 100:.0f}%) at {i_pk:g} A peak" if f_pk is not None else f"past the data sheet's 50% point at {i_pk:g} A")
            + (". The drawing specifies inductance at 0 A only, so it doesn't say how much is needed at full current: a question for the designer." if ref_at == "zero" else "."))
     sw = lambda body: f'<svg class="mc-sw" viewBox="0 0 22 10" aria-hidden="true">{body}</svg>'  # noqa: E731
     line = lambda cls: sw(f'<line class="{cls}" x1="1" y1="5" x2="21" y2="5"/>')  # noqa: E731
-    keys = [(line("mc-l"), "derated curve (used by the checks)" if core.fit
+    keys = [(line("mc-l"), "derated curve (used by the checks; conservative)" if core.fit
              else "data sheet points joined (used by the checks)")]
     if core.fit:
         keys.append((line("mc-typ"), "catalog typical curve"))
