@@ -49,7 +49,7 @@ a{color:inherit}.btn{display:inline-block;border:1px solid var(--line);border-ra
 .ptab b{display:block;font-family:var(--mono);color:var(--fg);font-size:14px}.ptab:hover{background:var(--soft)}
 .ptab.on{border-color:var(--line);background:var(--bg);color:var(--fg)}.ptab.on b{color:var(--fg)}
 .statusbar{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:8px 0;display:flex;flex-wrap:wrap;gap:4px 16px;align-items:center}
-.statusbar .pills{margin:0}.statusbar{min-height:44px}
+.statusbar .pills{margin:0}.statusbar{min-height:44px}.engine{margin:8px 0 0;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .probpill{border:0;cursor:pointer;font:inherit;font-size:12px}
 .probs{margin:10px 0;padding:10px 12px;border-radius:8px;color:var(--bad);border:1px solid var(--bad);font-size:12.5px;line-height:1.4;animation:probin .2s ease-out}
 .probs ul{margin:4px 0 0;padding-left:16px}.pst{margin-top:8px}.pstage{all:unset;cursor:pointer;font-weight:600;color:var(--fg);font-size:12.5px}.pstage:hover{text-decoration:underline}
@@ -363,7 +363,8 @@ def page_playground(default: dict) -> str:
     body = f"""<h1>Playground</h1>
 <p class="sub">Choose a product, change an input on the left, and watch every stage's firmware constants, gates, and generated C follow on the right. Computed in your browser by the same Python code as the command-line tool; nothing is uploaded.</p>
 <div class="ptabs" id="products" role="tablist" aria-label="Product data sheet"></div>
-<div class="statusbar"><div id="gates" class="pills"></div><div id="engine" class="sub">Showing pre-computed results · loading the in-browser engine…</div></div>
+<div id="engine" class="sub engine">Showing pre-computed results · loading the in-browser engine…</div>
+<div class="statusbar"><div id="gates" class="pills"></div></div>
 <div class="pg">
 <section class="ins" aria-label="Inputs"><div class="colhead">Inputs · change anything</div><div id="inputs" class="inputs"></div><div id="probs"></div></section>
 <section class="stages" aria-label="UPS power flow, top to bottom"><div class="colhead">Power flow · click a stage</div><div id="flow"></div></section>
