@@ -176,8 +176,7 @@ constants:
   # --- Inverter -----------------------------------------------------------
   - id: vout_set
     symbol: UPS_VOUT_SET_V
-    describe: Output voltage setpoint (RMS); for units with a selectable output, one header is generated per option
-    # (no 240 V variant is built yet: a selectable option would be its own variant file and header)
+    describe: Output voltage setpoint (RMS); a selectable output option would be its own variant and header (none built here)
     formula: ds.vout_nom
     unit: V
     format: target

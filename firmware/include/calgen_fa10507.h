@@ -5,7 +5,7 @@
  *           ratings from DS-10507 Rev.101119 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f28004x (default format float32)
- * inputs  : sha256 7ae8e9e735af5bb9041bf689bf82b6e3846f0de3b5c60430d369ada3d6dfd684
+ * inputs  : sha256 76cdadaf52f39e7a680cd37bead116aa24cdda9bbc3b920a3f3b2fea76611a4d
  *
  * SYNTHETIC DEMO: firmware names and circuit values are invented; product ratings
  * come from the public data sheet cited above. Not from any vendor SDK.
@@ -75,7 +75,7 @@ typedef float calgen_num_t;  /* float target */
 
 /* ==== Inverter ============================================================== */
 
-/* Output voltage setpoint (RMS); for units with a selectable output, one header is generated per option
+/* Output voltage setpoint (RMS); a selectable output option would be its own variant and header (none built here)
  * = ds.vout_nom
  *   ds.vout_nom = 120 V  [DS-10507 Rev.101119 p2: "120VAC, (+/-3%) Selectable (Optional 240VAC Output)"] */
 #define UPS_VOUT_SET_V             120.0f         /* 120 V */

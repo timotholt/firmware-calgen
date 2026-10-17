@@ -120,7 +120,7 @@ $$N_\text{DAC,hi} = \left\lfloor\frac{\tfrac{3.3}{2}\ \text{V} + 43.75\ \text{A}
 
 | Model | Runs | Category (mean, range) | Units | Typed vs derived | Rule mapping | Cost / run | Verdict |
 |---|---|---|---|---|---|---|---|
-| gpt-5.4-nano | 3 | 85% (82–88) | 94% | 100% | 96% | $0.0047 | below the category bar |
+| gpt-5.4-nano | 3 | 83% (79–85) | 95% | 100% | 99% | $0.0042 | below the category bar |
 
 gpt-5.4-nano, the low-cost model tried, maps legacy constants to the right rule almost every time, which is what the audit needs, but its category labels disagree with the key on borderline cases often enough to miss the bar I set in advance. I report that rather than move the bar; the next step would be a stronger model. The corpus is also friendlier than real legacy firmware (most constants have comments), which flatters these numbers.
 

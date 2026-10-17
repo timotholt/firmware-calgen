@@ -64,4 +64,4 @@ Two further reviews read every page as a hiring engineer would (numbers, units, 
 - Transformers show AC winding loss as not modelled, with the skin depth at the drive frequency.
 - The unedited playground download is byte-identical to the committed header (tested).
 - Checks typeset their inputs (h, m_max, CF) the way constants do; scale factors print in V/count; cell counts print as cells; µs typesets correctly.
-Not changed, needs a decision: the constant description for `vout_set` still says one header is generated per selectable output (a YAML comment notes none is built); rewording it would change the recorded AI-audit prompts, which costs a paid re-recording.
+The constant description for `vout_set` no longer claims a per-option header; because constant descriptions are part of the AI-audit prompt, the three gpt-5.4-nano runs were re-recorded (about $0.013 in total, approved): category 83% (was 85%), units 95%, rule mapping 99%. Category stays below the 90% bar. The previous runs are kept in `corpus/legacy_ups/ai_runs/history/`.

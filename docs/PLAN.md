@@ -3,7 +3,7 @@
 Status: approved 2026-10-16; v1 built M0–M9 on 2026-10-16. Deviations from this plan, as built:
 - Site is static on GitHub Pages with the engine running in the browser (Pyodide); no hosted server, no live AI on the site (decided with Tim). KaTeX renders client-side from a local copy; pages fall back to readable LaTeX text without JavaScript.
 - KaTeX 0.16.22, Pyodide 0.27.7, and PyYAML's Pyodide wheel are pinned and checksum-verified by `calgen vendor`; nothing loads from a CDN at runtime.
-- AI comparison: gpt-5.4-nano recorded over 3 runs: 85% mean category (below the 90% bar), 94% units, 96% rule mapping (re-recorded after the input-frequency rules were added); reported as below the bar, bar not moved. Claude Haiku 5.5 / Sonnet 5.5 not recorded (no Anthropic key available).
+- AI comparison: gpt-5.4-nano recorded over 3 runs: 83% mean category (below the 90% bar), 95% units, 99% rule mapping (re-recorded after the input-frequency rules were added, and again on 2026-10-17 after the vout_set description was corrected; earlier runs kept in corpus/legacy_ups/ai_runs/history); reported as below the bar, bar not moved. Claude Haiku 5.5 / Sonnet 5.5 not recorded (no Anthropic key available).
 - After an expert review (2026-10-16): current protection split into a timed RMS overload and a hardware peak limit; sensor resized; PWM up-down; per-chip dead-band limits; battery cutoff from cell count; audit verdicts split into "contradicts data sheet" and "differs from design value".
 - Calibration add-on (S6) not built; listed as a limitation.
 - The AI audit corpus is the clean-room synthetic corpus only; TI SDK firmware is not used for any published result (license).

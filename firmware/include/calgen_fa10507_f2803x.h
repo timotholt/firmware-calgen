@@ -5,7 +5,7 @@
  *           ratings from DS-10507 Rev.101119 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f2803x (default format iq20)
- * inputs  : sha256 14a8ad46764b204406742cda82c9be229b987f0cd24b138cdb7cfcddb9cfc8a3
+ * inputs  : sha256 f92e57fd2888bd75ec53914e764d0db2e9b6a0c35acf81c6c94876e9d0312318
  *
  * SYNTHETIC DEMO: firmware names and circuit values are invented; product ratings
  * come from the public data sheet cited above. Not from any vendor SDK.
@@ -76,7 +76,7 @@ typedef calgen_iq_t calgen_num_t;  /* measurements are compared as IQ20 integers
 
 /* ==== Inverter ============================================================== */
 
-/* Output voltage setpoint (RMS); for units with a selectable output, one header is generated per option
+/* Output voltage setpoint (RMS); a selectable output option would be its own variant and header (none built here)
  * = ds.vout_nom
  *   ds.vout_nom = 120 V  [DS-10507 Rev.101119 p2: "120VAC, (+/-3%) Selectable (Optional 240VAC Output)"] */
 #define UPS_VOUT_SET_V             125829120L     /* 120 V, iq20 */

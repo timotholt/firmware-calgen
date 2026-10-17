@@ -5,7 +5,7 @@
  *           ratings from DS-10434 Rev.09172021 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f28004x (default format float32)
- * inputs  : sha256 1079e3171ebc5f978599f4b894c94fb564e6c49194a06d865acd45569505227a
+ * inputs  : sha256 a2949035fd62f393605c7e8d7a698978ff6d042e8b190b310b69b7698ae91d71
  *
  * OVERRIDE ds.iin_max: DS-10434 Rev.09172021 prints "7.4 Amps @90VAC Input,
  *   560W Output" in the Input Frequency row and "50 or 60 Hz" in the Input Max
@@ -91,7 +91,7 @@ typedef float calgen_num_t;  /* float target */
 
 /* ==== Inverter ============================================================== */
 
-/* Output voltage setpoint (RMS); for units with a selectable output, one header is generated per option
+/* Output voltage setpoint (RMS); a selectable output option would be its own variant and header (none built here)
  * = ds.vout_nom
  *   ds.vout_nom = 120 V  [DS-10434 Rev.09172021 p1: "120 VAC, (+/-3%)"] */
 #define UPS_VOUT_SET_V             120.0f         /* 120 V */
