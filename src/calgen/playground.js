@@ -7,7 +7,7 @@
   var VER = document.currentScript ? new URL(document.currentScript.src).search : ""; // ?v=<content hash>, busts caches
   var DATA = JSON.parse(document.getElementById("default-data").textContent);
   var OPTS = JSON.parse(document.getElementById("options").textContent);
-  var state = { product: "FA10507", board: "A", target: "f28004x", edits: {}, stage: "out", open: {}, tab: "c", preset: null, scenario: "shipped" };
+  var state = { product: "FA10507", board: "A", target: "f28004x", edits: {}, stage: "out", open: {}, tab: "c", preset: null };
   var engine = null;
   var prev = null; // id -> display from the previous computation, for flashing what just changed
   var showReasons = true; // reasons appear only after the user pauses (red borders appear at once)
@@ -89,38 +89,8 @@
       return '<div class="ptab' + (on ? " on" : "") + '" role="tab" aria-selected="' + on + '" tabindex="0" data-p="' + esc(k) + '"><b>' + esc(parts[0]) + "</b>" + esc(parts.slice(1).join(" · ")) + "</div>";
     }).join("");
     $("products").querySelectorAll(".ptab").forEach(function (e) {
-      keyed(e, function () {
-        if (!engine || e.dataset.p === state.product) return;
-        state.product = e.dataset.p; state.open = {};
-        applyScenario(state.scenario === "custom" ? "shipped" : state.scenario); // same change request, other product
-      });
+      keyed(e, function () { if (!engine || e.dataset.p === state.product) return; state.product = e.dataset.p; state.edits = {}; state.open = {}; state.preset = null; revealReasonsAfter(300); recompute(); });
     });
-  }
-
-  // ---- scenarios (guided what-ifs) --------------------------------------------
-  function applyScenario(k) {
-    var sc = OPTS.scenarios[k];
-    state.scenario = k; state.board = sc.board; state.target = sc.target; state.preset = sc.preset;
-    state.edits = JSON.parse(JSON.stringify(sc.edits));
-    revealReasonsAfter(300); recompute();
-  }
-  function goCustom() { state.scenario = "custom"; }
-
-  function renderScenarios() {
-    var outcomes = (OPTS.outcomes || {})[state.product] || {};
-    $("scen").innerHTML = Object.keys(OPTS.scenarios).map(function (k) {
-      var on = state.scenario === k, ok = outcomes[k];
-      var mark = ok === undefined ? "" : '<span class="om ' + (ok ? "ok" : "bad") + '" title="' + (ok ? "builds: C generated" : "blocked: a gate refuses to write C") + '">' + (ok ? "✓ builds" : "✗ blocked") + "</span>";
-      return '<button type="button" class="scn' + (on ? " on" : "") + '" role="radio" aria-checked="' + on + '" data-s="' + k + '"' + (engine ? "" : " disabled") + ">" +
-        '<span class="rd" aria-hidden="true"></span><span class="sl">' + esc(OPTS.scenarios[k].label) + "</span>" + mark + "</button>";
-    }).join("");
-    $("scen").querySelectorAll(".scn").forEach(function (b) { b.onclick = function () { applyScenario(b.dataset.s); }; });
-    var sc = OPTS.scenarios[state.scenario];
-    var story = sc ? "<b>" + esc(sc.label) + "</b><p>" + esc(sc.story) + "</p>"
-      : "<b>Custom edits</b><p>You changed inputs by hand. Pick a scenario above to start again from it.</p>";
-    var result = DATA.ok ? '<p class="res ok">C generated · ' + ((DATA.changed || []).length ? (DATA.changed || []).length + " values differ from the shipped product" : "matches the shipped product") + "</p>"
-      : '<p class="res bad">Blocked · nothing written (fail closed)</p>';
-    $("story").innerHTML = story + result;
   }
 
   // ---- why it's blocked, and how to fix (left column, no overlap) -----------
@@ -136,7 +106,7 @@
       x.onclick = function () { state.stage = x.dataset.b; state.tab = "math"; render(); var el = $("stage-" + x.dataset.b); if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest" }); };
     });
     $("probs").querySelectorAll(".applyfix").forEach(function (btn) {
-      btn.onclick = function () { goCustom(); state.edits[btn.dataset.k] = parseFloat(btn.dataset.v); revealReasonsAfter(300); recompute(); };
+      btn.onclick = function () { state.edits[btn.dataset.k] = parseFloat(btn.dataset.v); revealReasonsAfter(300); recompute(); };
     });
   }
 
@@ -216,23 +186,21 @@
       (groups["Design choice"] || []).map(function (e) { return field(e, dis); }).join("") + "</div>";
     $("inputs").innerHTML = ds + '<div class="inrow">' + board + design + "</div>";
     $("board").value = state.board; $("target").value = state.target;
-    $("board").onchange = function () { goCustom(); state.board = this.value; revealReasonsAfter(300); recompute(); };
-    $("target").onchange = function () { goCustom(); state.target = this.value; revealReasonsAfter(300); recompute(); };
+    $("board").onchange = function () { state.board = this.value; revealReasonsAfter(300); recompute(); };
+    $("target").onchange = function () { state.target = this.value; revealReasonsAfter(300); recompute(); };
     $("preset").onchange = function () {
       if (this.value === "__custom") return; // already custom; nothing to apply
-      goCustom();
       state.preset = this.value || null;
       Object.keys(state.edits).forEach(function (k) { if (k.indexOf("ds.") === 0) delete state.edits[k]; });
       revealReasonsAfter(300); recompute();
     };
-    $("reset").onclick = function () { applyScenario("shipped"); };
+    $("reset").onclick = function () { state.edits = {}; state.board = "A"; state.target = "f28004x"; state.preset = null; revealReasonsAfter(300); recompute(); };
     var timer = null;
     $("inputs").querySelectorAll("input[data-k]").forEach(function (inp) {
       inp.oninput = function () {
         var x = parseFloat(inp.value);
         if (!(x > 0)) { inp.setCustomValidity("Enter a positive number"); inp.reportValidity(); return; }
         inp.setCustomValidity("");
-        goCustom();
         state.edits[inp.dataset.k] = x;
         revealReasonsAfter(1500);
         clearTimeout(timer);
@@ -267,9 +235,14 @@
     var shownPills = notOk.length === pills.length ? pills : [["ok", "All gates pass ✓"]].concat(notOk);
     if (pills.slice(0, 5).some(function (p) { return p[0] === "bad"; })) shownPills = pills;
     $("gates").innerHTML = shownPills.map(function (p) { return '<span class="pill ' + p[0] + '">' + esc(p[1]) + "</span>"; }).join("") +
-      (np ? '<button type="button" class="pill bad probpill" id="probjump">' + np + " problem" + (np === 1 ? "" : "s") + " · see why ←</button>" : "");
+      (np ? '<button type="button" class="pill bad probpill" id="probjump">' + np + " problem" + (np === 1 ? "" : "s") + " · see why</button>" : "");
     var jump = $("probjump");
-    if (jump) jump.onclick = function () { $("probs").scrollIntoView({ behavior: "smooth", block: "nearest" }); };
+    if (jump) jump.onclick = function () {
+      var box = document.querySelector(".ins"), probs = $("probs");
+      box.scrollIntoView({ block: "nearest" });
+      if (getComputedStyle(box).overflowY === "auto") box.scrollTo({ top: probs.offsetTop - 8 }); // sticky column scrolls itself
+      else probs.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
   }
 
   // ---- formulas for the selected stage --------------------------------------
@@ -355,7 +328,7 @@
     return k ? k.block : null;
   }
 
-  function render() { renderTabs(); renderGates(); renderScenarios(); renderProbs(); renderFlow(); renderInputs(); renderFormulas(); flashChanges(); prev = null; }
+  function render() { renderTabs(); renderGates(); renderProbs(); renderFlow(); renderInputs(); renderFormulas(); flashChanges(); prev = null; }
 
   function recompute() {
     if (!engine) return;
