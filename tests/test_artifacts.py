@@ -47,7 +47,8 @@ def test_number_format_lives_in_each_generated_header():
         assert "typedef" in text and "calgen_num_t;" in text and "#define CALGEN_REAL(x)" in text, name
 
 
-def _syntax_check(tmp_path, source):
+def _compile(tmp_path, source, run=False):
+    """Compile (and optionally run) a small C file against the generated headers; returns the exit code."""
     import shutil
     import subprocess
 
@@ -56,19 +57,25 @@ def _syntax_check(tmp_path, source):
         pytest.skip("needs a C compiler")
     (tmp_path / "t.c").write_text(source)
     inc = ROOT / "firmware" / "include"
-    return subprocess.run([cc, "-std=c99", "-Wall", "-Werror", "-pedantic", "-fsyntax-only", f"-I{inc}", "t.c"],
-                          cwd=tmp_path, capture_output=True, text=True).returncode
+    built = subprocess.run([cc, "-std=c99", "-Wall", "-Werror", "-pedantic", f"-I{inc}", "t.c", "-o", "t"],
+                           cwd=tmp_path, capture_output=True, text=True)
+    if built.returncode or not run:
+        return built.returncode
+    return subprocess.run([str(tmp_path / "t")], cwd=tmp_path).returncode
 
 
 def test_include_order_cannot_change_fixed_point_scaling(tmp_path):
     src = (
         '#include "calgen_types.h"\n#include "calgen_fa10507_f2803x.h"\n'
-        "typedef char iq_scaled[(CALGEN_REAL(UPS_IOUT_TRIP_A) == 15.0f) ? 1 : -1];\n"
-        "typedef char int_type[((calgen_num_t)0.5 == 0) ? 1 : -1];\n"
+        "int main(void) {\n"
+        "    int ok = CALGEN_REAL(UPS_IOUT_TRIP_A) == 15.0f;  /* scaled, not read as 15.7 million */\n"
+        "    ok = ok && (calgen_num_t)0.5 == 0;               /* integer type: fixed-point compares */\n"
+        "    return ok ? 0 : 1;\n"
+        "}\n"
     )
-    assert _syntax_check(tmp_path, src) == 0
+    assert _compile(tmp_path, src, run=True) == 0
 
 
 def test_mixing_float_and_fixed_point_headers_fails_to_compile(tmp_path):
     src = '#include "calgen_fa10507.h"\n#include "calgen_fa10507_f2803x.h"\nint main(void) { return 0; }\n'
-    assert _syntax_check(tmp_path, src) != 0
+    assert _compile(tmp_path, src) != 0
