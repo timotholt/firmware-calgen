@@ -105,8 +105,8 @@
     $("configuration").innerHTML = '<label>Product<select id="product"' + dis + '>' + Object.keys(OPTS.products).map(function (k) {
       return '<option value="' + k + '">' + esc(OPTS.products[k]) + '</option>';
     }).join('') + '</select></label>' +
-      '<label>Board revision<select id="board"' + dis + '><option value="A">Rev A · original amplifier</option><option value="B">Rev B · alternate amplifier</option></select></label>' +
-      '<label>Target processor<select id="target"' + dis + '><option value="f28004x">F28004x · float32</option><option value="f2803x">F2803x · IQ20</option></select></label>' +
+      '<label>Board revision<select id="board" aria-label="Board revision" aria-describedby="board-note"' + dis + '><option value="A">Rev A · original amplifier</option><option value="B">Rev B · alternate amplifier</option></select><small id="board-note" class="hardware-note">Demo board configurations—not actual IntelliPower hardware.</small></label>' +
+      '<label>Target processor<select id="target" aria-label="Target processor" aria-describedby="processor-note"' + dis + '><option value="f28004x">F28004x · float32</option><option value="f2803x">F2803x · IQ20</option></select><small id="processor-note" class="hardware-note">Illustrative processor pairing; actual product processor unverified.</small></label>' +
       '<button id="reset" class="btn" type="button" title="Restore this product’s shipped defaults"' + dis + '>↺ Reset</button>';
     $("product").value = state.product; $("board").value = state.board; $("target").value = state.target;
     $("product").onchange = function () { var v = this.value; mutate(function () { state.product = v; resetProduct(); }); };
@@ -324,6 +324,9 @@
           '<p class="sum">' + esc(DATA.summaries.inv) + '</p>' + rmsBar(p) +
           '<details class="sensor-detail"><summary>Sensor headroom</summary><p class="sum">' + esc(DATA.summaries.sense) + '</p>' + gaugeSvg(p) + '</details>';
       }
+    }
+    if ((b === 'inv' || b === 'out') && DATA.product_specs) {
+      summary += '<p class="inverter-note"><b>Illustrative inverter:</b> ' + esc(DATA.product_specs.inverter_assumption) + '. Topology and PWM are demo assumptions, not verified IntelliPower hardware.</p>';
     }
     var ind = (DATA.inductors || {})[b];
     if (ind) {
