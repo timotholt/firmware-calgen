@@ -52,3 +52,13 @@ def test_playground_default_data_parses(site):
     raw = re.search(r'<script id="default-data" type="application/json">(.*?)</script>', html, re.S).group(1)
     data = json.loads(raw)
     assert data["ok"] and data["variant"].startswith("fa10507") and len(data["constants"]) == 28
+
+
+@needs_vendor
+def test_license_notices_and_ai_optout_on_every_page(site):
+    assert (site / "LICENSE.txt").read_text().startswith("firmware-calgen\nCopyright (c) 2026 Timothy Otholt. All rights reserved.")
+    assert "Mozilla Public License 2.0" in (site / "THIRD_PARTY_NOTICES.md").read_text()
+    assert (site / "assets" / "katex" / "LICENSE").exists()
+    for p in site.rglob("*.html"):
+        t = p.read_text()
+        assert 'name="tdm-reservation" content="1"' in t and 'content="noai, noimageai"' in t, p

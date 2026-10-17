@@ -96,11 +96,11 @@ def _page(title: str, active: str, body: str, depth: int = 0, extra_head: str = 
     up = "../" * depth
     nav = "".join(f'<a href="{up}{href}" class="{"on" if href == active else ""}">{_e(label)}</a>' for href, label in NAV)
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{_e(title)}</title><link rel="stylesheet" href="{up}assets/katex/katex.min.css"><link rel="stylesheet" href="{up}assets/site.css">{extra_head}</head>
+<title>{_e(title)}</title><meta name="robots" content="noai, noimageai"><meta name="tdm-reservation" content="1"><meta name="tdm-policy" content="https://github.com/timotholt/firmware-calgen/blob/main/LICENSE"><link rel="stylesheet" href="{up}assets/katex/katex.min.css"><link rel="stylesheet" href="{up}assets/site.css">{extra_head}</head>
 <body><main><nav><span class="brand">firmware-calgen</span>{nav}<a href="{REPO}">Source</a></nav>
 {notice_html()}
 {body}
-<footer>Independent demo by Timothy Otholt. Product ratings from public IntelliPower data sheets (cited per value); all circuit values, gains, firmware names, and legacy code are invented. <a href="{REPO}">Source and tests</a>.</footer>
+<footer>© 2026 Timothy Otholt. All rights reserved: you may view and run this demo to evaluate my work; no copying, reuse, or AI training (<a href="{up}LICENSE.txt">license</a>, <a href="{up}THIRD_PARTY_NOTICES.md">third-party notices</a>). Independent demo; product ratings from public IntelliPower data sheets (cited per value); all circuit values, gains, firmware names, and legacy code are invented. <a href="{REPO}">Source and tests</a>.</footer>
 </main><script src="{up}assets/katex/katex.min.js"></script>
 <script>document.querySelectorAll('.eq .tex').forEach(function(t){{if(!window.katex)return;var d=document.createElement('div');try{{katex.render(t.textContent,d,{{displayMode:true,throwOnError:false}});t.parentNode.replaceChild(d,t)}}catch(e){{}}}});</script>
 {scripts}</body></html>"""
@@ -336,4 +336,6 @@ def build_site(root: Path, out: Path, vendor_cache: Path, download: bool = False
     (out / "how.html").write_text(page_how(specs, rules), encoding="utf-8")
     (out / "playground.html").write_text(page_playground(playground.run(specs)), encoding="utf-8")
     (out / ".nojekyll").write_text("", encoding="utf-8")
+    shutil.copyfile(root / "LICENSE", out / "LICENSE.txt")
+    shutil.copyfile(root / "THIRD_PARTY_NOTICES.md", out / "THIRD_PARTY_NOTICES.md")
     return out

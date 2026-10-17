@@ -156,4 +156,4 @@ docs/           PLAN.md, DESIGN_NOTES.md, RESEARCH.md, SUMMARY.md, ADDING_A_CONS
 
 Built spec-first with Claude Code under my direction: [docs/PLAN.md](docs/PLAN.md) was approved before any code, each milestone landed as its own commit with its tests, and [docs/DESIGN_NOTES.md](docs/DESIGN_NOTES.md) records the reasoning.
 
-MIT license.
+**License:** © 2026 Timothy Otholt. All rights reserved. You may view the source and run the demo to evaluate my work; no other use, including copying, reuse in job applications, or AI training. See [LICENSE](LICENSE) and [third-party notices](THIRD_PARTY_NOTICES.md).

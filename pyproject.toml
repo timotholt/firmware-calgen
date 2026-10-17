@@ -3,7 +3,7 @@ name = "firmware-calgen"
 version = "0.1.0"
 description = "Spec-to-firmware constants: traceable, gated, reviewed."
 readme = "README.md"
-license = "MIT"
+license = "LicenseRef-Proprietary"
 license-files = ["LICENSE"]
 authors = [{ name = "Timothy Otholt" }]
 requires-python = ">=3.12"

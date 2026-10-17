@@ -186,7 +186,7 @@ def render_report(b: Build, previous_header: str = "", katex_path: str = "assets
 
     title = f"Review: {v.name}"
     doc = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{_e(title)}</title><link rel="stylesheet" href="{katex_path}/katex.min.css"><style>{CSS}</style></head><body><main>
+<title>{_e(title)}</title><meta name="robots" content="noai, noimageai"><meta name="tdm-reservation" content="1"><meta name="tdm-policy" content="https://github.com/timotholt/firmware-calgen/blob/main/LICENSE"><link rel="stylesheet" href="{katex_path}/katex.min.css"><style>{CSS}</style></head><body><main>
 {f'<p class="sub"><a href="{back}">← All review reports</a></p>' if back else ''}{notice_html()}
 <h1>{_e(title)}</h1>
 <div class="sub">{_e(ds.part)} · {_e(ds.params['model_string'].value)} · board {_e(v.board.name)} rev {_e(v.board.extra.get('rev', '?'))} · target {_e(v.target.name)} ({_e(v.target.extra.get('default_format', 'float32'))})</div>

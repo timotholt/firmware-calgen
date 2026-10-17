@@ -1,21 +1,37 @@
-MIT License
+firmware-calgen
+Copyright (c) 2026 Timothy Otholt. All rights reserved.
 
-Copyright (c) 2026 Timothy Otholt
+This repository and the demo site built from it are published so that
+prospective employers and reviewers can evaluate the author's work.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+You MAY:
+  - view the source code and documentation;
+  - run the demo (including the in-browser playground) and the test suite,
+    solely to evaluate the author's work.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+You MAY NOT, without the author's prior written permission:
+  - copy, modify, merge, publish, distribute, sublicense, or sell any part of
+    this work, or create derivative works from it;
+  - present this work, or any part of it, as your own, including in any job
+    application, portfolio, coursework, or interview;
+  - use this work, or any part of it, to train, fine-tune, or evaluate
+    machine-learning or AI models, or include it in datasets.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Text and data mining reservation: the author expressly reserves all rights to
+text and data mining of this work, including under Article 4(3) of Directive
+(EU) 2019/790. Automated collection for AI training is not permitted.
+
+Viewing or forking on GitHub is permitted to the extent required by GitHub's
+Terms of Service; no other license is granted, by implication or otherwise.
+
+Third-party components keep their own licenses; see THIRD_PARTY_NOTICES.md.
+Public data sheet values remain the property of their owners and are cited for
+evaluation purposes. TI, C2000, and Code Composer Studio are trademarks of
+Texas Instruments; AMETEK and IntelliPower are trademarks of their owners.
+
+THE WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. IT IS A
+DEMONSTRATION AND MUST NOT BE USED TO CONFIGURE OR CALIBRATE REAL EQUIPMENT.
+IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY ARISING FROM THE WORK OR ITS USE.
+
+For permission requests: timotholt@gmail.com
