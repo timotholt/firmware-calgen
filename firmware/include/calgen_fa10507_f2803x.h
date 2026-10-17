@@ -5,7 +5,7 @@
  *           ratings from DS-10507 Rev.101119 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f2803x (default format iq20)
- * inputs  : sha256 4c1f05cfead272b3268fc549aca8938a4d070462020656e087deda2d8581c335
+ * inputs  : sha256 fda2c7fd116905756773081cf64a29dc7f758561cf4d5e975a03d7929a56635b
  *
  * SYNTHETIC DEMO: firmware names and circuit values are invented; product ratings
  * come from the public data sheet cited above. Not from any vendor SDK.
@@ -13,8 +13,12 @@
 #ifndef CALGEN_FA10507_F2803X_H
 #define CALGEN_FA10507_F2803X_H
 
-#define CALGEN_GLOBAL_Q 20  /* fixed-point target: values below are IQ20 integers */
 #include "calgen_types.h"
+
+#define CALGEN_GLOBAL_Q 20  /* fixed-point target: values below are IQ20 integers */
+typedef calgen_iq_t calgen_num_t;  /* measurements are compared as IQ20 integers, no float */
+#define CALGEN_NUM(x)  ((calgen_num_t)((x) * 1048576.0))  /* constant expressions only */
+#define CALGEN_REAL(x) ((float)(x) / 1048576.0f)  /* host-side checks only */
 
 /* ==== AC input ============================================================== */
 
@@ -34,15 +38,15 @@
 #define UPS_IIN_LIMIT_A            20971520L      /* 20 A, iq20 */
 
 /* Lowest input frequency accepted (follower lock window / transfer to battery)
- * = ds.fin_nom - ds.fin_tol_hz
- *   ds.fin_nom = 60 Hz  [DS-10507 Rev.101119 p2 (60 Hz region assumed): "50/60 Hz, (+/-5%)"]
- *   ds.fin_tol_hz = 3 Hz  [DS-10507 Rev.101119 p2 (5% of 60 Hz): "50/60 Hz, (+/-5%)"] */
-#define UPS_FIN_MIN_HZ             59768832L      /* 57 Hz, iq20 */
+ * = ds.fin_nom_lo * (1 - ds.fin_tol_pct)
+ *   ds.fin_nom_lo = 50 Hz  [DS-10507 Rev.101119 p2: "50/60 Hz, (+/-5%)"]
+ *   ds.fin_tol_pct = 5 %  [DS-10507 Rev.101119 p2: "50/60 Hz, (+/-5%)"] */
+#define UPS_FIN_MIN_HZ             49807360L      /* 47.5 Hz, iq20 */
 
 /* Highest input frequency accepted (follower lock window / transfer to battery)
- * = ds.fin_nom + ds.fin_tol_hz
- *   ds.fin_nom = 60 Hz  [DS-10507 Rev.101119 p2 (60 Hz region assumed): "50/60 Hz, (+/-5%)"]
- *   ds.fin_tol_hz = 3 Hz  [DS-10507 Rev.101119 p2 (5% of 60 Hz): "50/60 Hz, (+/-5%)"] */
+ * = ds.fin_nom_hi * (1 + ds.fin_tol_pct)
+ *   ds.fin_nom_hi = 60 Hz  [DS-10507 Rev.101119 p2: "50/60 Hz, (+/-5%)"]
+ *   ds.fin_tol_pct = 5 %  [DS-10507 Rev.101119 p2: "50/60 Hz, (+/-5%)"] */
 #define UPS_FIN_MAX_HZ             66060288L      /* 63 Hz, iq20 */
 
 /* ==== Rectifier / PFC ======================================================= */

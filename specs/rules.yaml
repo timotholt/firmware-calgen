@@ -6,7 +6,8 @@
 #   <id>      any constant defined earlier in this file
 #
 # format: float32 | uintN | intN | iqN | qM.N | target (= the target's default_format)
-# min/max are in the constant's own unit. tolerance = max relative quantization error.
+# fallback: formula used instead when the sheet states the same fact in another form
+# (e.g. a tolerance in % rather than Hz). min/max are in the constant's own unit. tolerance = max relative quantization error.
 # Formulas are textbook relations; the AC output stage is sensed with a mid-rail
 # bias, so its usable range is +/- v_ref/2 around the bias point.
 
@@ -18,8 +19,10 @@ symbols:
   ds.vin_min: 'V_{\text{in,min}}^{\text{DS}}'
   ds.vin_max: 'V_{\text{in,max}}^{\text{DS}}'
   ds.iin_max: 'I_{\text{in,max}}^{\text{DS}}'
-  ds.fin_nom: 'f_{\text{in}}'
+  ds.fin_nom_lo: 'f_{\text{in,lo}}'
+  ds.fin_nom_hi: 'f_{\text{in,hi}}'
   ds.fin_tol_hz: '\Delta f_{\text{in}}'
+  ds.fin_tol_pct: 'k_{f}'
   ds.fout_hz: 'f_{\text{out}}^{\text{DS}}'
   ds.overload_alarm_pct: 'k_{\text{alarm}}'
   ds.overload_trip_pct: 'k_{\text{trip}}'
@@ -96,7 +99,8 @@ constants:
   - id: fin_min
     symbol: UPS_FIN_MIN_HZ
     describe: Lowest input frequency accepted (follower lock window / transfer to battery)
-    formula: ds.fin_nom - ds.fin_tol_hz
+    formula: ds.fin_nom_lo - ds.fin_tol_hz
+    fallback: ds.fin_nom_lo * (1 - ds.fin_tol_pct)  # sheet gives the tolerance in percent
     unit: Hz
     format: target
     block: in
@@ -108,7 +112,8 @@ constants:
   - id: fin_max
     symbol: UPS_FIN_MAX_HZ
     describe: Highest input frequency accepted (follower lock window / transfer to battery)
-    formula: ds.fin_nom + ds.fin_tol_hz
+    formula: ds.fin_nom_hi + ds.fin_tol_hz
+    fallback: ds.fin_nom_hi * (1 + ds.fin_tol_pct)  # sheet gives the tolerance in percent
     unit: Hz
     format: target
     block: in

@@ -93,3 +93,31 @@ def test_corpus_conformance_reproduces_answer_key():
         k = pairs[i]
         assert r.status != NO_VALUE, (k.symbol, r.note)
         assert r.status == want[k.expected_conformance], (k.file, k.line, k.symbol, r.status, k.expected_conformance)
+
+
+def test_corpus_notes_agree_with_answer_key():
+    """CORPUS_NOTES.md is prose a reviewer reads first; its numbers must match the key."""
+    import re
+
+    import yaml
+
+    root = Path(__file__).resolve().parent.parent / "corpus" / "legacy_ups"
+    notes = (root / "CORPUS_NOTES.md").read_text(encoding="utf-8")
+    key = yaml.safe_load((root / "ANSWER_KEY.yaml").read_text(encoding="utf-8"))
+    by_symbol = {e["symbol"]: e for e in key if e["symbol"] != "<inline>"}
+
+    counts = {c: sum(e["expected_conformance"] == c for e in key) for c in ("match", "mismatch", "not_applicable")}
+    assert f"{len(key)} entries ({counts['match']} match, {counts['mismatch']} mismatch, {counts['not_applicable']} not_applicable)" in notes
+
+    claims = re.findall(r"^- `(\w+)`[^\n]*?should be ([\d.]+)", notes, re.M)
+    assert len(claims) >= 5
+    for symbol, value in claims:
+        assert by_symbol[symbol]["correct_value"] == pytest.approx(float(value)), symbol
+
+    b = build(load_variant(SPECS / "variants" / "fa10507.yaml"), load_rules(SPECS / "rules.yaml"))
+    from calgen.audit import conform, load_map, scan
+
+    results = conform(scan(root), load_map(root / "calgen_map.yaml"), b)
+    contradicts = [r for r in results if r.status == MISMATCH and r.verdict == "contradicts data sheet"]
+    assert f"{len(contradicts)} contradict the data sheet" in notes
+    assert f"the other {sum(r.status == MISMATCH for r in results) - len(contradicts)} mismatches" in notes

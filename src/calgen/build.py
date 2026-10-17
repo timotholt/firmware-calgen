@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import operator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from calgen.consistency import ERROR, Finding, check_datasheet
 from calgen.expr import ExprError, Formula, Quantity, evaluate, parse
@@ -141,6 +141,10 @@ def build(variant: Variant, rules: Rules) -> Build:
             results.append(_enum(rule, text, sources))
             continue
         formula = parse(rule.formula)
+        if rule.fallback and any(n.startswith("ds.") and n not in env for n in formula.names):
+            alt = parse(rule.fallback)
+            if all(n in env for n in alt.names):  # the sheet states this fact in the other form
+                rule, formula = replace(rule, formula=rule.fallback, fallback=None), alt
         deps = [sources.get(n) or Source(n, env[n], None, "constant") for n in formula.names if n in env]
         missing = [n for n in formula.names if n not in env]
         if missing:
@@ -205,7 +209,7 @@ def _staleness(variant: Variant, env: dict[str, Quantity]) -> list[StaleResult]:
 def _consumed_ds_fields(rules: Rules) -> set[str]:
     used: set[str] = set()
     for r in rules.constants:
-        names = [r.formula] if r.kind == "enum" else parse(r.formula).names
+        names = [r.formula] if r.kind == "enum" else [*parse(r.formula).names, *(parse(r.fallback).names if r.fallback else ())]
         used |= {n[3:] for n in names if n.startswith("ds.")}
     return used
 

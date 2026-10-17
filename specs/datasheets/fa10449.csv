@@ -7,7 +7,8 @@ power_w,"Power Rating (VA, Watts):","650 VA, 500 Watts",500,W,DS-10449 Rev.09172
 vin_nom,"Input AC Voltage (AC Voltage, tolerance):","120 VAC, (-25% +15%)",120,V,DS-10449 Rev.09172021 p1
 vin_min,"Input AC Voltage (AC Voltage, tolerance):","120 VAC, (-25% +15%)",90,V,DS-10449 Rev.09172021 p1 (120 V - 25%)
 vin_max,"Input AC Voltage (AC Voltage, tolerance):","120 VAC, (-25% +15%)",138,V,DS-10449 Rev.09172021 p1 (120 V + 15%)
-fin_nom,"Input Frequency (Hz, tolerance):","60 Hz, +/- 5.0 Hz",60,Hz,DS-10449 Rev.09172021 p1
+fin_nom_lo,"Input Frequency (Hz, tolerance):","60 Hz, +/- 5.0 Hz",60,Hz,DS-10449 Rev.09172021 p1
+fin_nom_hi,"Input Frequency (Hz, tolerance):","60 Hz, +/- 5.0 Hz",60,Hz,DS-10449 Rev.09172021 p1
 fin_tol_hz,"Input Frequency (Hz, tolerance):","60 Hz, +/- 5.0 Hz",5,Hz,DS-10449 Rev.09172021 p1
 iin_max,Input Max Current (Amps):,7.9 Amps,7.9,A,DS-10449 Rev.09172021 p1
 vout_nom,"Output AC Voltage (AC Voltage, tolerance):","120 VAC, (±3%)",120,V,DS-10449 Rev.09172021 p1

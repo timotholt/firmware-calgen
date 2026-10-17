@@ -5,7 +5,7 @@
  *           ratings from DS-10507 Rev.101119 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f28004x (default format float32)
- * inputs  : sha256 69a47be57e2305ed2b0874a41cd4e8ab7bed80d91ebad72dd3b981d6be0c46ea
+ * inputs  : sha256 6716741ad8c5aa4cd7af36fcbeb7d8f3a9ca062195cd29cd5e5cec4da6800dd8
  *
  * SYNTHETIC DEMO: firmware names and circuit values are invented; product ratings
  * come from the public data sheet cited above. Not from any vendor SDK.
@@ -14,6 +14,10 @@
 #define CALGEN_FA10507_H
 
 #include "calgen_types.h"
+
+typedef float calgen_num_t;  /* float target */
+#define CALGEN_NUM(x)  ((calgen_num_t)(x))
+#define CALGEN_REAL(x) ((float)(x))
 
 /* ==== AC input ============================================================== */
 
@@ -33,15 +37,15 @@
 #define UPS_IIN_LIMIT_A            20.0f          /* 20 A */
 
 /* Lowest input frequency accepted (follower lock window / transfer to battery)
- * = ds.fin_nom - ds.fin_tol_hz
- *   ds.fin_nom = 60 Hz  [DS-10507 Rev.101119 p2 (60 Hz region assumed): "50/60 Hz, (+/-5%)"]
- *   ds.fin_tol_hz = 3 Hz  [DS-10507 Rev.101119 p2 (5% of 60 Hz): "50/60 Hz, (+/-5%)"] */
-#define UPS_FIN_MIN_HZ             57.0f          /* 57 Hz */
+ * = ds.fin_nom_lo * (1 - ds.fin_tol_pct)
+ *   ds.fin_nom_lo = 50 Hz  [DS-10507 Rev.101119 p2: "50/60 Hz, (+/-5%)"]
+ *   ds.fin_tol_pct = 5 %  [DS-10507 Rev.101119 p2: "50/60 Hz, (+/-5%)"] */
+#define UPS_FIN_MIN_HZ             47.5f          /* 47.5 Hz */
 
 /* Highest input frequency accepted (follower lock window / transfer to battery)
- * = ds.fin_nom + ds.fin_tol_hz
- *   ds.fin_nom = 60 Hz  [DS-10507 Rev.101119 p2 (60 Hz region assumed): "50/60 Hz, (+/-5%)"]
- *   ds.fin_tol_hz = 3 Hz  [DS-10507 Rev.101119 p2 (5% of 60 Hz): "50/60 Hz, (+/-5%)"] */
+ * = ds.fin_nom_hi * (1 + ds.fin_tol_pct)
+ *   ds.fin_nom_hi = 60 Hz  [DS-10507 Rev.101119 p2: "50/60 Hz, (+/-5%)"]
+ *   ds.fin_tol_pct = 5 %  [DS-10507 Rev.101119 p2: "50/60 Hz, (+/-5%)"] */
 #define UPS_FIN_MAX_HZ             63.0f          /* 63 Hz */
 
 /* ==== Rectifier / PFC ======================================================= */

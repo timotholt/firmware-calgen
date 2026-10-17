@@ -34,8 +34,10 @@ TARGETS = {"f28004x": "f28004x.yaml", "f2803x": "f2803x.yaml"}
 DS_EDITABLE = [
     ("vin_min", "V", "Min input voltage", "Input"),
     ("vin_max", "V", "Max input voltage", "Input"),
-    ("fin_nom", "Hz", "Input frequency", "Input"),
-    ("fin_tol_hz", "Hz", "Input frequency ±", "Input"),
+    ("fin_nom_lo", "Hz", "Mains frequency low", "Input"),
+    ("fin_nom_hi", "Hz", "Mains frequency high", "Input"),
+    ("fin_tol_hz", "Hz", "Frequency tolerance ±", "Input"),
+    ("fin_tol_pct", "%", "Frequency tolerance ±", "Input"),
     ("iin_max", "A", "Max input current", "Input"),
     ("power_va", "VA", "Rated power", "Output"),
     ("vout_nom", "V", "Output voltage", "Output"),
@@ -78,13 +80,18 @@ def preset_edits(base_datasheet, key: str) -> dict[str, float]:
         return q.value if q is not None and q.numeric else None
 
     v_out = num("vout_nom") or 120.0
-    edits = {"ds.vout_nom": p["v"], "ds.fout_hz": p["f"], "ds.fin_nom": p["f"]}
+    edits = {"ds.vout_nom": p["v"], "ds.fout_hz": p["f"]}
+    f_lo, f_hi = num("fin_nom_lo"), num("fin_nom_hi")
+    single_freq = not (f_lo and f_hi and f_lo != f_hi)  # 50/60 Hz products keep both
+    if single_freq:
+        edits["ds.fin_nom_lo"] = edits["ds.fin_nom_hi"] = p["f"]
     vmin, vmax = num("vin_min"), num("vin_max")
     if vmin and vmax and vmax / vmin < 2.0:  # narrow input: scale with the market voltage
         edits["ds.vin_min"] = round(vmin * p["v"] / v_out, 1)
         edits["ds.vin_max"] = round(vmax * p["v"] / v_out, 1)
     tol = num("fin_tol_hz")
-    edits["ds.fin_tol_hz"] = round((tol / (num("fin_nom") or 60.0) if tol else 0.05) * p["f"], 2)
+    if single_freq and tol:  # a tolerance in Hz scales with the mains frequency; one in % already does
+        edits["ds.fin_tol_hz"] = round(tol / (f_hi or 60.0) * p["f"], 2)
     return edits
 
 
@@ -193,11 +200,11 @@ def summaries(b: Build) -> dict[str, str]:
         c = val.get(rule_id)
         return fmt.format(c.value) if c is not None and c.value is not None else "?"
 
-    f_nom, f_tol = g("ds.fin_nom", "Hz"), g("ds.fin_tol_hz", "Hz")
-    if f_nom and f_tol:
-        freq = f"{f_nom:g} Hz ±{f_tol:.3g} Hz"
-    elif f_nom:
-        freq = f"{f_nom:g} Hz"
+    f_lo, f_hi = g("ds.fin_nom_lo", "Hz"), g("ds.fin_nom_hi", "Hz")
+    f_hz, f_pct = g("ds.fin_tol_hz", "Hz"), g("ds.fin_tol_pct", "%")
+    if f_lo and f_hi:
+        freq = f"{f_lo:g} Hz" if f_lo == f_hi else f"{f_lo:g}/{f_hi:g} Hz"
+        freq += f" ±{f_hz:.3g} Hz" if f_hz else f" ±{f_pct:.3g}%" if f_pct else ""
     else:
         freq = "freq. not stated on data sheet"
     mode = val["fout_mode"].enum_ident.split("_")[-1].lower() if val["fout_mode"].enum_ident else "?"

@@ -23,7 +23,8 @@ def test_fa10449_changer_vs_follower():
 def test_fa10434_swapped_labels():
     assert findings("fa10434") == {
         (ERROR, "label_vs_cell", ("iin_max",)),
-        (ERROR, "label_vs_cell", ("fin_nom",)),
+        (ERROR, "label_vs_cell", ("fin_nom_lo",)),
+        (ERROR, "label_vs_cell", ("fin_nom_hi",)),
     }
 
 
@@ -38,7 +39,8 @@ def test_swapped_labels_are_waived_by_reasoned_overrides():
     b = build(load_variant(SPECS / "variants" / "fa10434.yaml"), load_rules(SPECS / "rules.yaml"))
     status = {d.finding.fields: d.status for d in b.datasheet}
     assert status[("iin_max",)] == WAIVED
-    assert status[("fin_nom",)] == WAIVED  # input frequency is consumed by the window rules
+    assert status[("fin_nom_lo",)] == WAIVED  # input frequency is consumed by the window rules
+    assert status[("fin_nom_hi",)] == WAIVED
     assert b.constant("fin_min").status == "skipped"  # no tolerance stated on the sheet
     assert b.ok
 

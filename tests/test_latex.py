@@ -47,5 +47,36 @@ def test_failed_check_is_marked():
 
 def test_enum_and_supplied():
     b = build(load_variant(SPECS / "variants" / "fa10449.yaml"), RULES)
-    assert "UPS_FOUT_FOLLOWER" in derive_constant(b, "fout_mode").lines[0]
+    assert r"UPS\_FOUT\_FOLLOWER" in derive_constant(b, "fout_mode").lines[0]
     assert "engineer-supplied" in derive_constant(b, "vloop_kp").lines[0]
+
+
+def test_every_formula_parses_in_katex(tmp_path):
+    """The site renders with throwOnError off, so a bad formula shows as red source text. Catch it here."""
+    import json
+    import shutil
+    import subprocess
+    import tarfile
+
+    tgz = SPECS.parent / "vendor" / "katex-0.16.22.tgz"
+    node = shutil.which("node")
+    if not node or not tgz.exists():
+        pytest.skip("needs node and `calgen vendor`")
+    with tarfile.open(tgz) as t:
+        (tmp_path / "katex.js").write_bytes(t.extractfile("package/dist/katex.min.js").read())
+    formulas = []
+    for name in VARIANTS:
+        b = build(load_variant(SPECS / "variants" / f"{name}.yaml"), RULES)
+        for c in b.constants:
+            formulas += [(name, c.rule.id, line) for line in derive_constant(b, c.rule.id).lines]
+        for k in b.checks:
+            formulas += [(name, k.check.id, line) for line in derive_check(b, k.check.id).lines]
+    (tmp_path / "f.json").write_text(json.dumps(formulas))
+    js = (
+        "const k=require('./katex.js');const f=require('./f.json');const bad=[];"
+        "for(const [v,id,s] of f){try{k.renderToString(s,{throwOnError:true,displayMode:true})}catch(e){bad.push(v+' '+id+': '+e.message)}}"
+        "console.log(JSON.stringify(bad))"
+    )
+    out = subprocess.run([node, "-e", js], cwd=tmp_path, capture_output=True, text=True, check=True).stdout
+    assert json.loads(out) == []
+    assert len(formulas) > 100

@@ -92,6 +92,7 @@ class Rule:
     optional: bool = False  # skip (reported) when an input is absent for this product
     kind: str = "numeric"  # "numeric" | "enum"
     choices: dict[str, str] = field(default_factory=dict)  # enum: data sheet text -> C identifier
+    fallback: str | None = None  # formula used when `formula`'s data sheet inputs are absent (same fact, other form)
 
 
 @dataclass(frozen=True)
@@ -331,10 +332,11 @@ def load_rules(path: str | Path) -> Rules:
             c = {**c, "formula": str(c["source"]), "unit": "1", "format": "enum",
                  "choices": {str(k).lower(): str(v) for k, v in choices.items()}}
         else:
-            try:
-                parse(str(c["formula"]))
-            except ExprError as exc:
-                issues.append(f"{where}: {exc}")
+            for key in ("formula", "fallback") if "fallback" in c else ("formula",):
+                try:
+                    parse(str(c[key]))
+                except ExprError as exc:
+                    issues.append(f"{where}.{key}: {exc}")
             _check_unit(str(c["unit"]), where, issues)
             fmt = str(c["format"])
             if fmt != "target" and not is_valid_format(fmt):
@@ -358,6 +360,7 @@ def load_rules(path: str | Path) -> Rules:
                 optional=bool(c.get("optional", False)),
                 kind=kind,
                 choices=dict(c.get("choices", {})) if kind == "enum" else {},
+                fallback=str(c["fallback"]) if c.get("fallback") is not None else None,
             )
         )
     checks: list[Check] = []

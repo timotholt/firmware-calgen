@@ -5,7 +5,7 @@
  *           ratings from DS-10434 Rev.09172021 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f28004x (default format float32)
- * inputs  : sha256 fae3b35e6ba8a1eaf32de0fd45908f209817f71ec4f30232ade508f1c71322c6
+ * inputs  : sha256 98e4b7bae04b62d8c2d5451be307a4fee292ba0d590e92a200c4659c3720d445
  *
  * OVERRIDE ds.iin_max: DS-10434 Rev.09172021 prints "7.4 Amps @90VAC Input,
  *   560W Output" in the Input Frequency row and "50 or 60 Hz" in the Input Max
@@ -15,10 +15,12 @@
  *   one string but not the cell count; 12 V LiFePO4 modules are normally 4
  *   cells in series, so 3 x 4 = 12. Assumption for the demo; confirm with the
  *   battery supplier.
- * OVERRIDE ds.fin_nom: DS-10434 Rev.09172021 prints the input frequency ("50
- *   or 60 Hz") in the Input Max Current row; the labels are swapped. 60 Hz
- *   (North American variant) taken from that row; no tolerance is stated, so
- *   the input frequency window is not generated.
+ * OVERRIDE ds.fin_nom_lo: DS-10434 Rev.09172021 prints the input frequency
+ *   ("50 or 60 Hz") in the Input Max Current row; the labels are swapped. The
+ *   unit accepts both mains frequencies, taken from that row. No tolerance is
+ *   stated, so the input frequency window is not generated.
+ * OVERRIDE ds.fin_nom_hi: Same swapped row as fin_nom_lo: "50 or 60 Hz", so
+ *   the highest nominal input frequency is 60 Hz.
  *
  * SYNTHETIC DEMO: firmware names and circuit values are invented; product ratings
  * come from the public data sheet cited above. Not from any vendor SDK.
@@ -27,6 +29,10 @@
 #define CALGEN_FA10434_H
 
 #include "calgen_types.h"
+
+typedef float calgen_num_t;  /* float target */
+#define CALGEN_NUM(x)  ((calgen_num_t)(x))
+#define CALGEN_REAL(x) ((float)(x))
 
 /* ==== AC input ============================================================== */
 
@@ -46,13 +52,13 @@
 #define UPS_IIN_LIMIT_A            7.4f           /* 7.4 A */
 
 /* Lowest input frequency accepted (follower lock window / transfer to battery)
- * = ds.fin_nom - ds.fin_tol_hz
- *   ds.fin_nom = 60 Hz  [OVERRIDE in fa10434.yaml (reason in header)]
+ * = ds.fin_nom_lo - ds.fin_tol_hz
+ *   ds.fin_nom_lo = 50 Hz  [OVERRIDE in fa10434.yaml (reason in header)]
  *   NOT GENERATED: input ds.fin_tol_hz not in data sheet */
 
 /* Highest input frequency accepted (follower lock window / transfer to battery)
- * = ds.fin_nom + ds.fin_tol_hz
- *   ds.fin_nom = 60 Hz  [OVERRIDE in fa10434.yaml (reason in header)]
+ * = ds.fin_nom_hi + ds.fin_tol_hz
+ *   ds.fin_nom_hi = 60 Hz  [OVERRIDE in fa10434.yaml (reason in header)]
  *   NOT GENERATED: input ds.fin_tol_hz not in data sheet */
 
 /* ==== Rectifier / PFC ======================================================= */

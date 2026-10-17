@@ -144,10 +144,23 @@ def header(build: Build) -> str:
         "",
     ]
     fmt = str(v.target.extra.get("default_format", "float32"))
+    lines += ['#include "calgen_types.h"', ""]
+    # The number type and conversions live in this header, not calgen_types.h, so
+    # include order cannot change them; mixing two formats in one file fails to compile.
     if fmt.startswith("iq"):
-        # must precede calgen_types.h, which selects CALGEN_REAL() based on it
-        lines += [f"#define CALGEN_GLOBAL_Q {int(fmt[2:])}  /* fixed-point target: values below are IQ{fmt[2:]} integers */"]
-    lines += ['#include "calgen_types.h"']
+        q = int(fmt[2:])
+        lines += [
+            f"#define CALGEN_GLOBAL_Q {q}  /* fixed-point target: values below are IQ{q} integers */",
+            f"typedef calgen_iq_t calgen_num_t;  /* measurements are compared as IQ{q} integers, no float */",
+            f"#define CALGEN_NUM(x)  ((calgen_num_t)((x) * {float(1 << q):.1f}))  /* constant expressions only */",
+            f"#define CALGEN_REAL(x) ((float)(x) / {float(1 << q):.1f}f)  /* host-side checks only */",
+        ]
+    else:
+        lines += [
+            "typedef float calgen_num_t;  /* float target */",
+            "#define CALGEN_NUM(x)  ((calgen_num_t)(x))",
+            "#define CALGEN_REAL(x) ((float)(x))",
+        ]
     for block_id, title in build.rules.blocks.items():
         if block_id not in secs:
             continue

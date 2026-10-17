@@ -7,9 +7,9 @@ power_va,"Power Rating (VA, Watts):","1500 VA, 1250 W",1500,VA,DS-10507 Rev.1011
 power_w,"Power Rating (VA, Watts):","1500 VA, 1250 W",1250,W,DS-10507 Rev.101119 p2
 vin_min,"Input AC Voltage (AC Voltage, tolerance):",85 to 265VAC,85,V,DS-10507 Rev.101119 p2
 vin_max,"Input AC Voltage (AC Voltage, tolerance):",85 to 265VAC,265,V,DS-10507 Rev.101119 p2
-fin_nom,"Input Frequency (Hz, tolerance):","50/60 Hz, (±5%)",60,Hz,DS-10507 Rev.101119 p2 (60 Hz region assumed)
+fin_nom_lo,"Input Frequency (Hz, tolerance):","50/60 Hz, (±5%)",50,Hz,DS-10507 Rev.101119 p2
+fin_nom_hi,"Input Frequency (Hz, tolerance):","50/60 Hz, (±5%)",60,Hz,DS-10507 Rev.101119 p2
 fin_tol_pct,"Input Frequency (Hz, tolerance):","50/60 Hz, (±5%)",5,%,DS-10507 Rev.101119 p2
-fin_tol_hz,"Input Frequency (Hz, tolerance):","50/60 Hz, (±5%)",3,Hz,DS-10507 Rev.101119 p2 (5% of 60 Hz)
 iin_max,Input Max Current (Amps):,20 Amps,20,A,DS-10507 Rev.101119 p2
 vout_nom,"Output AC Voltage (AC Voltage, tolerance):","120VAC, (±3%) Selectable (Optional 240VAC Output)",120,V,DS-10507 Rev.101119 p2
 vout_tol_pct,"Output AC Voltage (AC Voltage, tolerance):","120VAC, (±3%) Selectable (Optional 240VAC Output)",3,%,DS-10507 Rev.101119 p2

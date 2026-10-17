@@ -7,8 +7,7 @@
 #include <math.h>
 #include <stdio.h>
 
-#include "ups_ctrl.h"
-#include CALGEN_HEADER
+#include "ups_ctrl.h" /* includes CALGEN_HEADER */
 
 static int failures = 0;
 
@@ -97,7 +96,15 @@ int main(void)
     EXPECT_INT(trip.lo, 240);
     EXPECT_INT(pwm.period, 1500);  /* 60 MHz / (2 * 20 kHz) */
     EXPECT_INT(pwm.deadband, 60);  /* 1 us * 60 MHz */
-    EXPECT_INT(ups_overload_state(15.0f), UPS_OL_TRIP);
+    /* fixed-point build: calgen_num_t is an integer, so the comparisons below run in IQ20 */
+    EXPECT_INT((calgen_num_t)0.5, 0);
+    EXPECT_INT(sizeof(calgen_num_t), 4);
+    EXPECT_INT(ups_overload_state(CALGEN_NUM(14.9)), UPS_OL_NORMAL);
+    EXPECT_INT(ups_overload_state(CALGEN_NUM(15.0)), UPS_OL_TRIP);
+    EXPECT_INT(ups_vbus_volts(4095), 4095L * UPS_VBUS_V_PER_COUNT); /* full scale: no int32 overflow */
+    EXPECT_NEAR(CALGEN_REAL(ups_vbus_volts(3370)), 410.08, 0.01);
+    EXPECT_INT(ups_battery_low(CALGEN_NUM(70.0)), 1);
+    EXPECT_INT(ups_battery_low(CALGEN_NUM(70.1)), 0);
 
 #else
 #error "define one KA_<VARIANT> to select the expected values"

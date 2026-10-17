@@ -8,7 +8,8 @@ vin_nom,"Input AC Voltage (AC Voltage, tolerance):","120 VAC, (-15% +15%)",120,V
 vin_min,"Input AC Voltage (AC Voltage, tolerance):","120 VAC, (-15% +15%)",102,V,DS-10434 Rev.09172021 p1 (120 V - 15%)
 vin_max,"Input AC Voltage (AC Voltage, tolerance):","120 VAC, (-15% +15%)",138,V,DS-10434 Rev.09172021 p1 (120 V + 15%)
 iin_max,Input Max Current (Amps):,50 or 60 Hz,,,DS-10434 Rev.09172021 p1 (printed as shown)
-fin_nom,"Input Frequency (Hz, tolerance):","7.4 Amps @90VAC Input, 560W Output",,,DS-10434 Rev.09172021 p1 (printed as shown)
+fin_nom_lo,"Input Frequency (Hz, tolerance):","7.4 Amps @90VAC Input, 560W Output",,,DS-10434 Rev.09172021 p1 (printed as shown)
+fin_nom_hi,"Input Frequency (Hz, tolerance):","7.4 Amps @90VAC Input, 560W Output",,,DS-10434 Rev.09172021 p1 (printed as shown)
 vout_nom,"Output AC Voltage (AC Voltage, tolerance):","120 VAC, (±3%)",120,V,DS-10434 Rev.09172021 p1
 vout_tol_pct,"Output AC Voltage (AC Voltage, tolerance):","120 VAC, (±3%)",3,%,DS-10434 Rev.09172021 p1
 fout_hz,"Output Frequency (Hz, follower/changer):","60 Hz +/- 1.5Hz, Changer",60,Hz,DS-10434 Rev.09172021 p2

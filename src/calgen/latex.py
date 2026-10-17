@@ -161,6 +161,12 @@ def _quantity_tex(value: float, unit: str) -> str:
     return num + r"\," + (u if u.startswith("\\") else r"\mathrm{" + u + "}")
 
 
+def _tex_escape(s: str) -> str:
+    """Escape characters that are special inside \\text{} (KaTeX shows a red error otherwise)."""
+    return "".join({"\\": r"\textbackslash{}", "_": r"\_", "%": r"\%", "&": r"\&", "#": r"\#",
+                    "$": r"\$", "{": r"\{", "}": r"\}"}.get(ch, ch) for ch in s)
+
+
 def derive_constant(build, rule_id: str) -> Derivation:
     from calgen.units import from_si
 
@@ -168,7 +174,8 @@ def derive_constant(build, rule_id: str) -> Derivation:
     r = c.rule
     if r.kind == "enum":
         src = c.sources[0].value if c.sources else "?"
-        return Derivation([rf"\text{{{r.symbol}}} = \text{{{c.enum_ident or 'n/a'}}} \quad (\text{{data sheet: {src}}})"], None)
+        sym, ident, src = (_tex_escape(str(x)) for x in (r.symbol, c.enum_ident or "n/a", src))
+        return Derivation([rf"\texttt{{{sym}}} = \texttt{{{ident}}} \quad (\text{{data sheet: {src}}})"], None)
     if c.status != "ok" and c.value is None:
         return _symbolic_only(build, r)  # could not be computed at all
     rd = render(r.formula, _symbols_for(build), build.env, build.units)

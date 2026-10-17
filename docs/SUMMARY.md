@@ -10,7 +10,7 @@
 - It catches the dangerous cases automatically: a substituted sensor amplifier that would let current exceed the sensor's range before the hardware peak limit fires; tuning values whose design basis has changed.
 - It can audit existing firmware read-only, which is how adoption would start: the demo's legacy code had 3 of 33 values that contradict the data sheet, 9 that differ from design values, and a fast-trip level that would shut down a fully loaded unit.
 
-**Where AI fits.** A low-cost model drafts what unexplained legacy constants mean; a person approves. Scored against a blind answer key over three runs, the cheapest model maps constants to the right rule 96% of the time, but its category labels (85%) miss the bar I set in advance, so I report it as below the bar. About half a cent per run. The firmware itself is never written by AI. On controlled data, the AI step uses an approved internal model or is turned off.
+**Where AI fits.** A low-cost model drafts what unexplained legacy constants mean; a person approves. Scored against a blind answer key over three runs on a 33-constant synthetic set, gpt-5.4-nano maps constants to the right rule 96% of the time, but its category labels (85%) miss the bar I set in advance, so I report it as below the bar. About half a cent per run. The firmware itself is never written by AI. On controlled data, the AI step uses an approved internal model or is turned off.
 
 **What it is not.** It doesn't design power stages, tune control loops, or replace certification. It removes transcription and bookkeeping errors and leaves a review record.
 

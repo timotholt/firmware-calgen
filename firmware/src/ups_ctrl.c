@@ -4,28 +4,25 @@
  * vendor SDK.
  *
  * Build with -DCALGEN_HEADER='"calgen_<variant>.h"' to select a variant.
- * CALGEN_REAL() converts IQ integers to float on fixed-point targets and is a
- * no-op on float targets, so one source file serves both.
+ * Values are calgen_num_t: float on FPU targets, IQ integers on fixed-point
+ * targets. Comparisons use the generated constants directly, so the
+ * fixed-point build does integer math only; no float conversion at runtime.
  */
 #include "ups_ctrl.h"
 
-#ifndef CALGEN_HEADER
-#error "define CALGEN_HEADER, e.g. -DCALGEN_HEADER='\"calgen_fa10507.h\"'"
-#endif
-#include CALGEN_HEADER
-
-float ups_vbus_volts(uint16_t adc_counts)
+calgen_num_t ups_vbus_volts(uint16_t adc_counts)
 {
-    return (float)adc_counts * CALGEN_REAL(UPS_VBUS_V_PER_COUNT);
+    /* IQ20: 4095 counts x 0.1217 V/count stays below 2^31 (checked in the known-answer test) */
+    return (calgen_num_t)adc_counts * UPS_VBUS_V_PER_COUNT;
 }
 
-ups_ol_state_t ups_overload_state(float iout_rms)
+ups_ol_state_t ups_overload_state(calgen_num_t iout_rms)
 {
-    if (iout_rms >= CALGEN_REAL(UPS_IOUT_TRIP_A)) {
+    if (iout_rms >= UPS_IOUT_TRIP_A) {
         return UPS_OL_TRIP;
     }
 #ifdef UPS_IOUT_ALARM_A
-    if (iout_rms >= CALGEN_REAL(UPS_IOUT_ALARM_A)) {
+    if (iout_rms >= UPS_IOUT_ALARM_A) {
         return UPS_OL_ALARM;
     }
 #endif /* not every data sheet defines an alarm level */
@@ -35,9 +32,9 @@ ups_ol_state_t ups_overload_state(float iout_rms)
 /* Software overload: RMS current above the trip level for longer than
  * UPS_OVERLOAD_DELAY_MS triggers the overload action. The hardware peak-current
  * limit (comparator, see ups_trip_config) is separate and much faster. */
-ups_ol_state_t ups_overload_update(float iout_rms, uint32_t dt_ms, uint32_t *over_ms)
+ups_ol_state_t ups_overload_update(calgen_num_t iout_rms, uint32_t dt_ms, uint32_t *over_ms)
 {
-    if (iout_rms >= CALGEN_REAL(UPS_IOUT_TRIP_A)) {
+    if (iout_rms >= UPS_IOUT_TRIP_A) {
         *over_ms += dt_ms;
         return *over_ms >= (uint32_t)UPS_OVERLOAD_DELAY_MS ? UPS_OL_TRIP : UPS_OL_ALARM;
     }
@@ -45,14 +42,14 @@ ups_ol_state_t ups_overload_update(float iout_rms, uint32_t dt_ms, uint32_t *ove
     return ups_overload_state(iout_rms) == UPS_OL_ALARM ? UPS_OL_ALARM : UPS_OL_NORMAL;
 }
 
-int ups_vout_in_band(float vout_rms)
+int ups_vout_in_band(calgen_num_t vout_rms)
 {
-    return vout_rms >= CALGEN_REAL(UPS_VOUT_LO_V) && vout_rms <= CALGEN_REAL(UPS_VOUT_HI_V);
+    return vout_rms >= UPS_VOUT_LO_V && vout_rms <= UPS_VOUT_HI_V;
 }
 
-int ups_battery_low(float vbat)
+int ups_battery_low(calgen_num_t vbat)
 {
-    return vbat <= CALGEN_REAL(UPS_VBAT_CUTOFF_V);
+    return vbat <= UPS_VBAT_CUTOFF_V;
 }
 
 ups_pwm_cfg_t ups_pwm_config(void)

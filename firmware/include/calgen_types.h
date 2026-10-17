@@ -21,14 +21,9 @@
 #define UPS_OL_SHUTDOWN 0
 #define UPS_OL_BYPASS   1
 
-/* Fixed-point (IQmath-style) helpers for targets without an FPU. Generated
- * headers for such targets define CALGEN_GLOBAL_Q and emit IQ integers. */
+/* Fixed-point (IQmath-style) storage for targets without an FPU. Each
+ * generated header defines calgen_num_t, CALGEN_NUM() and CALGEN_REAL() for
+ * its own format, so nothing here depends on include order. */
 typedef int32_t calgen_iq_t;
-
-#ifdef CALGEN_GLOBAL_Q
-#define CALGEN_REAL(x) ((float)(x) / (float)(1L << CALGEN_GLOBAL_Q))
-#else
-#define CALGEN_REAL(x) (x)
-#endif
 
 #endif /* CALGEN_TYPES_H */

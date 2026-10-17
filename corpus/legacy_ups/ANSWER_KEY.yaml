@@ -134,7 +134,7 @@
   maps_to_rule: pwm_period
   expected_conformance: mismatch
   correct_value: 2500
-  notes: "seeded + stale comment: comment says 25 kHz (true only for a 150 MHz clock); at 100 MHz 6000 counts = 16.67 kHz; spec is 20 kHz -> 5000"
+  notes: "seeded + stale comment: comment says 25 kHz (true only for up-count mode at 150 MHz); in up-down mode at 100 MHz, 6000 counts = 8.33 kHz; spec is 20 kHz -> 100 MHz / (2 x 20 kHz) = 2500"
 
 - file: ups_config.h
   line: 37
@@ -147,7 +147,7 @@
   maps_to_rule: pwm_deadband
   expected_conformance: mismatch
   correct_value: 100
-  notes: "value correct; seeded wrong unit in comment ('300 us' should be 300 ns: 30 counts at 100 MHz)"
+  notes: "30 counts at 100 MHz = 300 ns, but the design dead time is 1 us -> 100 counts; the comment also has the wrong unit ('300 us')"
 
 - file: ups_config.h
   line: 40
@@ -199,7 +199,7 @@
   maps_to_rule: vbat_cutoff
   expected_conformance: mismatch
   correct_value: 70
-  notes: "seeded: lead-acid end-of-discharge ratio 1.75/2.00 = 0.875 x 89.6 left over from the lead-acid build; LiFePO4 ratio 0.78 gives 69.888 V (+12.2%)"
+  notes: "seeded: lead-acid end-of-discharge ratio 1.75/2.00 = 0.875 x 89.6 left over from the lead-acid build; LiFePO4 cutoff is 28 cells x 2.5 V = 70 V (+12%)"
 
 - file: ups_config.h
   line: 48
@@ -317,7 +317,7 @@
   maps_to_rule: iout_fs_pk
   expected_conformance: mismatch
   correct_value: 82.5
-  notes: "1.65 V / (5 mOhm * 10)"
+  notes: "1.65 V / (5 mOhm * 10) = 33 A: the legacy board's shunt; rev A uses 2 mOhm, so 1.65 V / (2 mOhm * 10) = 82.5 A"
 
 - file: sense_scale.h
   line: 24
@@ -330,7 +330,7 @@
   maps_to_rule: iout_pklim_dac_hi
   expected_conformance: mismatch
   correct_value: 3133
-  notes: "matches the 15 A trip (not the 14 A I_TRIP_RMS)"
+  notes: "encodes 21.2 A, the peak of the 15 A RMS overload, on the 33 A legacy scale; the hardware peak limit is 3.5 x 12.5 A = 43.75 A -> 3133 (the fast trip at 21.2 A would fire on a fully loaded unit's 3:1 crest-factor peaks)"
 
 - file: sense_scale.h
   line: 25
@@ -343,7 +343,7 @@
   maps_to_rule: iout_pklim_dac_lo
   expected_conformance: mismatch
   correct_value: 962
-  notes: "derived by symmetry about mid-rail: 4095 - 3364 = 731"
+  notes: "derived by symmetry about mid-rail: 4095 - 3364 = 731; spec 962 for -43.75 A"
 
 # ---------------- protect.c ----------------
 - file: protect.c
@@ -383,7 +383,7 @@
   maps_to_rule: overload_delay
   expected_conformance: mismatch
   correct_value: 30000
-  notes: "2026-10-16: maps to overload_delay, a rule added after the key was written (legacy 5 s vs design 30 s); overload ride-through time in ms; trap: numerically equals the correct PWM period (5000 counts) but is unrelated"
+  notes: "2026-10-16: maps to overload_delay, a rule added after the key was written; overload ride-through, legacy 5 s vs design 30 s"
 
 - file: protect.c
   line: 34
@@ -396,7 +396,7 @@
   maps_to_rule: iout_pk_limit
   expected_conformance: mismatch
   correct_value: 43.75
-  notes: "magic number: sqrt(2)*15 A peak; -0.06%"
+  notes: "magic number: sqrt(2) x 15 A = 21.2 A, the peak of the RMS overload used as the fast trip; the hardware peak limit is 43.75 A (-52%)"
 
 - file: protect.c
   line: 49

@@ -110,16 +110,15 @@ $$N_\text{DAC,hi} = \mathrm{round}\!\left(\frac{\tfrac{3.3}{2}\ \text{V} + 43.75
 - The firmware path (spec → constants → gates → C) **never calls a model**.
 - Why not a spreadsheet? About a third of the constants restate the data sheet; the value is not the arithmetic but the gates (consistency, range, overflow, staleness, fail-closed), the per-line provenance, and running it in CI across a catalog of variants.
 - AI drafts one thing: what each unexplained legacy constant *is* (category, units, typed vs derived, which rule it corresponds to). One file per call, strict JSON schema, every answer validated, output is a draft for review.
-- It's **measured**: a separate agent wrote the synthetic legacy corpus and a blind answer key under clean-room rules; the bar (≥ 90% category, ≥ 85% units) was set before any model ran; the cheapest model that passes is the default.
+- It's **measured, on a small set**: 33 constants in 3 synthetic legacy files, one model so far. A separate AI session wrote the corpus and its answer key under clean-room rules; the classifier never sees the key. The bar (≥ 90% category, ≥ 85% units) was set before any model ran, and no model has passed it yet, so the AI step is a review aid, not a default.
 - Recorded responses are replayed in CI and on the site, so neither needs a key or the network.
 - On controlled data (vendor-confidential, CUI, ITAR), point the same interface at an approved internal or local model, or run with `--ai none`. Everything else still works.
 
 | Model | Runs | Category (mean, range) | Units | Typed vs derived | Rule mapping | Cost / run | Verdict |
 |---|---|---|---|---|---|---|---|
 | gpt-5.4-nano | 3 | 85% (82–88) | 94% | 100% | 96% | $0.0047 | below the category bar |
-| claude-haiku-5-5, claude-sonnet-5-5 | – | not recorded yet | | | | | |
 
-The cheapest model maps legacy constants to the right rule almost every time, which is what the audit needs, but its category labels disagree with the key on borderline cases often enough to miss the bar I set in advance. I report that rather than move the bar; the next step would be a stronger model. The corpus is also friendlier than real legacy firmware (most constants have comments), which flatters these numbers.
+gpt-5.4-nano, the low-cost model tried, maps legacy constants to the right rule almost every time, which is what the audit needs, but its category labels disagree with the key on borderline cases often enough to miss the bar I set in advance. I report that rather than move the bar; the next step would be a stronger model. The corpus is also friendlier than real legacy firmware (most constants have comments), which flatters these numbers.
 
 History: an earlier single run scored 91% on category with a different rule set, and the very first run scored 39% because of two bugs in my harness (a dropped id suffix; per-file ids colliding in scoring), both fixed and tested. Every run is kept in [`corpus/legacy_ups/ai_runs/`](corpus/legacy_ups/ai_runs/).
 
@@ -137,7 +136,7 @@ calgen eval corpus/legacy_ups --key corpus/legacy_ups/ANSWER_KEY.yaml --ai repla
 calgen vendor && calgen site                                # build the self-contained demo site into out/site
 ```
 
-Development: `uv run pytest` (144 tests, including generated-file freshness and recorded-AI replay) and `make -C firmware test` (strict C99 build and known-answer tests for every passing variant). In a real adoption, constants change through pull requests: CI runs every gate and attaches the review report.
+Development: `uv run pytest` (tests include generated-file freshness and recorded-AI replay) and `make -C firmware test` (strict C99 build and known-answer tests for every passing variant). In a real adoption, constants change through pull requests: CI runs every gate and attaches the review report.
 
 ## Limitations
 

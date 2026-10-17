@@ -37,7 +37,38 @@ def test_failing_variant_has_no_header():
     assert not (ROOT / "firmware" / "include" / "calgen_fa10507_revB.h").exists()
 
 
-def test_fixed_point_header_defines_global_q_before_types():
-    text = (ROOT / "firmware" / "include" / "calgen_fa10507_f2803x.h").read_text()
-    # regression: CALGEN_REAL() in calgen_types.h is chosen by #ifdef CALGEN_GLOBAL_Q
-    assert text.index("#define CALGEN_GLOBAL_Q 20") < text.index('#include "calgen_types.h"')
+def test_number_format_lives_in_each_generated_header():
+    # regression: CALGEN_REAL() once lived in calgen_types.h, chosen by #ifdef at first
+    # inclusion, so including calgen_types.h before an IQ header silently skipped scaling.
+    inc = ROOT / "firmware" / "include"
+    assert "#define CALGEN_REAL" not in (inc / "calgen_types.h").read_text()
+    for name in ("fa10449", "fa10434", "fa10507", "fa10507_f2803x"):
+        text = (inc / f"calgen_{name}.h").read_text()
+        assert "typedef" in text and "calgen_num_t;" in text and "#define CALGEN_REAL(x)" in text, name
+
+
+def _syntax_check(tmp_path, source):
+    import shutil
+    import subprocess
+
+    cc = shutil.which("cc") or shutil.which("gcc")
+    if not cc:
+        pytest.skip("needs a C compiler")
+    (tmp_path / "t.c").write_text(source)
+    inc = ROOT / "firmware" / "include"
+    return subprocess.run([cc, "-std=c99", "-Wall", "-Werror", "-pedantic", "-fsyntax-only", f"-I{inc}", "t.c"],
+                          cwd=tmp_path, capture_output=True, text=True).returncode
+
+
+def test_include_order_cannot_change_fixed_point_scaling(tmp_path):
+    src = (
+        '#include "calgen_types.h"\n#include "calgen_fa10507_f2803x.h"\n'
+        "typedef char iq_scaled[(CALGEN_REAL(UPS_IOUT_TRIP_A) == 15.0f) ? 1 : -1];\n"
+        "typedef char int_type[((calgen_num_t)0.5 == 0) ? 1 : -1];\n"
+    )
+    assert _syntax_check(tmp_path, src) == 0
+
+
+def test_mixing_float_and_fixed_point_headers_fails_to_compile(tmp_path):
+    src = '#include "calgen_fa10507.h"\n#include "calgen_fa10507_f2803x.h"\nint main(void) { return 0; }\n'
+    assert _syntax_check(tmp_path, src) != 0

@@ -5,7 +5,7 @@
  *           ratings from DS-10449 Rev.09172021 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f28004x (default format float32)
- * inputs  : sha256 e96ef3bd73602eb4f4dadbbbfb318f15734c5a51c5ad6fb278517ee118e824c3
+ * inputs  : sha256 7d6619f8bf7a364b247386e90779a9982d6fe1467539b75dbda641fb12a0fd81
  *
  * SYNTHETIC DEMO: firmware names and circuit values are invented; product ratings
  * come from the public data sheet cited above. Not from any vendor SDK.
@@ -14,6 +14,10 @@
 #define CALGEN_FA10449_H
 
 #include "calgen_types.h"
+
+typedef float calgen_num_t;  /* float target */
+#define CALGEN_NUM(x)  ((calgen_num_t)(x))
+#define CALGEN_REAL(x) ((float)(x))
 
 /* ==== AC input ============================================================== */
 
@@ -33,14 +37,14 @@
 #define UPS_IIN_LIMIT_A            7.9f           /* 7.9 A */
 
 /* Lowest input frequency accepted (follower lock window / transfer to battery)
- * = ds.fin_nom - ds.fin_tol_hz
- *   ds.fin_nom = 60 Hz  [DS-10449 Rev.09172021 p1: "60 Hz, +/- 5.0 Hz"]
+ * = ds.fin_nom_lo - ds.fin_tol_hz
+ *   ds.fin_nom_lo = 60 Hz  [DS-10449 Rev.09172021 p1: "60 Hz, +/- 5.0 Hz"]
  *   ds.fin_tol_hz = 5 Hz  [DS-10449 Rev.09172021 p1: "60 Hz, +/- 5.0 Hz"] */
 #define UPS_FIN_MIN_HZ             55.0f          /* 55 Hz */
 
 /* Highest input frequency accepted (follower lock window / transfer to battery)
- * = ds.fin_nom + ds.fin_tol_hz
- *   ds.fin_nom = 60 Hz  [DS-10449 Rev.09172021 p1: "60 Hz, +/- 5.0 Hz"]
+ * = ds.fin_nom_hi + ds.fin_tol_hz
+ *   ds.fin_nom_hi = 60 Hz  [DS-10449 Rev.09172021 p1: "60 Hz, +/- 5.0 Hz"]
  *   ds.fin_tol_hz = 5 Hz  [DS-10449 Rev.09172021 p1: "60 Hz, +/- 5.0 Hz"] */
 #define UPS_FIN_MAX_HZ             65.0f          /* 65 Hz */
 
