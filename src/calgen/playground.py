@@ -290,6 +290,34 @@ def suggestions(b: Build) -> dict[str, list[dict]]:
     return out
 
 
+RIPPLE_FRACTION = 0.30  # mirrors specs/magnetics/limits.yaml ripple_fraction (first-pass estimates)
+
+
+def inductor_requirements(b: Build) -> dict[str, dict]:
+    """First-pass inductor requirements from this build's values, for the Magnetics sizing link.
+    Estimates with stated assumptions, not design values (stage id -> requirement)."""
+    import math
+
+    val = {c.rule.id: c.value for c in b.constants if c.value is not None}
+    f = b.env.get("design.f_sw")
+    if f is None or "vbus_set" not in val:
+        return {}
+    f_sw, vbus, r = f.value, val["vbus_set"], RIPPLE_FRACTION
+    out = {}
+    if "iin_limit" in val:
+        i_rms = val["iin_limit"]
+        di = r * math.sqrt(2) * i_rms
+        out["rect"] = {"name": "PFC boost inductor", "l_uh": vbus / (4 * f_sw * di) * 1e6, "i_rms": i_rms,
+                       "i_pk": math.sqrt(2) * i_rms + di / 2, "min_retained": 0.5,
+                       "basis": f"L = V_bus / (4 f_sw ΔI), ΔI = {r:g} × line peak at the data sheet's max input current; boost worst case"}
+    if all(k in val for k in ("iout_trip", "iout_rated", "iout_pk_limit")):
+        di = r * math.sqrt(2) * val["iout_rated"]
+        out["out"] = {"name": "Output filter inductor", "l_uh": vbus / (4 * f_sw * di) * 1e6, "i_rms": val["iout_trip"],
+                      "i_pk": val["iout_pk_limit"], "min_retained": 0.5,
+                      "basis": f"L = V_bus / (4 f_sw ΔI), ΔI = {r:g} × rated peak; RMS at the overload level; must hold up to the hardware peak limit"}
+    return out
+
+
 def to_json(b: Build, base_header: str | None = None) -> dict:
     try:
         c_text, gate_msg = header(b), ""
@@ -337,6 +365,7 @@ def to_json(b: Build, base_header: str | None = None) -> dict:
         "inputs": {f"{kind}.{name}": _input_value(b, kind, name, unit) for kind, name, unit, _, _ in EDITABLE},
         "summaries": summaries(b),
         "protection": protection(b),
+        "inductors": inductor_requirements(b),
         "footnote": "* single-phase is implied by the IEC C14 inlet and NEMA 5-15 outlets on the data sheet, not stated as a rating",
     }
 

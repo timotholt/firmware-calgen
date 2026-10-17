@@ -75,8 +75,76 @@
     tex($("m-detail"));
   }
 
+  // ---- sizing (runs calgen.magnetics in Pyodide) ----------------------------------------
+  var engine = null, open = null, lastReq = null;
+  function sizeNow() {
+    if (!engine) return;
+    var req = { l_uh: num("sz-l"), i_rms: num("sz-irms"), i_pk: num("sz-ipk"), min_retained: parseFloat($("sz-ret").value),
+      past: DATA.records.filter(function (r) { return !r.flagged; }).map(function (r) { return { id: r.id, kind: r.kind, l_uh: r.l_uh, i_a: r.i_a }; }) };
+    if (!(req.l_uh > 0 && req.i_rms > 0 && req.i_pk > 0)) { $("sz-out").innerHTML = '<p class="alert bad">Enter a positive inductance, RMS current, and peak current.</p>'; return; }
+    lastReq = req; open = null;
+    var res = JSON.parse(engine.size_json("/calgen/specs", JSON.stringify(req)));
+    renderSizing(res);
+  }
+  function renderSizing(res) {
+    var c = res.candidates, h = "";
+    if (!c.length) {
+      h += '<p class="alert bad">No core in this catalog meets it, even stacked four high. That is an honest answer: the requirement needs a larger core family (for example powder E cores) or a different design approach.</p>';
+    } else {
+      h += '<p class="sub">' + c.length + " candidate" + (c.length === 1 ? "" : "s") + ", smallest core volume first. Click a row for the math.</p>";
+      h += '<table class="szt"><tr><th>Core</th><th>Stack</th><th>Turns</th><th>Wire</th><th>L at 0 A</th><th>L at peak</th><th>Kept</th><th>J</th><th>Fill</th><th>Core volume</th></tr>' +
+        c.map(function (x, i) {
+          var row = '<tr class="cand' + (open === i ? " on" : "") + '" data-i="' + i + '"><td class="mono">' + esc(x.core) + "</td><td>" + x.stack + "×</td><td>" + x.turns + "</td><td>" + x.strands + " × " + x.awg + " AWG</td><td>" +
+            fmtL(x.l0_uh) + "</td><td><b>" + fmtL(x.l_pk_uh) + "</b></td><td>" + Math.round(x.retained * 100) + "%</td><td>" + x.j.toFixed(2) + " A/mm²</td><td>" + Math.round(x.fill * 100) + "%</td><td>" + (x.core_volume_mm3 / 1000).toFixed(1) + " cm³</td></tr>";
+          if (open === i) row += '<tr><td colspan="10" class="szmath">' + x.latex.map(function (l) { return '<div class="eq"><div class="tex">' + esc(l) + "</div></div>"; }).join("") + "</td></tr>";
+          return row;
+        }).join("") + "</table>";
+    }
+    if (res.rejected.length) {
+      h += '<details><summary class="sub">Why the other ' + res.rejected.length + " core" + (res.rejected.length === 1 ? "" : "s") + " don't work</summary><ul>" +
+        res.rejected.map(function (r) { return '<li><span class="mono">' + esc(r.core) + "</span>: " + esc(r.reason) + "</li>"; }).join("") + "</ul></details>";
+    }
+    if (res.past.length) {
+      h += '<p class="sub">Closest past designs (passed their checks): ' + res.past.map(function (p) { var o = byId[p.id]; return '<a href="#" data-id="' + esc(p.id) + '">' + esc(p.id) + "</a> " + esc(o.l_text) + ", " + o.i_a + " A"; }).join(" · ") + "</p>";
+    }
+    $("sz-out").innerHTML = h;
+    $("sz-out").querySelectorAll("tr.cand").forEach(function (tr) { tr.onclick = function () { var i = +tr.dataset.i; open = open === i ? null : i; renderSizing(res); }; });
+    $("sz-out").querySelectorAll("a[data-id]").forEach(function (a) { a.onclick = function (ev) { ev.preventDefault(); sel = a.dataset.id; render(); $("m-detail").scrollIntoView({ behavior: "smooth" }); }; });
+    tex($("sz-out"));
+  }
+  function fromHash() { // magnetics.html#size?name=...&l=...&irms=...&ipk=...&ret=...&from=...
+    var m = location.hash.match(/^#size\?(.*)$/); if (!m) return false;
+    var q = {}; m[1].split("&").forEach(function (kv) { var p = kv.split("="); q[p[0]] = decodeURIComponent(p[1] || ""); });
+    if (q.l) $("sz-l").value = q.l; if (q.irms) $("sz-irms").value = q.irms; if (q.ipk) $("sz-ipk").value = q.ipk;
+    if (q.ret) $("sz-ret").value = q.ret;
+    if (q.name) $("sz-from").innerHTML = "Requirement from the firmware playground: <b>" + esc(q.name) + "</b>" + (q.from ? " for " + esc(q.from) : "") + (q.basis ? ' <span title="' + esc(q.basis) + '">(first-pass estimate; hover for the basis)</span>' : "");
+    return true;
+  }
+  async function boot() {
+    var linked = fromHash();
+    if (linked) $("size").scrollIntoView();
+    if (typeof loadPyodide !== "function") { $("sz-out").innerHTML = '<p class="sub">In-browser engine unavailable.</p>'; return; }
+    try {
+      var py = await loadPyodide({ indexURL: new URL("assets/pyodide/", location.href).href });
+      await py.loadPackage(new URL("assets/pyodide/pyyaml-6.0.2-cp312-cp312-pyodide_2024_0_wasm32.whl", location.href).href);
+      var ver = (document.querySelector('script[src*="magnetics.js"]') || {}).src || "";
+      var files = await (await fetch("assets/calgen_bundle.json" + (ver.indexOf("?") >= 0 ? ver.slice(ver.indexOf("?")) : ""))).json();
+      Object.keys(files).forEach(function (p) { var full = "/calgen/" + p, dir = full.slice(0, full.lastIndexOf("/")); py.FS.mkdirTree(dir); py.FS.writeFile(full, files[p]); });
+      py.runPython("import sys; sys.path.insert(0, '/calgen/src')");
+      engine = py.pyimport("calgen.magnetics");
+      sizeNow();
+    } catch (e) {
+      $("sz-out").innerHTML = '<p class="alert bad">In-browser engine failed to load: ' + esc(e.message) + "</p>";
+    }
+  }
+  $("sz-go").onclick = sizeNow;
+  ["sz-l", "sz-irms", "sz-ipk"].forEach(function (id) { $(id).onkeydown = function (ev) { if (ev.key === "Enter") sizeNow(); }; });
+  $("sz-ret").onchange = sizeNow;
+  window.addEventListener("hashchange", function () { if (fromHash()) { $("size").scrollIntoView(); sizeNow(); } });
+
   function render() { renderList(); renderDetail(); }
   ["f-kind", "f-status", "f-text", "f-lmin", "f-lmax", "f-imin"].forEach(function (id) { $(id).oninput = renderList; $(id).onchange = renderList; });
   $("f-reset").onclick = function () { ["f-text", "f-lmin", "f-lmax", "f-imin"].forEach(function (id) { $(id).value = ""; }); $("f-kind").value = ""; $("f-status").value = ""; renderList(); };
   render();
+  boot();
 })();

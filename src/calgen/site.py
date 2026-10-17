@@ -31,8 +31,9 @@ from calgen.spec import load_rules, load_variant
 
 REPO = "https://github.com/timotholt/firmware-calgen"
 VARIANTS = ["fa10507", "fa10449", "fa10434", "fa10507_f2803x", "fa10507_revB"]
-NAV = [("index.html", "Overview"), ("playground.html", "Playground"), ("reports/index.html", "Review reports"),
-       ("audit.html", "Audit"), ("magnetics.html", "Magnetics"), ("how.html", "How it works"), ("ai.html", "AI practice"), ("backstory.html", "Tim Otholt · backstory")]
+NAV = [("index.html", "Overview"), ("playground.html", "Firmware playground"), ("magnetics.html", "Magnetics"),
+       ("audit.html", "Audit"), ("reports/index.html", "Review reports"), ("how.html", "How it works"), ("ai.html", "AI practice"),
+       ("backstory.html", "Tim Otholt · backstory")]
 
 SITE_CSS = REPORT_CSS + """
 nav{display:flex;flex-wrap:wrap;gap:4px 18px;border-bottom:1px solid var(--line);padding:10px 0;margin-bottom:6px;font-size:14px}
@@ -113,7 +114,7 @@ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/sv
 .cards.outlined .card{background:transparent;border:1px solid var(--line);border-radius:8px;padding:16px}
 .cards.outlined .card h3{font-size:17px;font-weight:600;color:var(--fg);margin:0 0 6px}.cards.outlined .card p{font-size:15px;color:var(--muted)}
 main h2{margin-top:40px}.prose{max-width:75ch}.prose p{margin:0 0 12px}
-.posting{margin:12px 0 16px}.posting .shot{max-height:440px;max-width:760px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;background:#f2f2f2}.posting img{display:block;width:100%;height:auto}.posting figcaption{font-size:12.5px;color:var(--muted);margin-top:6px;max-width:760px}.sblock{border-left:4px solid;border-radius:0 8px 8px 0;padding:14px 18px 2px;margin:0 0 28px}.sblock .slabel{font-size:12px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:6px}.sblock.back{border-color:var(--warn);background:var(--warnbg)}.sblock.back .slabel{color:var(--warn)}.sblock.why{border-color:var(--ok);background:var(--okbg)}.sblock.why .slabel{color:var(--ok)}.sblock.thesis{border-color:var(--acc);background:var(--accbg)}.sblock.thesis .slabel{color:var(--acc)}.story-page.wide{max-width:80ch}.plan td{vertical-align:top}.plan td:first-child{white-space:nowrap;font-family:var(--mono)}.sblock ul{margin:0 0 16px;padding-left:20px}.sblock li{margin:6px 0}.msearch{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:flex-end;margin:18px 0 6px;font-size:13px}.msearch label{display:flex;flex-direction:column;gap:3px;color:var(--muted)}.msearch .grow{flex:1;min-width:180px}.msearch input,.msearch select{font:inherit;height:30px;padding:0 8px;border:1px solid var(--line);border-radius:6px;background-color:var(--bg);color:var(--fg);width:110px;box-sizing:border-box}.msearch .grow input{width:100%}.msearch select{width:140px}.msearch .btn{margin:0;height:30px;cursor:pointer;background:var(--bg);color:var(--fg);font:inherit}.mlist tr.mrow{cursor:pointer}.mlist tr.mrow:hover{background:var(--soft)}.mlist tr.mrow.on{background:var(--sel);color:var(--selfg)}#m-detail{margin-top:18px;border-top:1px solid var(--line);padding-top:12px}.mdetail{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px}.mdraw img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:6px;background:#fff}.minfo table{font-size:12.5px}.mcheck{border-bottom:1px solid var(--line);padding:6px 0}.mcheck p{margin:4px 0}.msim li{margin:4px 0}@media (max-width:820px){.mdetail{grid-template-columns:1fr}}.story-page{max-width:68ch;margin:56px 0 80px}.story-page h1{font-size:28px;margin:0 0 10px}.prose.roomy{font-size:17px;line-height:1.7}.prose.roomy p{margin:0 0 28px}.more-box{margin-top:40px;border-top:1px solid var(--line);padding-top:12px;font-size:14px}.more-box summary{font-size:15px;color:var(--fg)}
+.posting{margin:12px 0 16px}.posting .shot{max-height:440px;max-width:760px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;background:#f2f2f2}.posting img{display:block;width:100%;height:auto}.posting figcaption{font-size:12.5px;color:var(--muted);margin-top:6px;max-width:760px}.sblock{border-left:4px solid;border-radius:0 8px 8px 0;padding:14px 18px 2px;margin:0 0 28px}.sblock .slabel{font-size:12px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:6px}.sblock.back{border-color:var(--warn);background:var(--warnbg)}.sblock.back .slabel{color:var(--warn)}.sblock.why{border-color:var(--ok);background:var(--okbg)}.sblock.why .slabel{color:var(--ok)}.sblock.thesis{border-color:var(--acc);background:var(--accbg)}.sblock.thesis .slabel{color:var(--acc)}.story-page.wide{max-width:80ch}.plan td{vertical-align:top}.plan td:first-child{white-space:nowrap;font-family:var(--mono)}.sblock ul{margin:0 0 16px;padding-left:20px}.sblock li{margin:6px 0}.msearch{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:flex-end;margin:18px 0 6px;font-size:13px}.msearch label{display:flex;flex-direction:column;gap:3px;color:var(--muted)}.msearch .grow{flex:1;min-width:180px}.msearch input,.msearch select{font:inherit;height:30px;padding:0 8px;border:1px solid var(--line);border-radius:6px;background-color:var(--bg);color:var(--fg);width:110px;box-sizing:border-box}.msearch .grow input{width:100%}.msearch select{width:140px}.msearch .btn{margin:0;height:30px;cursor:pointer;background:var(--bg);color:var(--fg);font:inherit}.indlink{font-size:11px;margin:0 0 6px;padding:3px 6px;border-radius:4px;border:1px dashed var(--line);line-height:1.35}.indlink a{font-weight:600}.sizer{margin-top:28px}.sizer #sz-ret{width:200px}.primary-btn{background:var(--fg)!important;color:var(--bg)!important;font-weight:600}.szt td,.szt th{font-size:12.5px}.szt tr.cand{cursor:pointer}.szt tr.cand:hover{background:var(--soft)}.szt tr.cand.on{background:var(--sel);color:var(--selfg)}.szmath{padding:4px 0 10px}.mlist tr.mrow{cursor:pointer}.mlist tr.mrow:hover{background:var(--soft)}.mlist tr.mrow.on{background:var(--sel);color:var(--selfg)}#m-detail{margin-top:18px;border-top:1px solid var(--line);padding-top:12px}.mdetail{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px}.mdraw img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:6px;background:#fff}.minfo table{font-size:12.5px}.mcheck{border-bottom:1px solid var(--line);padding:6px 0}.mcheck p{margin:4px 0}.msim li{margin:4px 0}@media (max-width:820px){.mdetail{grid-template-columns:1fr}}.story-page{max-width:68ch;margin:56px 0 80px}.story-page h1{font-size:28px;margin:0 0 10px}.prose.roomy{font-size:17px;line-height:1.7}.prose.roomy p{margin:0 0 28px}.more-box{margin-top:40px;border-top:1px solid var(--line);padding-top:12px;font-size:14px}.more-box summary{font-size:15px;color:var(--fg)}
 @media (max-width:480px){.proof b{font-size:20px}.proof span{font-size:12px}h1.hero{font-size:24px}.lead{font-size:17px}}
 footer{color:var(--muted);font-size:12px;border-top:1px solid var(--line);margin-top:36px;padding-top:10px}
 """
@@ -164,13 +165,13 @@ def page_home(counts: dict[str, int], ai: dict[str, float]) -> str:
     )
     body = f"""
 <h1 class="hero">From data sheet to firmware C code: built with AI agents, every constant traced and checked</h1>
-<p class="lead">A working demo for AMETEK IntelliPower's AI Automation Intern posting, initiative 2: automate firmware calibration and configuration constants from engineering specifications. Runs entirely in your browser.</p>
+<p class="lead">A working demo for both initiatives in AMETEK IntelliPower's AI Automation Intern posting: generating firmware calibration and configuration constants from engineering specifications, and turning past magnetics designs into checked, searchable data as the first step toward design automation. Runs entirely in your browser.</p>
 <div class="proof">
 <div><b>3</b><span>real IntelliPower data sheets, cited per value</span></div>
 <div><b>{counts['contradicts']} of {counts['total']}</b><span>legacy constants that contradict the data sheet, found by audit (+{counts['differs']} that differ from design values)</span></div>
 <div><b>0</b><span>values written when any gate fails</span></div>
 </div>
-<p class="cta"><a class="primary" href="playground.html">Open the playground →</a><a href="ai.html">AI practice</a><a href="audit.html">Legacy audit</a><a href="reports/index.html">Review reports</a></p>
+<p class="cta"><a class="primary" href="playground.html">Open the firmware playground →</a><a href="magnetics.html">Magnetics</a><a href="ai.html">AI practice</a><a href="audit.html">Legacy audit</a><a href="reports/index.html">Review reports</a></p>
 <div class="cards outlined">
 <div class="card"><h3>The problem I think you have</h3><p>Calibration gains, limits, and register values are hand-edited in C for each product variant and board revision, from data sheets that don't always agree with themselves.</p></div>
 <div class="card"><h3>What this demo does</h3><p>Generates those constants from the spec with every number traced to its source, audits existing firmware against the spec, and writes nothing when a gate fails.</p></div>
@@ -375,12 +376,26 @@ def page_magnetics(data: dict, key_match: tuple[int, int]) -> str:
         f"<td>{'' if c['h80_oe'] is None else format(c['h80_oe'], 'g') + ' Oe'}{'' if c['bsat_mt'] is None else format(c['bsat_mt'], 'g') + ' mT'}</td><td class='sub'>{_e(c['source'])}</td></tr>"
         for c in data["cores"])
     body = f"""<h1>Magnetics</h1>
-<p class="lead">The posting's first initiative is an AI tool that speeds up inductor and transformer design using past designs. That tool needs something first: past drawings turned into structured, checked, searchable data. This page demonstrates that step. It does not design magnetics.</p>
+<p class="lead">The posting's first initiative is an AI tool that speeds up inductor and transformer design using past designs. That tool needs two things first, and this page demonstrates both: past drawings turned into structured, checked, searchable data, and a first-pass sizing tool that turns a requirement into checked starting designs from real cores. Neither replaces a magnetics engineer; they shorten the path to the first good prototype.</p>
 <div class="proof">
 <div><b>{len(recs)}</b><span>synthetic component drawings (PDF), read back from their text layer</span></div>
 <div><b>{len(data['cores'])}</b><span>real cores, values transcribed from vendor data sheets with citations</span></div>
 <div><b>{nflag} flagged</b><span>for review by physics checks; agrees with the blind answer key on {key_match[0]} of {key_match[1]} drawings</span></div>
 </div>
+<section class="sizer" id="size">
+<h2>Size an inductor</h2>
+<p class="sub">Enter a requirement; every Kool Mµ toroid in the catalog, stacked one to four high, is tried with the fewest turns that reach the inductance <i>at peak current</i>, the thinnest wire within the current-density limit, and a window-fill check. Computed in your browser by the same Python as the checks below. A first pass for an engineer to start from, not a finished design.</p>
+<p class="sub" id="sz-from"></p>
+<div class="msearch">
+<label>Inductance at peak <input id="sz-l" type="number" min="0" step="any" value="330" placeholder="µH"></label>
+<label>RMS current <input id="sz-irms" type="number" min="0" step="any" value="4" placeholder="A"></label>
+<label>Peak current <input id="sz-ipk" type="number" min="0" step="any" value="4.5" placeholder="A"></label>
+<label>Keep at peak <select id="sz-ret"><option value="0.8">≥ 80% (conservative)</option><option value="0.5">≥ 50% (common for PFC)</option></select></label>
+<button id="sz-go" class="btn primary-btn" type="button">Size it</button>
+</div>
+<div id="sz-out" aria-live="polite"><p class="sub">Loading the in-browser engine…</p></div>
+</section>
+<h2>Past designs (synthetic drawings)</h2>
 <div class="msearch">
 <label>Kind <select id="f-kind"><option value="">All</option><option value="inductor">Inductors</option><option value="transformer">Transformers</option></select></label>
 <label>Inductance from <input id="f-lmin" type="number" min="0" step="any" placeholder="µH"></label>
@@ -409,7 +424,7 @@ def page_magnetics(data: dict, key_match: tuple[int, int]) -> str:
 <li>First-order physics only: no core-loss, AC winding-loss, or thermal model yet. Those, and the design recommendations, are the next steps once real data exists, and they belong to your magnetics engineers.</li>
 </ul>
 <script id="mag-data" type="application/json">{_script_json(data)}</script>"""
-    scripts = '<script src="assets/magnetics.js?v=' + ASSET_VERSION + '"></script>'
+    scripts = '<script src="assets/pyodide/pyodide.js"></script><script src="assets/magnetics.js?v=' + ASSET_VERSION + '"></script>'
     return _page("Magnetics", "magnetics.html", body, scripts=scripts)
 
 

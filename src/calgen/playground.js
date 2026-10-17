@@ -190,6 +190,13 @@
       summary += '<div class="sense' + (sat ? " bad" : "") + '">' + esc(DATA.summaries.sense) + "</div>";
       if (DATA.protection) summary += '<div class="vizbox">' + gaugeSvg(DATA.protection) + waveSvg(DATA.protection) + "</div>";
     }
+    var ind = (DATA.inductors || {})[b];
+    if (ind) {
+      var q = "name=" + encodeURIComponent(ind.name) + "&l=" + ind.l_uh.toFixed(0) + "&irms=" + ind.i_rms.toFixed(1) + "&ipk=" + ind.i_pk.toFixed(1) +
+        "&ret=" + ind.min_retained + "&from=" + encodeURIComponent(state.product) + "&basis=" + encodeURIComponent(ind.basis);
+      summary += '<div class="indlink" title="' + esc(ind.basis) + '">' + esc(ind.name) + " ≈ " + ind.l_uh.toFixed(0) + " µH, " + ind.i_rms.toFixed(1) + " A RMS, " +
+        ind.i_pk.toFixed(1) + ' A peak · <a href="magnetics.html#size?' + q + '" class="sizelink">size it in Magnetics →</a></div>';
+    }
     var any = DATA.constants.some(function (c) { return c.block === b && changed(c.id); });
     return '<div class="fb' + (state.stage === b ? " sel" : "") + (stageBad(b) ? " bad" : "") + (any ? " has-chg" : "") +
       '" data-b="' + b + '" id="stage-' + b + '" role="button" tabindex="0" aria-pressed="' + (state.stage === b) + '"><div class="t">' + esc(DATA.blocks[b]) + "</div>" + summary + rows + "</div>";
@@ -217,6 +224,7 @@
       '<div class="busrow">' + stageBox("bus") + '<div class="side" aria-hidden="true">↔</div>' + stageBox("batt") + "</div>" +
       down + stageBox("inv") + down + stageBox("out") +
       legendHtml();
+    $("flow").querySelectorAll(".sizelink").forEach(function (l) { l.onclick = function (ev) { ev.stopPropagation(); }; });
     $("flow").querySelectorAll(".fb").forEach(function (e) {
       keyed(e, function () { state.stage = e.dataset.b; render(); });
     });

@@ -37,6 +37,7 @@ class Core:
     al_tol_pct: float
     ae_mm2: float
     le_mm: float
+    ve_mm3: float
     wa_mm2: float
     wa_basis: str
     h80_oe: float | None
@@ -51,7 +52,7 @@ def load_cores(path: Path) -> dict[str, Core]:
         for r in csv.DictReader(f):
             num = lambda k: float(r[k]) if r[k] else None  # noqa: E731
             out[r["core"]] = Core(r["core"], r["vendor"], r["family"], r["material"], num("al_nh"), num("al_tol_pct"),
-                                  num("ae_mm2"), num("le_mm"), num("wa_mm2"), r["wa_basis"], num("h80_oe"), num("h50_oe"),
+                                  num("ae_mm2"), num("le_mm"), num("ve_mm3"), num("wa_mm2"), r["wa_basis"], num("h80_oe"), num("h50_oe"),
                                   num("bsat_mt"), r["source"])
     return out
 
@@ -430,3 +431,96 @@ def site_records(root: Path) -> dict:
         "cores": [dataclasses.asdict(c) for c in cores.values()],
         "limits": limits,
     }
+
+
+# ---- sizing: requirement -> candidate designs (first pass, deterministic) ----------------
+MAX_STACK = 4
+WIRES = [(awg, n) for awg in range(10, 25) for n in range(1, 7)]
+
+
+def retained(core: Core, h_oe: float) -> float | None:
+    """Fraction of initial permeability left at magnetizing force h, linear between the data
+    sheet's points (0 Oe -> 100%, H80 -> 80%, H50 -> 50%). Below the real curve at low bias
+    (conservative). None past H50: no extrapolation."""
+    if h_oe <= core.h80_oe:
+        return 1 - 0.2 * h_oe / core.h80_oe
+    if h_oe <= core.h50_oe:
+        return 0.8 - 0.3 * (h_oe - core.h80_oe) / (core.h50_oe - core.h80_oe)
+    return None
+
+
+def pick_wire(i_rms: float, j_max: float) -> tuple[int, int, float]:
+    """Smallest bare copper (AWG 10-24, 1-6 strands) carrying i_rms at or below j_max; fewer strands on ties."""
+    need = i_rms / j_max
+    awg, n = min((w for w in WIRES if awg_area_mm2(w[0]) * w[1] >= need), key=lambda w: (awg_area_mm2(w[0]) * w[1], w[1]))
+    return awg, n, awg_area_mm2(awg) * n
+
+
+def size_inductor(cores: dict[str, Core], limits: dict, l_uh: float, i_rms: float, i_pk: float, min_retained: float = 0.5) -> dict:
+    """Every toroid in the catalog, stacked 1..MAX_STACK: the fewest turns giving at least l_uh
+    at the peak current while keeping at least min_retained of the inductance, then the
+    smallest wire for the current, then window fill. Returns passing candidates ranked by
+    core volume and copper, and why each core failed otherwise."""
+    j_max, fill_max = limits["j_max_a_per_mm2"], limits["fill_max_toroid"]
+    passing, rejected = [], []
+    for core in (c for c in cores.values() if c.family == "toroid"):
+        reason = ""
+        for n in range(1, MAX_STACK + 1):
+            al = core.al_nh * n
+            le_cm = core.le_mm / 10
+            found = None
+            for turns in range(1, 600):
+                h = 0.4 * math.pi * turns * i_pk / le_cm
+                f = retained(core, h)
+                if f is None or f < min_retained:
+                    reason = (f"{n}x: past {min_retained * 100:.0f}% retained at {turns} turns "
+                              f"({al * (turns - 1) ** 2 * (retained(core, 0.4 * math.pi * (turns - 1) * i_pk / le_cm) or 0) / 1000:.0f} µH max at peak)")
+                    break
+                l_pk = al * turns * turns * f / 1000
+                if l_pk >= l_uh:
+                    found = (turns, h, f, l_pk)
+                    break
+            if not found:
+                continue
+            turns, h, f, l_pk = found
+            awg, strands, cu = pick_wire(i_rms, j_max)
+            fill = turns * cu / core.wa_mm2
+            if fill > fill_max:
+                reason = f"{n}x: {turns} turns of {strands} x {awg} AWG fill {fill * 100:.0f}% of the window (limit {fill_max * 100:.0f}%)"
+                continue
+            l0 = al * turns * turns / 1000
+            passing.append({
+                "core": core.name, "stack": n, "turns": turns, "awg": awg, "strands": strands,
+                "l0_uh": l0, "l_pk_uh": l_pk, "retained": f, "h_oe": h, "j": i_rms / cu, "fill": fill,
+                "core_volume_mm3": core.ve_mm3 * n, "copper_mm2": cu, "material": core.material,
+                "latex": [
+                    rf"H_{{pk}} = \frac{{0.4\pi \times {turns} \times {_f(i_pk)}\,\mathrm{{A}}}}{{{_f(le_cm)}\,\mathrm{{cm}}}} = {_f(h)}\,\mathrm{{Oe}} \;\Rightarrow\; {f * 100:.0f}\%\ \text{{of }} A_L \text{{ remains}}",
+                    rf"L(I_{{pk}}) = {n} \times {_f(core.al_nh)}\,\mathrm{{nH}} \times {turns}^2 \times {f:.2f} = {_f(l_pk, 4)}\,\mu\mathrm{{H}} \geq {_f(l_uh, 4)}\,\mu\mathrm{{H}}",
+                    rf"J = \frac{{{_f(i_rms)}\,\mathrm{{A}}}}{{{strands} \times {_f(awg_area_mm2(awg))}\,\mathrm{{mm^2}}}} = {_f(i_rms / cu)}\,\mathrm{{A/mm^2}}, \quad \text{{fill}} = \frac{{{turns} \times {_f(cu)}}}{{{_f(core.wa_mm2)}}} = {fill * 100:.0f}\%",
+                ],
+            })
+            break
+        else:
+            rejected.append({"core": core.name, "reason": reason or "no turns count reaches the inductance"})
+    passing.sort(key=lambda c: (c["core_volume_mm3"], c["copper_mm2"]))
+    return {"candidates": passing, "rejected": rejected}
+
+
+def size_json(specs_dir: str, request_json: str) -> str:
+    """Browser entry point (Pyodide): JSON in, JSON out."""
+    import json
+
+    req = json.loads(request_json)
+    specs = Path(specs_dir) / "magnetics"
+    out = size_inductor(load_cores(specs / "cores.csv"), load_limits(specs / "limits.yaml"),
+                        float(req["l_uh"]), float(req["i_rms"]), float(req["i_pk"]), float(req.get("min_retained", 0.5)))
+    out["past"] = closest_past(req.get("past", []), float(req["l_uh"]), float(req["i_rms"]))
+    return json.dumps(out)
+
+
+def closest_past(past: list[dict], l_uh: float, i_a: float, k: int = 3) -> list[dict]:
+    """Past inductor records nearest a requirement, by log-scaled inductance and current."""
+    def dist(p):
+        return math.hypot(math.log10(max(p["l_uh"], 1e-9) / l_uh), math.log10(max(p["i_a"], 1e-9) / i_a))
+    near = sorted((p for p in past if p.get("kind") == "inductor"), key=dist)[:k]
+    return [{"id": p["id"], "distance": round(dist(p), 3)} for p in near]

@@ -89,6 +89,7 @@ def test_every_magnetics_formula_parses_in_katex(tmp_path):
     with tarfile.open(tgz) as t:
         (tmp_path / "katex.js").write_bytes(t.extractfile("package/dist/katex.min.js").read())
     formulas = [(d.id, c.id, s) for d in DESIGNS for c in mg.check(d, CORES, LIMITS) for s in c.latex]
+    formulas += [("size", c["core"], s) for c in mg.size_inductor(CORES, LIMITS, 783, 7.9, 12.8, 0.5)["candidates"] for s in c["latex"]]
     (tmp_path / "f.json").write_text(json.dumps(formulas))
     js = ("const k=require('./katex.js');const f=require('./f.json');const bad=[];"
           "for(const [d,c,s] of f){try{k.renderToString(s,{throwOnError:true,displayMode:true})}catch(e){bad.push(d+' '+c+': '+e.message)}}"
@@ -96,3 +97,56 @@ def test_every_magnetics_formula_parses_in_katex(tmp_path):
     out = subprocess.run([node, "-e", js], cwd=tmp_path, capture_output=True, text=True, check=True).stdout
     assert json.loads(out) == []
     assert len(formulas) > 30
+
+
+# ---- sizing and playground requirements ---------------------------------------------
+def test_retained_follows_data_sheet_points():
+    c = CORES["0077908A7"]
+    assert mg.retained(c, 0) == 1.0
+    assert mg.retained(c, c.h80_oe) == pytest.approx(0.8)
+    assert mg.retained(c, c.h50_oe) == pytest.approx(0.5)
+    assert mg.retained(c, c.h50_oe * 1.01) is None  # no extrapolation
+
+
+@pytest.mark.parametrize("req", [(330, 4, 4.5, 0.8), (783, 7.9, 12.8, 0.5), (603.6, 20, 32.5, 0.5), (1000, 0.8, 1.0, 0.8)])
+def test_every_sizing_candidate_rechecks_independently(req):
+    import math
+
+    l_uh, i_rms, i_pk, keep = req
+    res = mg.size_inductor(CORES, LIMITS, l_uh, i_rms, i_pk, keep)
+    assert res["candidates"] or res["rejected"]
+    for c in res["candidates"]:
+        core = CORES[c["core"]]
+        h = 0.4 * math.pi * c["turns"] * i_pk / (core.le_mm / 10)
+        f = mg.retained(core, h)
+        assert f is not None and f >= keep
+        assert core.al_nh * c["stack"] * c["turns"] ** 2 * f / 1000 >= l_uh
+        area = mg.awg_area_mm2(c["awg"]) * c["strands"]
+        assert i_rms / area <= LIMITS["j_max_a_per_mm2"]
+        assert c["turns"] * area / core.wa_mm2 <= LIMITS["fill_max_toroid"]
+        assert 1 <= c["stack"] <= mg.MAX_STACK
+    vols = [c["core_volume_mm3"] for c in res["candidates"]]
+    assert vols == sorted(vols)
+
+
+def test_playground_requirements_and_known_sizing_outcomes():
+    from calgen.playground import run
+
+    specs = ROOT / "specs"
+    req = run(specs, "FA10507")["inductors"]
+    pfc, out = req["rect"], req["out"]
+    # L = V_bus / (4 f_sw dI), dI = 0.3 x sqrt(2) x 20 A at 410 V, 20 kHz
+    assert pfc["l_uh"] == pytest.approx(410 / (4 * 20e3 * 0.3 * 2 ** 0.5 * 20) * 1e6)
+    assert pfc["i_pk"] == pytest.approx(2 ** 0.5 * 20 * 1.15)
+    assert out["i_pk"] == pytest.approx(43.75)  # the inductor must hold up to the hardware peak limit
+    big = mg.size_inductor(CORES, LIMITS, pfc["l_uh"], pfc["i_rms"], pfc["i_pk"], pfc["min_retained"])
+    assert [(c["core"], c["stack"]) for c in big["candidates"]] == [("0077908A7", 4)]
+    assert mg.size_inductor(CORES, LIMITS, out["l_uh"], out["i_rms"], out["i_pk"], out["min_retained"])["candidates"] == []
+
+
+def test_size_json_includes_closest_past_designs():
+    import json
+
+    past = [{"id": d.id, "kind": d.kind, **{k: v for k, v in mg.features(d).items() if k in ("l_uh", "i_a")}} for d in DESIGNS]
+    out = json.loads(mg.size_json(str(ROOT / "specs"), json.dumps({"l_uh": 330, "i_rms": 4, "i_pk": 4.5, "min_retained": 0.8, "past": past})))
+    assert out["past"][0]["id"] in ("MAG-001", "MAG-010") and out["candidates"]

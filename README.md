@@ -124,10 +124,11 @@ History: an earlier single run scored 91% on category with a different rule set,
 
 ## Magnetics (initiative 1, first step)
 
-The posting's other initiative is an AI tool that speeds up inductor and transformer design using past designs. That needs past drawings turned into structured, checked, searchable data first, so that's what the Magnetics tab shows. It does not design magnetics.
+The posting's other initiative is an AI tool that speeds up inductor and transformer design using past designs. That needs past drawings turned into structured, checked, searchable data, plus a first-pass way to turn a requirement into starting designs, so that's what the Magnetics tab shows. Neither replaces a magnetics engineer.
 
 - **Real core data:** six Magnetics Inc. Kool Mµ toroids and two Ferroxcube 3C94 E cores, transcribed with citations ([sources](specs/magnetics/SOURCES.md)).
 - **Synthetic drawings:** 12 PDFs (10 inductors, 2 transformers) with seeded mistakes and a blind answer key.
+- **Size an inductor:** a requirement (inductance at peak current, RMS and peak current) becomes ranked candidate designs from the real cores, stacked up to four high, with turns, wire, and the math. The firmware playground's rectifier and AC output stages estimate their inductor requirements and link straight to it.
 - **Extract → check → search:** fields are read back from each PDF's text layer; physics checks compare them with the core data (A_L·N², DC bias, peak flux, turns ratio, current density, window fill); flagged drawings go to review with the math. The checks agree with the key on all 12.
 
 ```

@@ -45,3 +45,23 @@ About a day. No paid model calls in v1. New dependencies: a PDF writer for the g
 - Powder-core saturation is checked as DC bias (peak magnetizing force vs the data sheet's 80%-permeability point), which is how powder cores are specified; B_sat applies to the ferrite transformer cores.
 - Extraction and checks run at site build time in Python and the page carries the results; the browser only filters and draws (no Pyodide on this page). The checks use plain Python with explicit units rather than calgen's formula engine, which has no length dimension.
 - Commands: `calgen magnetics render` (regenerate drawings, deterministic), `calgen magnetics check` (extract and check from the PDFs).
+
+## Phase 2 plan: "Size an inductor" and the playground link (approved 2026-10-17)
+
+**Goal:** turn the tab from a gallery into the workflow the initiative describes: requirement → candidate designs from real cores, checked → closest past designs. Deterministic physics only; ML would later correct it against bench measurements.
+
+**Sizing engine (Python, `calgen.magnetics.size_inductor`, runs in the browser via Pyodide):**
+- Inputs: required inductance *at peak current*, RMS current, peak current, switching frequency, minimum inductance retained at peak (80% conservative, 50% common for PFC; user picks).
+- Cores: the Kool Mµ toroids in the catalog, stacked 1–3 high (A_L, A_e, V_e scale with the stack; l_e and window don't). Two larger real cores are added (0077110A7, 0077908A7), cited like the rest. Ferrite E cores are excluded: they need a gap for inductors and the catalog holds ungapped A_L only.
+- Inductance at peak current: A_L·N² times the fraction of permeability left at the peak magnetizing force, linearly interpolated between the data sheet's points (0 → 100%, H₈₀ → 80%, H₅₀ → 50%); the real curve sits above these lines at low bias, so this is conservative. Beyond H₅₀ the core is rejected (no extrapolation).
+- For each core and stack: smallest turns meeting the inductance; smallest copper (AWG 10–24, 1–6 strands) meeting the current-density limit; then window fill. Passing candidates are ranked by core volume, then copper; failures show their first reason.
+- Closest past designs: the existing records ranked by inductance and current.
+
+**Playground link (requirements are first-pass estimates, labeled as such):**
+- Rectifier stage → PFC boost inductor: RMS current = data sheet max input current; ripple = 30% of the line peak (assumption); L = V_bus / (4·f_sw·ΔI) (boost, worst case at V_in = V_bus/2); peak = line peak + ΔI/2.
+- AC output stage → output filter inductor: RMS current = the overload trip level; peak = the hardware peak-current limit (the inductor must not collapse before the comparator trips); ripple = 30% of rated peak (assumption); L = V_bus / (4·f_sw·ΔI) (unipolar full bridge, worst case).
+- Each stage shows the estimate and a "size it →" link that opens the Magnetics sizing panel pre-filled.
+
+**Tests:** every returned candidate re-checked independently against the limits; interpolation matches data sheet points; known requirement → known best core; requirement estimates for FA10507 match hand-worked numbers; KaTeX parse of the new math.
+
+**Navigation:** Overview · Firmware playground · Magnetics · Audit · Review reports · How it works · AI practice · Tim Otholt (done first).

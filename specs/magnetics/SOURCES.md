@@ -4,7 +4,7 @@ Values in `cores.csv` are transcribed from public vendor data sheets (facts only
 
 | Core | Data sheet | Revision | Fields used |
 |---|---|---|---|
-| 0077894A7, 0077071A7, 0077548A7, 0077083A7, 0077439A7, 0077717A7 | Magnetics (Spang) Kool Mµ toroid data sheets, `https://www.mag-inc.com/Media/Magnetics/Datasheets/<part>.pdf` | as listed in `cores.csv` | permeability, A_L (nH/T²) ± tolerance, window area W_A, cross section A_e, path length L_e, volume V_e, DC bias in oersteds at 80% and 50% of initial permeability (minimum values) |
+| 0077894A7, 0077071A7, 0077548A7, 0077083A7, 0077439A7, 0077717A7, 0077110A7, 0077908A7 | Magnetics (Spang) Kool Mµ toroid data sheets, `https://www.mag-inc.com/Media/Magnetics/Datasheets/<part>.pdf` | as listed in `cores.csv` | permeability, A_L (nH/T²) ± tolerance, window area W_A, cross section A_e, path length L_e, volume V_e, DC bias in oersteds at 80% and 50% of initial permeability (minimum values) |
 | E32/16/9, E42/21/15 (3C94) | Ferroxcube product specifications, `https://www.ferroxcube.com/upload/media/product/file/Pr_ds/<core>.pdf` | 2016 | A_L (ungapped, nH/turn², ±25%), A_e, L_e, V_e, B_sat minimum at 100 °C (25 kHz, 250 A/m), nominal dimensions B, C, E |
 
 **Derived, not stated:** the E-core window area is computed from nominal dimensions as (B − C)/2 × 2E for a core pair, before subtracting the coil former. Bare-core window; the window-fill limit in `limits.yaml` is set lower for E cores to allow for the former and insulation.
