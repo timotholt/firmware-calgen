@@ -116,7 +116,7 @@ $$N_\text{DAC,hi} = \mathrm{round}\!\left(\frac{\tfrac{3.3}{2}\ \text{V} + 43.75
 
 | Model | Runs | Category (mean, range) | Units | Typed vs derived | Rule mapping | Cost / run | Verdict |
 |---|---|---|---|---|---|---|---|
-| gpt-5.4-nano | 3 | 85% (79–88) | 96% | 100% | 98% | $0.0044 | below the category bar |
+| gpt-5.4-nano | 3 | 85% (82–88) | 94% | 100% | 96% | $0.0047 | below the category bar |
 | claude-haiku-5-5, claude-sonnet-5-5 | – | not recorded yet | | | | | |
 
 The cheapest model maps legacy constants to the right rule almost every time, which is what the audit needs, but its category labels disagree with the key on borderline cases often enough to miss the bar I set in advance. I report that rather than move the bar; the next step would be a stronger model. The corpus is also friendlier than real legacy firmware (most constants have comments), which flatters these numbers.

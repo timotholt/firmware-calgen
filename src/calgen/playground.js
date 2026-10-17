@@ -6,7 +6,7 @@
   "use strict";
   var DATA = JSON.parse(document.getElementById("default-data").textContent);
   var OPTS = JSON.parse(document.getElementById("options").textContent);
-  var state = { product: "FA10507", board: "A", target: "f28004x", edits: {}, stage: "out", open: {}, tab: "c" };
+  var state = { product: "FA10507", board: "A", target: "f28004x", edits: {}, stage: "out", open: {}, tab: "c", preset: null };
   var engine = null;
   var prev = null; // id -> display from the previous computation, for flashing what just changed
   var showReasons = true; // reasons appear only after the user pauses (red borders appear at once)
@@ -18,12 +18,19 @@
     reasonTimer = setTimeout(function () { showReasons = true; renderFlow(); renderGates(); }, ms);
   }
   var FLOW = {
-    "in": ["vin_min", "vin_max", "iin_limit"],
+    "in": ["vin_min", "vin_max", "fin_min", "fin_max", "iin_limit"],
     "rect": ["vbus_min"],
     "bus": ["vbus_set", "vbus_fs"],
-    "inv": ["vout_set", "fout_mode", "pwm_period"],
+    "inv": ["vout_set", "fout_hz", "fout_mode", "pwm_period"],
     "out": ["iout_rated", "iout_trip", "iout_pk_limit", "iout_fs_pk", "iout_pklim_dac_hi"],
     "batt": ["vbat_nom", "vbat_cutoff"]
+  };
+  var LABEL = {
+    vin_min: "Vin min", vin_max: "Vin max", fin_min: "Fin min", fin_max: "Fin max", iin_limit: "Iin max",
+    vbus_min: "Bus min", vbus_set: "Bus setpoint", vbus_fs: "Bus sensor FS",
+    vout_set: "Vout", fout_hz: "Fout", fout_mode: "Mode", pwm_period: "PWM period",
+    iout_rated: "Rated", iout_trip: "Overload (RMS)", iout_pk_limit: "Peak limit", iout_fs_pk: "Sensor FS", iout_pklim_dac_hi: "Limit DAC",
+    vbat_nom: "Nominal", vbat_cutoff: "Cutoff"
   };
   var TAGNAME = { datasheet: "data sheet", derived: "derived", assumption: "assumption", design: "design", override: "what-if" };
 
@@ -68,7 +75,7 @@
       return '<div class="ptab' + (on ? " on" : "") + '" role="tab" aria-selected="' + on + '" tabindex="0" data-p="' + esc(k) + '"><b>' + esc(parts[0]) + "</b>" + esc(parts.slice(1).join(" · ")) + "</div>";
     }).join("");
     $("products").querySelectorAll(".ptab").forEach(function (e) {
-      keyed(e, function () { if (!engine || e.dataset.p === state.product) return; state.product = e.dataset.p; state.edits = {}; state.open = {}; revealReasonsAfter(300); recompute(); });
+      keyed(e, function () { if (!engine || e.dataset.p === state.product) return; state.product = e.dataset.p; state.edits = {}; state.open = {}; state.preset = null; revealReasonsAfter(300); recompute(); });
     });
   }
 
@@ -76,7 +83,7 @@
   function stageBox(b) {
     var rows = FLOW[b].map(function (id) {
       var c = byId(id); if (!c) return "";
-      return '<div class="r' + (changed(id) ? " chg" : "") + '" data-vid="' + esc(id) + '" title="' + esc(c.symbol) + '">' + shown(c) + '<span class="tag tag-' + c.tag + '">' + esc(TAGNAME[c.tag]) + "</span></div>";
+      return '<div class="r' + (changed(id) ? " chg" : "") + '" data-vid="' + esc(id) + '" title="' + esc(c.symbol) + '"><span class="lbl">' + esc(LABEL[id] || id) + '</span><span class="rv">' + shown(c) + '</span><span class="tag tag-' + c.tag + '">' + esc(TAGNAME[c.tag]) + "</span></div>";
     }).join("");
     var summary = DATA.summaries ? '<div class="sum">' + esc(DATA.summaries[b]) + "</div>" : "";
     if (b === "out" && DATA.summaries && DATA.summaries.sense) {
@@ -92,13 +99,28 @@
       '" data-b="' + b + '" id="stage-' + b + '" role="button" tabindex="0" aria-pressed="' + (state.stage === b) + '"><div class="t">' + esc(DATA.blocks[b]) + "</div>" + summary + rows + probHtml + "</div>";
   }
 
+  function legendHtml() {
+    var rows = [
+      ['<span class="tag tag-datasheet">data sheet</span>', "Copied from the product's public data sheet"],
+      ['<span class="tag tag-derived">derived</span>', "Computed only from data sheet values and public chip facts"],
+      ['<span class="tag tag-assumption">assumption</span>', "Computed using an invented board part, design margin, or generic chemistry figure"],
+      ['<span class="tag tag-design">design</span>', "Engineer-supplied value (loop gain), carried through unchanged"],
+      ['<span class="tag tag-override">what-if</span>', "Your override of a data sheet value (marked OVERRIDE in the C)"],
+      ['<span class="lgchg"><span class="was">12.5</span> → <b>16.7</b></span>', "Differs from the shipped product (rev A board, F28004x-class, default design)"],
+      ['<span class="lgbad">red border</span>', "A gate failed in this stage; the reason appears after you pause typing"],
+      ["1φ*", "Single-phase is implied by the IEC C14 inlet and NEMA 5-15 outlets, not stated as a rating"]
+    ];
+    return '<div class="legend"><div class="colhead">Legend</div><table>' + rows.map(function (r) {
+      return "<tr><td>" + r[0] + "</td><td>" + esc(r[1]) + "</td></tr>";
+    }).join("") + "</table></div>";
+  }
+
   function renderFlow() {
     var down = '<div class="vdown" aria-hidden="true">↓</div>';
     $("flow").innerHTML = stageBox("in") + down + stageBox("rect") + down +
       '<div class="busrow">' + stageBox("bus") + '<div class="side" aria-hidden="true">↔</div>' + stageBox("batt") + "</div>" +
       down + stageBox("inv") + down + stageBox("out") +
-      '<p class="sub" style="margin-top:10px">Highlighted values differ from the product as shipped (board rev A, F28004x-class, default design values). ' + esc(DATA.footnote || "") + "</p>" +
-      '<p class="sub"><span class="tag tag-datasheet">data sheet</span> public rating · <span class="tag tag-derived">derived</span> from data sheet and public chip facts only · <span class="tag tag-assumption">assumption</span> uses an invented board part, margin, or generic chemistry figure · <span class="tag tag-design">design</span> engineer-supplied · <span class="tag tag-override">what-if</span> your override</p>';
+      legendHtml();
     $("flow").querySelectorAll(".fb").forEach(function (e) {
       keyed(e, function () { state.stage = e.dataset.b; render(); });
     });
@@ -108,24 +130,45 @@
   }
 
   // ---- inputs --------------------------------------------------------------
+  function field(e, dis) {
+    var v = e.key in state.edits ? state.edits[e.key] : DATA.inputs[e.key];
+    var unit = e.unit === "ratio" ? "V/V" : e.unit === "mohm" ? "mΩ" : e.unit === "counts" ? "" : e.unit;
+    var edited = e.key in state.edits || (state.preset && e.key.indexOf("ds.") === 0 && DATA.inputs[e.key] !== DATA.shipped_inputs[e.key]);
+    return '<label class="inp' + (edited ? " edited" : "") + '"><span>' + esc(e.label) + (unit ? ' <i>' + esc(unit) + "</i>" : "") + "</span>" +
+      '<input type="number" step="any" min="0" data-k="' + esc(e.key) + '" value="' + (v == null ? "" : esc(v)) + '"' +
+      (v == null ? ' placeholder="not in data sheet"' : "") + dis + "></label>";
+  }
+
   function renderInputs() {
     var dis = engine ? "" : " disabled";
-    var owners = {};
-    owners.Board = '<div class="inp"><label for="board">Control board revision</label><select id="board"' + dis + '><option value="A">rev A (original amplifier)</option><option value="B">rev B (alternate amplifier)</option></select></div>';
-    owners.Chip = '<div class="inp"><label for="target">Target processor</label><select id="target"' + dis + '><option value="f28004x">F28004x-class (float32)</option><option value="f2803x">F2803x-class (IQ20, legacy)</option></select></div>';
-    OPTS.editable.forEach(function (e) {
-      var v = e.key in state.edits ? state.edits[e.key] : DATA.inputs[e.key];
-      var unit = e.unit === "ratio" ? "V/V" : e.unit === "mohm" ? "mΩ" : e.unit;
-      owners[e.owner] = (owners[e.owner] || "") + '<div class="inp"><label for="i-' + esc(e.key) + '">' + esc(e.label) + " (" + esc(unit) + ')</label><input type="number" step="any" min="0" id="i-' + esc(e.key) + '" data-k="' + esc(e.key) + '" value="' + esc(v) + '"' + dis + "></div>";
-    });
-    var order = [["Product what-if", "overrides the data sheet"], ["Board", "hardware engineer"], ["Chip", "processor"], ["Design choice", "power engineer"]];
-    $("inputs").innerHTML = order.map(function (o) {
-      return '<div class="card"><h3>' + o[0] + ' <span class="sub" style="font-weight:400">· ' + o[1] + "</span></h3>" + (owners[o[0]] || "") + "</div>";
-    }).join("") + '<div class="card"><h3>Reset</h3><p class="sub" style="margin:0 0 6px">Product what-ifs are marked OVERRIDE in the generated C.</p><button id="reset" class="btn" type="button"' + dis + ">Back to shipped product</button></div>";
+    var groups = {};
+    OPTS.editable.forEach(function (e) { (groups[e.owner] = groups[e.owner] || []).push(e); });
+    var dsGroups = Object.keys(groups).filter(function (g) { return g.indexOf("Data sheet") === 0; });
+    var presetOpts = '<option value="">As shipped (data sheet)</option>' + Object.keys(OPTS.presets).map(function (k) {
+      return '<option value="' + k + '"' + (state.preset === k ? " selected" : "") + ">" + esc(OPTS.presets[k]) + "</option>";
+    }).join("");
+    var ds = '<div class="card dsbox"><div class="dshead"><h3>Data sheet values <span class="sub" style="font-weight:400">· what-if: edits override the data sheet and are marked OVERRIDE in the C</span></h3>' +
+      '<label class="inp preset"><span>Market preset</span><select id="preset"' + dis + ">" + presetOpts + "</select></label></div>" +
+      '<div class="dsgrid">' + dsGroups.map(function (g) {
+        return '<div><div class="glabel">' + esc(g.split(" · ")[1]) + "</div>" + groups[g].map(function (e) { return field(e, dis); }).join("") + "</div>";
+      }).join("") + "</div></div>";
+    var board = '<div class="card"><h3>Board and chip <span class="sub" style="font-weight:400">· hardware engineer</span></h3>' +
+      '<label class="inp"><span>Board revision</span><select id="board"' + dis + '><option value="A">rev A (original amplifier)</option><option value="B">rev B (alternate amplifier)</option></select></label>' +
+      (groups.Board || []).map(function (e) { return field(e, dis); }).join("") +
+      '<label class="inp"><span>Target processor</span><select id="target"' + dis + '><option value="f28004x">F28004x-class (float32)</option><option value="f2803x">F2803x-class (IQ20, legacy)</option></select></label></div>';
+    var design = '<div class="card"><h3>Design choice <span class="sub" style="font-weight:400">· power engineer</span></h3>' +
+      (groups["Design choice"] || []).map(function (e) { return field(e, dis); }).join("") +
+      '<button id="reset" class="btn" type="button"' + dis + ' style="margin-top:8px">Back to shipped product</button></div>';
+    $("inputs").innerHTML = ds + '<div class="inrow">' + board + design + "</div>";
     $("board").value = state.board; $("target").value = state.target;
     $("board").onchange = function () { state.board = this.value; revealReasonsAfter(300); recompute(); };
     $("target").onchange = function () { state.target = this.value; revealReasonsAfter(300); recompute(); };
-    $("reset").onclick = function () { state.edits = {}; state.board = "A"; state.target = "f28004x"; revealReasonsAfter(300); recompute(); };
+    $("preset").onchange = function () {
+      state.preset = this.value || null;
+      Object.keys(state.edits).forEach(function (k) { if (k.indexOf("ds.") === 0) delete state.edits[k]; });
+      revealReasonsAfter(300); recompute();
+    };
+    $("reset").onclick = function () { state.edits = {}; state.board = "A"; state.target = "f28004x"; state.preset = null; revealReasonsAfter(300); recompute(); };
     var timer = null;
     $("inputs").querySelectorAll("input[data-k]").forEach(function (inp) {
       inp.oninput = function () {
@@ -162,7 +205,10 @@
       [n ? "chgpill" : "na", n ? n + " value" + (n === 1 ? "" : "s") + " changed vs shipped" : "matches shipped product"]
     ];
     var np = showReasons ? allProblems() : 0;
-    $("gates").innerHTML = pills.map(function (p) { return '<span class="pill ' + p[0] + '">' + esc(p[1]) + "</span>"; }).join("") +
+    var notOk = pills.filter(function (p) { return p[0] !== "ok"; });
+    var shownPills = notOk.length === pills.length ? pills : [["ok", "All gates pass ✓"]].concat(notOk);
+    if (pills.slice(0, 5).some(function (p) { return p[0] === "bad"; })) shownPills = pills;
+    $("gates").innerHTML = shownPills.map(function (p) { return '<span class="pill ' + p[0] + '">' + esc(p[1]) + "</span>"; }).join("") +
       (np ? '<button type="button" class="pill bad probpill" id="probjump">' + np + " problem" + (np === 1 ? "" : "s") + " · show ↓</button>" : "");
     var jump = $("probjump");
     if (jump) jump.onclick = function () {
@@ -261,7 +307,7 @@
     if (!engine) return;
     $("engine").textContent = "Computing…";
     try {
-      var req = JSON.stringify({ product: state.product, board: state.board, target: state.target, edits: state.edits });
+      var req = JSON.stringify({ product: state.product, board: state.board, target: state.target, edits: state.edits, preset: state.preset });
       prev = snapshot();
       DATA = JSON.parse(engine.run_json("/calgen/specs", req));
       var bad = firstFailingStage();

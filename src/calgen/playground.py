@@ -29,17 +29,64 @@ PRODUCTS = {
 BOARDS = {"A": "ups_ctrl_revA.yaml", "B": "ups_ctrl_revB.yaml"}
 TARGETS = {"f28004x": "f28004x.yaml", "f2803x": "f2803x.yaml"}
 
+# Data sheet fields offered as what-ifs, grouped like the data sheet: (name, unit, label, group).
+# A test checks this covers every numeric data sheet field a rule consumes.
+DS_EDITABLE = [
+    ("vin_min", "V", "Min input voltage", "Input"),
+    ("vin_max", "V", "Max input voltage", "Input"),
+    ("fin_nom", "Hz", "Input frequency", "Input"),
+    ("fin_tol_hz", "Hz", "Input frequency ±", "Input"),
+    ("iin_max", "A", "Max input current", "Input"),
+    ("power_va", "VA", "Rated power", "Output"),
+    ("vout_nom", "V", "Output voltage", "Output"),
+    ("vout_tol_pct", "%", "Output regulation ±", "Output"),
+    ("fout_hz", "Hz", "Output frequency", "Output"),
+    ("overload_alarm_pct", "%", "Overload alarm level", "Overload"),
+    ("overload_trip_pct", "%", "Overload trip level", "Overload"),
+    ("batt_string_v", "V", "Battery string voltage", "Battery"),
+    ("batt_series_cells", "counts", "Cells in series", "Battery"),
+]
+
 # editable inputs: (paramset, name, display unit, label, owner)
-EDITABLE = [
-    ("ds", "power_va", "VA", "Rated power", "Product what-if"),
-    ("ds", "vin_max", "V", "Max input voltage", "Product what-if"),
-    ("ds", "vout_nom", "V", "Output voltage", "Product what-if"),
-    ("ds", "overload_trip_pct", "%", "Overload trip level", "Product what-if"),
+EDITABLE = [("ds", n, u, label, f"Data sheet · {group}") for n, u, label, group in DS_EDITABLE] + [
     ("board", "r_shunt", "mohm", "Current shunt", "Board"),
     ("board", "g_amp", "ratio", "Sense amp gain", "Board"),
     ("design", "f_sw", "kHz", "Switching frequency", "Design choice"),
     ("design", "vbus_margin", "%", "DC bus margin", "Design choice"),
 ]
+
+# Market presets: nominal mains voltage and frequency per market. Applied as data
+# sheet what-ifs; the product's own tolerance proportions are kept. Universal-input
+# products (wide input range) keep their input range.
+PRESETS = {
+    "na": {"label": "North America · 120 V 60 Hz", "v": 120.0, "f": 60.0},
+    "eu": {"label": "Europe · 230 V 50 Hz", "v": 230.0, "f": 50.0},
+    "uk": {"label": "UK · 230 V 50 Hz", "v": 230.0, "f": 50.0},
+    "jp_east": {"label": "Japan east · 100 V 50 Hz", "v": 100.0, "f": 50.0},
+    "jp_west": {"label": "Japan west · 100 V 60 Hz", "v": 100.0, "f": 60.0},
+    "mil400": {"label": "Military / aircraft · 115 V 400 Hz", "v": 115.0, "f": 400.0},
+}
+
+
+def preset_edits(base_datasheet, key: str) -> dict[str, float]:
+    """Data sheet what-ifs for a market preset, keeping the product's tolerance proportions."""
+    p = PRESETS[key]
+    ds = base_datasheet.params
+
+    def num(name):
+        q = ds.get(name)
+        return q.value if q is not None and q.numeric else None
+
+    v_out = num("vout_nom") or 120.0
+    edits = {"ds.vout_nom": p["v"], "ds.fout_hz": p["f"], "ds.fin_nom": p["f"]}
+    vmin, vmax = num("vin_min"), num("vin_max")
+    if vmin and vmax and vmax / vmin < 2.0:  # narrow input: scale with the market voltage
+        edits["ds.vin_min"] = round(vmin * p["v"] / v_out, 1)
+        edits["ds.vin_max"] = round(vmax * p["v"] / v_out, 1)
+    tol = num("fin_tol_hz")
+    edits["ds.fin_tol_hz"] = round((tol / (num("fin_nom") or 60.0) if tol else 0.05) * p["f"], 2)
+    return edits
+
 
 FLOW_BLOCKS = ["in", "rect", "bus", "inv", "out", "batt"]
 
@@ -71,10 +118,12 @@ def _tag(b: Build, rule_id: str) -> str:
 
 
 def run(specs: str | Path, product: str = "FA10507", board_rev: str = "A", target: str = "f28004x",
-        edits: dict[str, float] | None = None, base_header: str | None = None) -> dict:
+        edits: dict[str, float] | None = None, base_header: str | None = None, preset: str | None = None) -> dict:
     specs = Path(specs)
-    edits = edits or {}
     base = load_variant(specs / "variants" / f"{PRODUCTS[product]['variant']}.yaml")
+    preset_label = PRESETS[preset]["label"] if preset else None
+    user_edits = dict(edits or {})
+    edits = {**(preset_edits(base.datasheet, preset) if preset else {}), **user_edits}
     board = load_paramset(specs / "boards" / BOARDS[board_rev], "board")
     tgt = load_paramset(specs / "targets" / TARGETS[target], "target")
     board_edits = {k.split(".", 1)[1]: v for k, v in edits.items() if k.startswith("board.")}
@@ -86,7 +135,8 @@ def run(specs: str | Path, product: str = "FA10507", board_rev: str = "A", targe
             orig = base.datasheet.params.get(name)
             unit = next(u for kind, n, u, _, _ in EDITABLE if kind == "ds" and n == name)
             was = f"{orig.value:g} {orig.unit}" if orig is not None and orig.numeric else "not stated"
-            reason = f"what-if in playground: data sheet says {was}"
+            how = "what-if in playground" if k in user_edits or not preset_label else f"market preset {preset_label}"
+            reason = f"{how}: data sheet says {was}"
             overrides[name] = Param(name=name, value=float(v), unit=unit, source=f"OVERRIDE ({reason})", note=reason)
     variant = dataclasses.replace(
         base,
@@ -108,6 +158,7 @@ def run(specs: str | Path, product: str = "FA10507", board_rev: str = "A", targe
         except GateError:
             base_header = ""
     out = to_json(b, base_header)
+    out["shipped_inputs"] = to_json(default)["inputs"]
     out["baseline"] = {k: v[0] for k, v in baseline.items()}
     out["changed"] = [c.rule.id for c in b.constants if _differs(baseline.get(c.rule.id), c)]
     return out
@@ -142,11 +193,13 @@ def summaries(b: Build) -> dict[str, str]:
         c = val.get(rule_id)
         return fmt.format(c.value) if c is not None and c.value is not None else "?"
 
-    fin = ds.get("fin_nom")
-    if fin is not None and fin.numeric:
-        freq = fin.raw.replace("+/-", "±").replace(", ", " ").replace("(", "").replace(")", "").replace("± ", "±")
+    f_nom, f_tol = g("ds.fin_nom", "Hz"), g("ds.fin_tol_hz", "Hz")
+    if f_nom and f_tol:
+        freq = f"{f_nom:g} Hz ±{f_tol:.3g} Hz"
+    elif f_nom:
+        freq = f"{f_nom:g} Hz"
     else:
-        freq = "freq. unreadable on data sheet"
+        freq = "freq. not stated on data sheet"
     mode = val["fout_mode"].enum_ident.split("_")[-1].lower() if val["fout_mode"].enum_ident else "?"
     action = val["overload_action"].enum_ident.split("_")[-1].lower() if val["overload_action"].enum_ident else "?"
     trip_pct = g("ds.overload_trip_pct", "%")
@@ -229,11 +282,11 @@ def _display(c) -> str:
     return f"{v:.4g}{unit}" if abs(v) < 1e4 else f"{v:.0f}{unit}"
 
 
-def _input_value(b: Build, kind: str, name: str, unit: str) -> float:
+def _input_value(b: Build, kind: str, name: str, unit: str) -> float | None:
     from calgen.units import from_si
 
-    q = b.env[f"{kind}.{name}"]
-    return round(from_si(q.value, unit), 6)
+    q = b.env.get(f"{kind}.{name}")
+    return None if q is None else round(from_si(q.value, unit), 6)
 
 
 def options() -> dict:
@@ -242,6 +295,7 @@ def options() -> dict:
         "boards": list(BOARDS),
         "targets": list(TARGETS),
         "editable": [{"key": f"{k}.{n}", "unit": u, "label": label, "owner": owner} for k, n, u, label, owner in EDITABLE],
+        "presets": {k: v["label"] for k, v in PRESETS.items()},
         "flow": FLOW_BLOCKS,
     }
 
@@ -250,7 +304,7 @@ def run_json(specs: str, request_json: str) -> str:
     """Entry point for the browser: JSON in, JSON out."""
     req = json.loads(request_json)
     return json.dumps(run(specs, req.get("product", "FA10507"), req.get("board", "A"), req.get("target", "f28004x"),
-                          req.get("edits") or {}, req.get("base_header")))
+                          req.get("edits") or {}, req.get("base_header"), req.get("preset") or None))
 
 
 __all__ = ["run", "run_json", "options", "to_json"]

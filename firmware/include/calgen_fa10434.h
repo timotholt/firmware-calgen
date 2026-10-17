@@ -5,7 +5,7 @@
  *           ratings from DS-10434 Rev.09172021 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f28004x (default format float32)
- * inputs  : sha256 deb90fec4d9a7e224abb4f92e084d57723539393767ebf7108a8d0b776b7eaeb
+ * inputs  : sha256 e1751444801d0fb1da9199a5c43e6e95351a5f95739197c628fbdd95a336fe82
  *
  * OVERRIDE ds.iin_max: DS-10434 Rev.09172021 prints "7.4 Amps @90VAC Input,
  *   560W Output" in the Input Frequency row and "50 or 60 Hz" in the Input Max
@@ -15,6 +15,10 @@
  *   one string but not the cell count; 12 V LiFePO4 modules are normally 4
  *   cells in series, so 3 x 4 = 12. Assumption for the demo; confirm with the
  *   battery supplier.
+ * OVERRIDE ds.fin_nom: DS-10434 Rev.09172021 prints the input frequency ("50
+ *   or 60 Hz") in the Input Max Current row; the labels are swapped. 60 Hz
+ *   (North American variant) taken from that row; no tolerance is stated, so
+ *   the input frequency window is not generated.
  *
  * SYNTHETIC DEMO: firmware names and circuit values are invented; product ratings
  * come from the public data sheet cited above. Not from any vendor SDK.
@@ -40,6 +44,16 @@
  * = ds.iin_max
  *   ds.iin_max = 7.4 A  [OVERRIDE in fa10434.yaml (reason in header)] */
 #define UPS_IIN_LIMIT_A            7.4f           /* 7.4 A */
+
+/* Lowest input frequency accepted (follower lock window / transfer to battery)
+ * = ds.fin_nom - ds.fin_tol_hz
+ *   ds.fin_nom = 60 Hz  [OVERRIDE in fa10434.yaml (reason in header)]
+ *   NOT GENERATED: input ds.fin_tol_hz not in data sheet */
+
+/* Highest input frequency accepted (follower lock window / transfer to battery)
+ * = ds.fin_nom + ds.fin_tol_hz
+ *   ds.fin_nom = 60 Hz  [OVERRIDE in fa10434.yaml (reason in header)]
+ *   NOT GENERATED: input ds.fin_tol_hz not in data sheet */
 
 /* ==== Rectifier / PFC ======================================================= */
 

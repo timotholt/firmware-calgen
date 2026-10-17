@@ -10,7 +10,7 @@ SPECS = Path(__file__).resolve().parent.parent / "specs"
 def test_shipped_product_has_no_changes_and_readable_summaries():
     r = run(SPECS, product="FA10449")
     assert r["ok"] and r["changed"] == []
-    assert r["summaries"]["in"] == "90–138 V AC 1φ* · 60 Hz ±5.0 Hz · ≤ 7.9 A"
+    assert r["summaries"]["in"] == "90–138 V AC 1φ* · 60 Hz ±5 Hz · ≤ 7.9 A"
     assert "overload 6.23 A RMS (115%) for 30 s → shutdown · peak limit 19.0 A" in r["summaries"]["out"]
     assert "implied" in r["footnote"]
 
@@ -73,3 +73,26 @@ def test_tags_trace_values_to_their_weakest_root():
     assert tags["vloop_kp"] == "design"
     what_if = {c["id"]: c["tag"] for c in run(SPECS, edits={"ds.power_va": 2000})["constants"]}
     assert what_if["iout_rated"] == "assumption"  # now rests on an override
+
+
+def test_market_preset_retargets_voltage_and_frequency():
+    r = run(SPECS, product="FA10449", preset="eu")
+    d = {c["id"]: c["display"] for c in r["constants"]}
+    assert (d["vout_set"], d["fout_hz"], d["vin_min"], d["vin_max"]) == ("230 V", "50 Hz", "172.5 V", "264.5 V")
+    assert d["iout_rated"] == "2.826 A" and r["ok"]
+    assert "market preset Europe - 230 V 50 Hz" in r["header"]
+
+
+def test_universal_input_keeps_its_range_under_a_preset():
+    d = {c["id"]: c["display"] for c in run(SPECS, product="FA10507", preset="eu")["constants"]}
+    assert (d["vin_min"], d["vin_max"]) == ("85 V", "265 V")
+
+
+def test_every_consumed_numeric_data_sheet_field_is_editable():
+    from calgen.build import _consumed_ds_fields
+    from calgen.playground import DS_EDITABLE
+    from calgen.spec import load_datasheet, load_rules
+
+    used = _consumed_ds_fields(load_rules(SPECS / "rules.yaml"))
+    numeric = {n for p in ("fa10449", "fa10434", "fa10507") for n, q in load_datasheet(SPECS / "datasheets" / f"{p}.csv").params.items() if n in used and q.numeric}
+    assert numeric <= {n for n, *_ in DS_EDITABLE}

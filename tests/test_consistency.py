@@ -34,11 +34,12 @@ def test_fa10507_two_model_numbers():
     }
 
 
-def test_swapped_label_is_waived_by_override_and_unused_field_is_flagged():
+def test_swapped_labels_are_waived_by_reasoned_overrides():
     b = build(load_variant(SPECS / "variants" / "fa10434.yaml"), load_rules(SPECS / "rules.yaml"))
     status = {d.finding.fields: d.status for d in b.datasheet}
     assert status[("iin_max",)] == WAIVED
-    assert status[("fin_nom",)] == FLAGGED  # no rule reads input frequency
+    assert status[("fin_nom",)] == WAIVED  # input frequency is consumed by the window rules
+    assert b.constant("fin_min").status == "skipped"  # no tolerance stated on the sheet
     assert b.ok
 
 

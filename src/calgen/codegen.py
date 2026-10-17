@@ -14,7 +14,7 @@ from calgen import __version__
 from calgen.build import OK, SKIPPED, Build, ConstResult, Source
 from calgen.units import from_si
 
-_ASCII = str.maketrans({"±": "+/-", "–": "-", "—": "-", "“": '"', "”": '"', "’": "'", "×": "x", "°": " deg", "Ω": "ohm", "µ": "u"})
+_ASCII = str.maketrans({"·": "-", "±": "+/-", "–": "-", "—": "-", "“": '"', "”": '"', "’": "'", "×": "x", "°": " deg", "Ω": "ohm", "µ": "u"})
 
 
 class GateError(RuntimeError):

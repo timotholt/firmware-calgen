@@ -18,6 +18,8 @@ symbols:
   ds.vin_min: 'V_{\text{in,min}}^{\text{DS}}'
   ds.vin_max: 'V_{\text{in,max}}^{\text{DS}}'
   ds.iin_max: 'I_{\text{in,max}}^{\text{DS}}'
+  ds.fin_nom: 'f_{\text{in}}'
+  ds.fin_tol_hz: '\Delta f_{\text{in}}'
   ds.fout_hz: 'f_{\text{out}}^{\text{DS}}'
   ds.overload_alarm_pct: 'k_{\text{alarm}}'
   ds.overload_trip_pct: 'k_{\text{trip}}'
@@ -90,6 +92,30 @@ constants:
     latex: 'I_{\text{in,max}}'
     min: 0.5
     max: 50
+
+  - id: fin_min
+    symbol: UPS_FIN_MIN_HZ
+    describe: Lowest input frequency accepted (follower lock window / transfer to battery)
+    formula: ds.fin_nom - ds.fin_tol_hz
+    unit: Hz
+    format: target
+    block: in
+    latex: 'f_{\text{in,min}}'
+    optional: true
+    min: 40
+    max: 450
+
+  - id: fin_max
+    symbol: UPS_FIN_MAX_HZ
+    describe: Highest input frequency accepted (follower lock window / transfer to battery)
+    formula: ds.fin_nom + ds.fin_tol_hz
+    unit: Hz
+    format: target
+    block: in
+    latex: 'f_{\text{in,max}}'
+    optional: true
+    min: 40
+    max: 450
 
   # --- Rectifier / PFC ----------------------------------------------------
   - id: vbus_min

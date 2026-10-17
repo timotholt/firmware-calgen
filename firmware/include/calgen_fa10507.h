@@ -5,7 +5,7 @@
  *           ratings from DS-10507 Rev.101119 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f28004x (default format float32)
- * inputs  : sha256 16b809bb8903b98df7bd4462ef548802d50b84f9dd0634f8e356b1089ef5d3ea
+ * inputs  : sha256 df6118f187a4126ef6c95b5bcb486465f005114d6eda8ac36482b3301134f632
  *
  * SYNTHETIC DEMO: firmware names and circuit values are invented; product ratings
  * come from the public data sheet cited above. Not from any vendor SDK.
@@ -31,6 +31,18 @@
  * = ds.iin_max
  *   ds.iin_max = 20 A  [DS-10507 Rev.101119 p2: "20 Amps"] */
 #define UPS_IIN_LIMIT_A            20.0f          /* 20 A */
+
+/* Lowest input frequency accepted (follower lock window / transfer to battery)
+ * = ds.fin_nom - ds.fin_tol_hz
+ *   ds.fin_nom = 60 Hz  [DS-10507 Rev.101119 p2 (60 Hz region assumed): "50/60 Hz, (+/-5%)"]
+ *   ds.fin_tol_hz = 3 Hz  [DS-10507 Rev.101119 p2 (5% of 60 Hz): "50/60 Hz, (+/-5%)"] */
+#define UPS_FIN_MIN_HZ             57.0f          /* 57 Hz */
+
+/* Highest input frequency accepted (follower lock window / transfer to battery)
+ * = ds.fin_nom + ds.fin_tol_hz
+ *   ds.fin_nom = 60 Hz  [DS-10507 Rev.101119 p2 (60 Hz region assumed): "50/60 Hz, (+/-5%)"]
+ *   ds.fin_tol_hz = 3 Hz  [DS-10507 Rev.101119 p2 (5% of 60 Hz): "50/60 Hz, (+/-5%)"] */
+#define UPS_FIN_MAX_HZ             63.0f          /* 63 Hz */
 
 /* ==== Rectifier / PFC ======================================================= */
 

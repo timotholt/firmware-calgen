@@ -30,3 +30,11 @@ datasheet_overrides:
       DS-10434 lists three 12 V LiFePO4 modules in one string but not the cell
       count; 12 V LiFePO4 modules are normally 4 cells in series, so 3 x 4 = 12.
       Assumption for the demo; confirm with the battery supplier.
+  fin_nom:
+    value: 60
+    unit: Hz
+    reason: >
+      DS-10434 Rev.09172021 prints the input frequency ("50 or 60 Hz") in the
+      Input Max Current row; the labels are swapped. 60 Hz (North American
+      variant) taken from that row; no tolerance is stated, so the input
+      frequency window is not generated.

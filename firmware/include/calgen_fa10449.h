@@ -5,7 +5,7 @@
  *           ratings from DS-10449 Rev.09172021 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f28004x (default format float32)
- * inputs  : sha256 c15ad554444844fe8cfdd90fb870619073f16b6db15bde22b21402433eb3b281
+ * inputs  : sha256 32a9906286a277992ac0abe0855b930a23ca10fd96063f79d4de36e1ef3b93d4
  *
  * SYNTHETIC DEMO: firmware names and circuit values are invented; product ratings
  * come from the public data sheet cited above. Not from any vendor SDK.
@@ -31,6 +31,18 @@
  * = ds.iin_max
  *   ds.iin_max = 7.9 A  [DS-10449 Rev.09172021 p1: "7.9 Amps"] */
 #define UPS_IIN_LIMIT_A            7.9f           /* 7.9 A */
+
+/* Lowest input frequency accepted (follower lock window / transfer to battery)
+ * = ds.fin_nom - ds.fin_tol_hz
+ *   ds.fin_nom = 60 Hz  [DS-10449 Rev.09172021 p1: "60 Hz, +/- 5.0 Hz"]
+ *   ds.fin_tol_hz = 5 Hz  [DS-10449 Rev.09172021 p1: "60 Hz, +/- 5.0 Hz"] */
+#define UPS_FIN_MIN_HZ             55.0f          /* 55 Hz */
+
+/* Highest input frequency accepted (follower lock window / transfer to battery)
+ * = ds.fin_nom + ds.fin_tol_hz
+ *   ds.fin_nom = 60 Hz  [DS-10449 Rev.09172021 p1: "60 Hz, +/- 5.0 Hz"]
+ *   ds.fin_tol_hz = 5 Hz  [DS-10449 Rev.09172021 p1: "60 Hz, +/- 5.0 Hz"] */
+#define UPS_FIN_MAX_HZ             65.0f          /* 65 Hz */
 
 /* ==== Rectifier / PFC ======================================================= */
 
