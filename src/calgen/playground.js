@@ -132,36 +132,43 @@
     g += '<text class="g-t" x="' + x(p.sensor_fs).toFixed(1) + '" y="60" text-anchor="end">sensor ±' + f1(p.sensor_fs) + " A</text>";
     return g + "</svg>";
   }
-  function crestShape(cf) { // exponent k so that |sin|^k has the requested peak/RMS ratio
-    var lo = 1, hi = 40;
-    for (var it = 0; it < 30; it++) {
-      var k = (lo + hi) / 2, m = 0;
-      for (var i = 0; i < 360; i++) m += Math.pow(Math.abs(Math.sin(i * Math.PI / 180)), 2 * k);
-      if (1 / Math.sqrt(m / 360) < cf) lo = k; else hi = k;
-    }
-    return (lo + hi) / 2;
+  // Capacitor-input (computer-type) load: the rectifier conducts only for a short window
+  // before each voltage peak, while the line voltage exceeds the capacitor voltage. Drawn as
+  // a half-sine current pulse of width W per half-cycle; for crest factor CF the width is
+  // W = 2*pi / CF^2 (so the RMS equals the rated current), and the pulse ends just after the
+  // voltage peak, so it peaks before it, as measured rectifier currents do.
+  function pulse(theta, cf) {
+    var w = 2 * Math.PI / (cf * cf), end = Math.PI / 2 + 0.08, start = end - w;
+    var t = ((theta % Math.PI) + Math.PI) % Math.PI, sgn = (theta % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) < Math.PI ? 1 : -1;
+    return t >= start && t <= end ? sgn * Math.sin(Math.PI * (t - start) / w) : 0;
   }
   function waveSvg(p) {
     if (!p) return "";
-    var S = Math.max(p.sensor_fs, p.peak_limit) * 1.1, W = 600, M = 75, A = 68, k = crestShape(p.crest);
+    // Instantaneous current only (an RMS threshold has no meaning on this axis). Scaled to the
+    // hardware limit so the comparison that matters fills the plot.
+    var S = Math.max(p.peak_limit, p.crest_pk) * 1.18, W = 600, M = 80, A = 70;
     var over = p.peak_limit > p.headroom * p.sensor_fs;
     function y(a) { return (M - a / S * A).toFixed(1); }
     function hline(cls, a) { return '<line class="' + cls + '" x1="0" x2="' + W + '" y1="' + y(a) + '" y2="' + y(a) + '"/>'; }
-    function path(fn) { var d = ""; for (var i = 0; i <= 300; i++) { var t = i / 300 * 4 * Math.PI; d += (i ? "L" : "M") + (i * 2) + " " + y(fn(t)); } return d; }
-    var sw = '<svg class="viz wave" viewBox="0 0 600 150" role="img" aria-label="Output current over two cycles: a ' + p.crest +
-      ":1 crest-factor load peaking at " + f1(p.crest_pk) + " A against a " + f1(p.peak_limit) + ' A hardware peak limit">';
-    sw += '<rect class="w-band" x="0" y="' + y(p.sensor_fs) + '" width="' + W + '" height="' + (y(-p.sensor_fs) - y(p.sensor_fs)).toFixed(1) + '"/>';
-    sw += hline("w-axis", 0) + hline("w-ol", p.overload_rms) + hline("w-ol", -p.overload_rms) +
-      hline("w-lim" + (over ? " bad" : ""), p.peak_limit) + hline("w-lim" + (over ? " bad" : ""), -p.peak_limit);
+    function path(fn) { var d = ""; for (var i = 0; i <= 600; i++) { var t = i / 600 * 4 * Math.PI; d += (i ? "L" : "M") + i + " " + y(fn(t)); } return d; }
+    var sw = '<svg class="viz wave" viewBox="0 0 600 160" role="img" aria-label="Instantaneous output current over two cycles: a ' + p.crest +
+      ":1 crest-factor load peaking at " + f1(p.crest_pk) + " A and a linear load peaking at " + f1(p.rated_pk) + " A, both " + f1(p.rated_rms) +
+      " A RMS, against a " + f1(p.peak_limit) + ' A hardware limit">';
+    if (p.sensor_fs < S) {  // sensor range only drawn when it is inside the plotted range (rev B)
+      sw += '<rect class="w-blind" x="0" y="0" width="' + W + '" height="' + y(p.sensor_fs) + '"/><rect class="w-blind" x="0" y="' + y(-p.sensor_fs) + '" width="' + W + '" height="' + (160 - y(-p.sensor_fs)).toFixed(1) + '"/>';
+    }
+    sw += hline("w-axis", 0) + hline("w-lim" + (over ? " bad" : ""), p.peak_limit) + hline("w-lim" + (over ? " bad" : ""), -p.peak_limit);
+    sw += '<text class="g-t" x="' + (W - 4) + '" y="' + (+y(p.peak_limit) - 4) + '" text-anchor="end">peak limit ±' + f1(p.peak_limit) + " A</text>";
     sw += '<path class="w-sine" d="' + path(function (t) { return p.rated_pk * Math.sin(t); }) + '"/>';
-    sw += '<path class="w-load" d="' + path(function (t) { var v = Math.sin(t); return p.crest_pk * (v < 0 ? -1 : 1) * Math.pow(Math.abs(v), k); }) + '"/>';
-    sw += "</svg>";
+    sw += '<path class="w-load" d="' + path(function (t) { return p.crest_pk * pulse(t, p.crest); }) + '"/>';
+    sw += '<text class="g-t" x="4" y="' + (+y(p.crest_pk) - 4) + '">' + f1(p.crest_pk) + " A</text></svg>";
     var key = '<div class="wkey">' +
-      '<span><i class="k-load"></i>' + p.crest + ":1 crest-factor load at rated " + f1(p.rated_rms) + " A RMS (illustrative)</span>" +
-      '<span><i class="k-sine"></i>sine at rated current</span>' +
-      '<span><i class="k-ol"></i>RMS overload ' + f1(p.overload_rms) + " A: timed, software</span>" +
-      '<span><i class="k-lim' + (over ? " bad" : "") + '"></i>peak limit ' + f1(p.peak_limit) + " A: instant, hardware</span>" +
-      '<span><i class="k-band"></i>sensor range ±' + f1(p.sensor_fs) + " A</span></div>";
+      '<span><i class="k-load"></i>' + p.crest + ":1 rectifier load, " + f1(p.rated_rms) + " A RMS, " + f1(p.crest_pk) + " A peak (illustrative)</span>" +
+      '<span><i class="k-sine"></i>linear load, ' + f1(p.rated_rms) + " A RMS, " + f1(p.rated_pk) + " A peak</span>" +
+      '<span><i class="k-lim' + (over ? " bad" : "") + '"></i>hardware peak limit ±' + f1(p.peak_limit) + " A (instant)</span>" +
+      (p.sensor_fs < S ? '<span><i class="k-blind"></i>beyond the sensor\'s ±' + f1(p.sensor_fs) + " A range</span>" : "") +
+      "</div><p class=\"wnote\">Same RMS current, very different peaks: the hardware limit has to clear the rectifier load's peaks, or a healthy, fully loaded UPS trips. " +
+      "The timed RMS overload (" + f1(p.overload_rms) + " A RMS for 30 s) is a separate, software check and isn't drawn on this instantaneous axis.</p>";
     return sw + key;
   }
 
