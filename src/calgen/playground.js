@@ -188,7 +188,7 @@
     if (b === "out" && DATA.summaries && DATA.summaries.sense) {
       var sat = DATA.summaries.sense.indexOf("SATURATES") >= 0;
       summary += '<div class="sense' + (sat ? " bad" : "") + '">' + esc(DATA.summaries.sense) + "</div>";
-      summary += gaugeSvg(DATA.protection) + waveSvg(DATA.protection);
+      if (DATA.protection) summary += '<div class="vizbox">' + gaugeSvg(DATA.protection) + waveSvg(DATA.protection) + "</div>";
     }
     var any = DATA.constants.some(function (c) { return c.block === b && changed(c.id); });
     return '<div class="fb' + (state.stage === b ? " sel" : "") + (stageBad(b) ? " bad" : "") + (any ? " has-chg" : "") +
