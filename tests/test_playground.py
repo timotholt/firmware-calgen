@@ -105,3 +105,13 @@ def test_failure_offers_fix_that_actually_passes():
     for s in check["suggest"]:
         fixed = run(SPECS, board_rev="B", edits={s["key"]: s["value"]})
         assert fixed["ok"], (s, fixed["failures"])
+
+
+def test_scenario_outcomes_are_computed_per_product():
+    from calgen.playground import scenario_outcomes
+
+    o = scenario_outcomes(SPECS)
+    assert o["FA10507"]["revB"] is False  # 1500 VA: sensor saturates before the peak limit
+    assert o["FA10449"]["revB"] is True  # same part is fine on the 650 VA unit
+    assert all(o[p]["shipped"] and o[p]["f2803x"] and o[p]["eu"] for p in o)
+    assert not any(o[p]["fsw25"] for p in o)  # loop gains tuned at 20 kHz go stale

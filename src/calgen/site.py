@@ -50,15 +50,25 @@ a{color:inherit}.btn{display:inline-block;border:1px solid var(--line);border-ra
 .statusbar{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:8px 0;display:flex;flex-wrap:wrap;gap:4px 16px;align-items:center}
 .statusbar .pills{margin:0}.statusbar{min-height:44px}
 .probpill{border:0;cursor:pointer;font:inherit;font-size:12px}
-.stages .fb{position:relative}
-.fb .probs{position:absolute;left:6px;right:6px;top:calc(100% - 10px);z-index:4;padding:8px 26px 8px 10px;border-radius:8px;background:var(--bg);color:var(--bad);border:1px solid var(--bad);box-shadow:0 6px 18px rgba(0,0,0,.25);font-size:12px;line-height:1.4;animation:probin .2s ease-out}
-.fb .probs ul{margin:0;padding-left:16px}
+.probs{margin:10px 0;padding:10px 12px;border-radius:8px;color:var(--bad);border:1px solid var(--bad);font-size:12.5px;line-height:1.4;animation:probin .2s ease-out}
+.probs ul{margin:4px 0 0;padding-left:16px}.pst{margin-top:8px}.pstage{all:unset;cursor:pointer;font-weight:600;color:var(--fg);font-size:12.5px}.pstage:hover{text-decoration:underline}
+.scens{display:flex;flex-direction:column;gap:6px}
+.scn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:inherit;font-size:14px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);cursor:pointer}
+.scn:hover{background:var(--soft)}.scn.on{background:var(--sel);color:var(--selfg);border-color:var(--sel)}.scn:disabled{cursor:default;opacity:.75}
+.scn .rd{width:12px;height:12px;border-radius:50%;border:1.5px solid currentColor;flex:none}.scn.on .rd{background:currentColor;box-shadow:inset 0 0 0 2px var(--sel)}
+.scn .sl{flex:1}.om{font-size:11.5px;white-space:nowrap;padding:1px 7px;border-radius:999px}.om.ok{background:var(--okbg);color:var(--ok)}.om.bad{background:var(--badbg);color:var(--bad)}
+.story{margin:12px 0 0;padding:10px 12px;border-left:3px solid var(--line);font-size:13.5px;line-height:1.45}.story p{margin:4px 0 0;color:var(--muted)}
+.story .res{font-weight:600;margin-top:8px;padding:3px 8px;border-radius:4px;display:inline-block}.story .res.ok{color:var(--ok)}.story .res.bad{color:var(--bad)}
+.editany{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}.editany>summary{cursor:pointer;font-size:14px;font-weight:600;padding:4px 0}
+.editany .inputs{margin-top:8px}.editany .dshead{display:block}.editany .inp.preset{grid-template-columns:minmax(0,1fr) 190px}
+.inp.edited select{border-color:var(--warn);background-color:var(--warnbg)}
 .howfix{margin-top:8px;padding-top:6px;border-top:1px solid var(--line);color:var(--fg)}.howfix p{margin:4px 0;color:var(--muted)}
 .applyfix{display:block;width:100%;text-align:left;margin-top:6px;font:inherit;font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid var(--ok);background:var(--okbg);color:var(--ok);cursor:pointer}
-.applyfix:hover{filter:brightness(1.1)}.probx{position:absolute;top:4px;right:6px;border:0;background:transparent;color:var(--bad);font-size:16px;line-height:1;cursor:pointer}
+.applyfix:hover{filter:brightness(1.1)}
 @keyframes probin{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.fb .probs{animation:none}}
-.pg{display:grid;grid-template-columns:minmax(260px,340px) minmax(0,1fr);grid-template-areas:"stages ins" "stages fms";grid-template-rows:auto 1fr;gap:16px 24px;margin-top:16px}
+@media (prefers-reduced-motion:reduce){.probs{animation:none}}
+.pg{display:grid;grid-template-columns:minmax(300px,380px) minmax(0,1fr);grid-template-areas:"ins stages" "ins fms";grid-template-rows:auto 1fr;gap:16px 28px;margin-top:16px}
+.ins{position:sticky;top:60px;align-self:start;max-height:calc(100vh - 72px);overflow:auto;padding-right:4px}
 .stages{grid-area:stages}.ins{grid-area:ins}.fms{grid-area:fms}
 .colhead{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 8px}
 .stages .fb{margin:0}.vdown{text-align:center;color:var(--muted);font-size:16px;line-height:1;margin:4px 0}
@@ -85,7 +95,7 @@ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/sv
 .frow>button:focus-visible{outline:2px solid var(--fg)}.frow .chev{width:12px;color:var(--muted)}.frow .sym{flex:1;min-width:0;overflow-wrap:anywhere}.frow .val{color:var(--muted)}
 .frow.open>button{background:var(--sel);color:var(--selfg)}.frow.open>button .val,.frow.open>button .chev{color:var(--selfg)}
 .fbody{padding:8px 4px 14px}
-@media (max-width:820px){.pg{grid-template-columns:1fr;grid-template-areas:"ins" "stages" "fms"}}
+@media (max-width:820px){.pg{grid-template-columns:1fr;grid-template-areas:"ins" "stages" "fms"}.ins{position:static;max-height:none;overflow:visible}}
 .fgrid{display:grid;grid-template-columns:minmax(0,1fr) 16px minmax(0,1fr) 16px minmax(0,1fr) 16px minmax(0,1fr) 16px minmax(0,1fr);gap:4px;width:100%;align-items:stretch}
 .farrow{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:16px}.fvert{grid-column:5;text-align:center;color:var(--muted);font-size:16px;line-height:1}
 .sum{font-size:11px;color:var(--muted);margin:-2px 0 6px;line-height:1.35}.fb.sel .sum{color:var(--selfg)}
@@ -349,15 +359,17 @@ def page_how(specs: Path, rules) -> str:
     return _page("How it works", "how.html", body)
 
 
-def page_playground(default: dict) -> str:
-    opts = playground.options()
+def page_playground(default: dict, outcomes: dict | None = None) -> str:
+    opts = {**playground.options(), "outcomes": outcomes or {}}
     body = f"""<h1>Playground</h1>
-<p class="sub">Choose a product, change an input, and watch every stage's firmware constants, gates, and generated C follow. Computed in your browser by the same Python code as the command-line tool; nothing is uploaded.</p>
+<p class="sub">Choose a product, then a change request on the left, and watch every stage's firmware constants, gates, and generated C follow on the right. Computed in your browser by the same Python code as the command-line tool; nothing is uploaded.</p>
 <div class="ptabs" id="products" role="tablist" aria-label="Product data sheet"></div>
 <div class="statusbar"><div id="gates" class="pills"></div><div id="engine" class="sub">Showing pre-computed results · loading the in-browser engine…</div></div>
 <div class="pg">
+<section class="ins" aria-label="What changes"><div class="colhead">Change request · pick one</div><div id="scen" class="scens" role="radiogroup" aria-label="Scenario"></div>
+<div id="story" class="story" aria-live="polite"></div><div id="probs"></div>
+<details class="editany"><summary>Edit any value</summary><div id="inputs" class="inputs"></div></details></section>
 <section class="stages" aria-label="UPS power flow, top to bottom"><div class="colhead">Power flow · click a stage</div><div id="flow"></div></section>
-<section class="ins"><div class="colhead">Inputs</div><div id="inputs" class="inputs"></div></section>
 <section class="fms"><div class="colhead" id="fhead">Formulas</div><div class="pills" id="tabs"></div><div id="formulas"></div></section>
 </div>
 <script id="default-data" type="application/json">{_script_json(default)}</script>
@@ -397,7 +409,7 @@ def build_site(root: Path, out: Path, vendor_cache: Path, download: bool = False
     (out / "reports" / "index.html").write_text(page_reports(out, specs, rules), encoding="utf-8")
     (out / "audit.html").write_text(page_audit(root, specs, rules), encoding="utf-8")
     (out / "how.html").write_text(page_how(specs, rules), encoding="utf-8")
-    (out / "playground.html").write_text(page_playground(playground.run(specs)), encoding="utf-8")
+    (out / "playground.html").write_text(page_playground(playground.run(specs), playground.scenario_outcomes(specs)), encoding="utf-8")
     (out / ".nojekyll").write_text("", encoding="utf-8")
     shutil.copyfile(root / "LICENSE", out / "LICENSE.txt")
     shutil.copyfile(root / "THIRD_PARTY_NOTICES.md", out / "THIRD_PARTY_NOTICES.md")

@@ -97,6 +97,32 @@ def preset_edits(base_datasheet, key: str) -> dict[str, float]:
 
 FLOW_BLOCKS = ["in", "rect", "bus", "inv", "out", "batt"]
 
+# Guided what-ifs: the engineering change requests the demo is about. Each is a
+# setting of the same inputs a user can edit by hand; outcomes are computed, not typed.
+SCENARIOS = {
+    "shipped": {"label": "Shipped product", "board": "A", "target": "f28004x", "preset": None, "edits": {},
+                "story": "As built: rev A control board, F28004x-class chip, values from the public data sheet."},
+    "revB": {"label": "Alternate amplifier (rev B)", "board": "B", "target": "f28004x", "preset": None, "edits": {},
+             "story": "Purchasing substitutes the current-sense amplifier with a gain-20 part. Does the firmware still protect the unit?"},
+    "f2803x": {"label": "Port to F2803x (legacy chip)", "board": "A", "target": "f2803x", "preset": None, "edits": {},
+               "story": "The same product on an older chip without floating point. Same physics; PWM counts, DAC codes and the number format (IQ20) change."},
+    "eu": {"label": "Europe · 230 V 50 Hz", "board": "A", "target": "f28004x", "preset": "eu", "edits": {},
+           "story": "A configure-to-order variant for Europe. Output voltage and current limits rescale; changed data sheet values are marked OVERRIDE in the C."},
+    "fsw25": {"label": "Switching 20 → 25 kHz", "board": "A", "target": "f28004x", "preset": None, "edits": {"design.f_sw": 25.0},
+              "story": "Raise the switching frequency to shrink the output filter. The PWM period regenerates, but loop gains tuned at 20 kHz block the build until re-tuned or re-approved."},
+}
+
+
+def scenario_outcomes(specs: str | Path) -> dict[str, dict[str, bool]]:
+    """product -> scenario -> builds cleanly (C generated)."""
+    return {
+        product: {
+            key: run(specs, product, sc["board"], sc["target"], sc["edits"], preset=sc["preset"])["ok"]
+            for key, sc in SCENARIOS.items()
+        }
+        for product in PRODUCTS
+    }
+
 
 def _with_params(ps: ParamSet, edits: dict[str, float]) -> ParamSet:
     if not edits:
@@ -340,6 +366,8 @@ def options() -> dict:
         "targets": list(TARGETS),
         "editable": [{"key": f"{k}.{n}", "unit": u, "label": label, "owner": owner} for k, n, u, label, owner in EDITABLE],
         "presets": {k: v["label"] for k, v in PRESETS.items()},
+        "scenarios": {k: {"label": v["label"], "board": v["board"], "target": v["target"], "preset": v["preset"],
+                          "edits": v["edits"], "story": v["story"]} for k, v in SCENARIOS.items()},
         "flow": FLOW_BLOCKS,
     }
 
@@ -351,4 +379,4 @@ def run_json(specs: str, request_json: str) -> str:
                           req.get("edits") or {}, req.get("base_header"), req.get("preset") or None))
 
 
-__all__ = ["run", "run_json", "options", "to_json"]
+__all__ = ["run", "run_json", "options", "scenario_outcomes", "to_json"]
