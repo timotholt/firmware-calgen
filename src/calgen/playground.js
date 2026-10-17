@@ -345,7 +345,7 @@
     var names = { in: "AC input", rect: "PFC", bus: "DC bus", inv: "Inverter", out: "AC output", batt: "Battery" };
     var title = state.stage === "out" ? "Protection headroom" : DATA.blocks[state.stage];
     $("flow").innerHTML = '<h2 class="stage-heading">' + esc(title) + '</h2><div class="stage-nav-scroll"><div class="stage-nav" aria-label="Power flow stages">' +
-      ["in", "rect", "bus", "inv", "out", "batt"].map(function (b) { return '<button type="button" data-b="' + b + '" aria-pressed="' + (state.stage === b) + '" class="flow-stage flow-' + b + ' ' + (stageBad(b) ? 'is-bad' : '') + '">' + names[b] + '</button>'; }).join('') +
+      ["in", "rect", "bus", "inv", "out", "batt"].map(function (b) { return '<button type="button" data-b="' + b + '" aria-pressed="' + (state.stage === b) + '" class="flow-stage flow-' + b + ' ' + (stageBad(b) ? 'is-bad' : '') + '">' + '<span>' + names[b] + '</span></button>'; }).join('') +
       '</div></div>' + stageBox(state.stage) + '<div style="padding:0 18px 10px">' + legendHtml() + '</div>';
     $("flow").querySelectorAll('button[data-b]').forEach(function (button) { button.onclick = function () {
       state.stage = button.dataset.b; renderFlow(); renderFormulas();
