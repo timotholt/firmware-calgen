@@ -16,7 +16,7 @@ from calgen.consistency import ERROR, Finding, check_datasheet
 from calgen.expr import ExprError, Formula, Quantity, evaluate, parse
 from calgen.formats import Encoded, FormatError, encode
 from calgen.spec import Check, Param, Rule, Rules, Variant
-from calgen.units import UnitError, check_compatible, format_dim, from_si, parse_unit
+from calgen.units import UnitError, check_compatible, format_dim, from_si, parse_unit, to_si
 
 OK, FAIL, SKIPPED = "ok", "fail", "skipped"
 BLOCKING, WAIVED, FLAGGED = "blocking", "waived", "flagged"
@@ -60,6 +60,18 @@ class DatasheetFinding:
 
 
 @dataclass
+class StaleResult:
+    """An engineer-supplied value checked against the inputs it was designed for."""
+
+    param: str  # e.g. design.vloop_kp
+    against: str  # e.g. design.f_sw
+    designed: str  # e.g. "20 kHz"
+    current: str  # e.g. "25 kHz"
+    status: str
+    message: str = ""
+
+
+@dataclass
 class Build:
     variant: Variant
     rules: Rules
@@ -67,12 +79,14 @@ class Build:
     checks: list[CheckResult]
     digest: str
     datasheet: list[DatasheetFinding] = field(default_factory=list)
+    staleness: list[StaleResult] = field(default_factory=list)
 
     @property
     def failures(self) -> list[str]:
         out = [f"{c.rule.symbol}: {c.message}" for c in self.constants if c.status == FAIL]
         out += [f"check {c.check.id}: {c.message}" for c in self.checks if c.status == FAIL]
         out += [f"data sheet {', '.join(d.finding.fields)}: {d.finding.message}" for d in self.datasheet if d.status == BLOCKING]
+        out += [f"stale {s.param}: {s.message}" for s in self.staleness if s.status == FAIL]
         return out
 
     @property
@@ -152,9 +166,36 @@ def build(variant: Variant, rules: Rules) -> Build:
 
     checks = [_check(c, env) for c in rules.checks]
     findings = _classify(check_datasheet(variant.datasheet), _consumed_ds_fields(rules), variant)
+    stale = _staleness(variant, env)
     h = hashlib.sha256(variant.digest().encode())
     h.update(rules.path.read_bytes())
-    return Build(variant, rules, results, checks, h.hexdigest(), findings)
+    return Build(variant, rules, results, checks, h.hexdigest(), findings, stale)
+
+
+def _staleness(variant: Variant, env: dict[str, Quantity]) -> list[StaleResult]:
+    """Flag engineer-supplied values whose design inputs have changed since they were tuned."""
+    out = []
+    for p in variant.design.params.values():
+        for against, designed in sorted(p.designed_against.items()):
+            name = f"design.{p.name}"
+            parts = designed.split()
+            if against not in env or len(parts) != 2:
+                out.append(StaleResult(name, against, designed, "?", FAIL, f"cannot check: {against} unknown or {designed!r} is not 'value unit'"))
+                continue
+            try:
+                was = to_si(float(parts[0]), parts[1])
+            except (ValueError, UnitError) as exc:
+                out.append(StaleResult(name, against, designed, "?", FAIL, f"cannot check: {exc}"))
+                continue
+            now = env[against].value
+            now_text = f"{from_si(now, parts[1]):g} {parts[1]}"
+            if abs(now - was) <= 1e-9 * max(abs(was), 1e-30):
+                out.append(StaleResult(name, against, designed, now_text, OK))
+            else:
+                msg = (f"tuned for {against} = {designed}, now {now_text}; "
+                       f"re-tune {name} or re-approve it by updating designed_against")
+                out.append(StaleResult(name, against, designed, now_text, FAIL, msg))
+    return out
 
 
 def _consumed_ds_fields(rules: Rules) -> set[str]:

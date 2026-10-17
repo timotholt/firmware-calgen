@@ -42,6 +42,9 @@ def _print_build(b: Build) -> None:
     for d in b.datasheet:
         tag = {"blocking": _tag(FAIL), "waived": "wavd", "flagged": "flag"}[d.status]
         print(f"  {tag}  data sheet {', '.join(d.finding.fields):<17} {d.finding.message}")
+    for st in b.staleness:
+        note = f"  {st.message}" if st.message else f"  {st.against} = {st.current} as designed"
+        print(f"  {_tag(st.status)}  stale? {st.param:<19}{note}")
     for k in b.checks:
         note = f"  {k.message}" if k.message else ""
         print(f"  {_tag(k.status)}  check {k.check.id:<20}{note}")
