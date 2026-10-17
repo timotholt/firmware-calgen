@@ -1,1 +1,23 @@
 .DS_Store
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.hypothesis/
+dist/
+build/
+*.egg-info/
+
+# secrets — never commit
+.env
+.env.*
+
+# vendor SDKs under license — never commit (see docs/PLAN.md §0)
+ti-sdk/
+*C2000Ware*
+*DigitalPower*
+
+# build outputs
+firmware/build/
+site/_build/
+out/
