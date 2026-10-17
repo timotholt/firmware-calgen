@@ -241,3 +241,16 @@ def test_ripple_fraction_has_one_source():
 
     for f in ("src/calgen/playground.py", "src/calgen/magnetics.py"):
         assert not re.search(r"RIPPLE_FRACTION\s*=|ripple_fraction\s*=\s*0", (ROOT / f).read_text()), f
+
+
+def test_sizer_math_lines_reproduce_their_results():
+    """The numbers printed in each sizing derivation multiply out to the printed result."""
+    import math
+    import re
+
+    for c in mg.size_inductor(CORES, LIMITS, 330, 4, 4.5, 0.8)["candidates"]:
+        l_line, j_line = c["latex"][1], c["latex"][3]
+        n, al, turns, f, l_pk = (float(v) for v in re.match(r"L\(I_\{pk\}\) = (\d+) \\times ([\d.]+)\\,\\mathrm\{nH\} \\times (\d+)\^2 \\times ([\d.]+) = ([\d.]+)", l_line).groups())
+        assert n * al * turns ** 2 * f / 1000 == pytest.approx(l_pk, rel=1e-3)
+        t, s, d, wa, pct = (float(v) for v in re.search(r"\\frac\{(\d+) \\times (\d+) \\times \\pi \\times ([\d.]+)\^2/4\}\{([\d.]+)\\,\\mathrm\{mm\^2\}\} = (\d+)", j_line).groups())
+        assert round(t * s * math.pi * d ** 2 / 4 / wa * 100) == pytest.approx(pct, abs=1)

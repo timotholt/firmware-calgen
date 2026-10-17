@@ -636,8 +636,9 @@ def size_inductor(cores: dict[str, Core], limits: dict, l_uh: float, i_rms: floa
                 "fig": {"curve": svg_l_vs_i(core, turns, i_pk, l_uh, n), "winding": svg_window(core, [("W1", turns, strands, awg)], n)},
                 "latex": [
                     rf"H_{{pk}} = \frac{{0.4\pi \times {turns} \times {_f(i_pk)}\,\mathrm{{A}}}}{{{_f(le_cm)}\,\mathrm{{cm}}}} = {_f(h)}\,\mathrm{{Oe}} \;\Rightarrow\; {f * 100:.0f}\%\ \text{{of }} A_L \text{{ remains}}",
-                    rf"L(I_{{pk}}) = {n} \times {_f(core.al_nh)}\,\mathrm{{nH}} \times {turns}^2 \times {f:.2f} = {_f(l_pk, 4)}\,\mu\mathrm{{H}} \geq {_f(l_uh, 4)}\,\mu\mathrm{{H}}",
-                    rf"J = \frac{{{_f(i_rms)}\,\mathrm{{A}}}}{{{strands} \times {_f(awg_area_mm2(awg))}\,\mathrm{{mm^2}}}} = {_f(i_rms / cu)}\,\mathrm{{A/mm^2}}, \quad \text{{fill}} = \frac{{{turns} \times {_f(cu)}}}{{{_f(core.wa_mm2)}}} = {fill * 100:.0f}\%",
+                    rf"L(I_{{pk}}) = {n} \times {_f(core.al_nh)}\,\mathrm{{nH}} \times {turns}^2 \times {f:.4f} = {_f(l_pk, 4)}\,\mu\mathrm{{H}} \geq {_f(l_uh, 4)}\,\mu\mathrm{{H}}",
+                    rf"J = \frac{{{_f(i_rms)}\,\mathrm{{A}}}}{{{strands} \times {_f(awg_area_mm2(awg))}\,\mathrm{{mm^2}}}} = {_f(i_rms / cu)}\,\mathrm{{A/mm^2}}",
+                    rf"\text{{fill}} = \frac{{{turns} \times {strands} \times \pi \times {_wire_od(awg):.3f}^2/4}}{{{_f(core.wa_mm2)}\,\mathrm{{mm^2}}}} = {fill * 100:.0f}\%\ \text{{(wire with enamel)}}",
                 ],
             })
             break

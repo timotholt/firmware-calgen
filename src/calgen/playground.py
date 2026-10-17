@@ -318,7 +318,7 @@ def inductor_requirements(b: Build) -> dict[str, dict]:
         di = r * math.sqrt(2) * val["iout_rated"]
         out["out"] = {"name": "Output filter inductor", "l_uh": vbus / (4 * f_sw * di) * 1e6, "i_rms": val["iout_rated"],
                       "i_pk": math.sqrt(2) * val["iout_rated"] + di / 2, "min_retained": 0.8,
-                      "basis": f"L = V_bus / (4 f_sw ΔI), ΔI = {r:g} × rated peak; half-bridge or unipolar full bridge assumed (bipolar PWM needs twice the L); "
+                      "basis": f"L = V_bus / (4 f_sw ΔI), ΔI = {r:g} × rated peak; half-bridge assumed (a unipolar full bridge needs half this L, a bipolar one twice); "
                                f"sized at rated current plus ripple; the {val['iout_pk_limit']:.1f} A hardware limit is a brief fault event, checked separately; {shared}"}
     return out
 

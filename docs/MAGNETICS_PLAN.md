@@ -92,3 +92,7 @@ About a day. No paid model calls in v1. New dependencies: a PDF writer for the g
 - Ripple fraction and flux margin read from `limits.yaml` (no duplicated constants).
 - Toroid fill counts wire with enamel against the 40% winding factor; bobbin layers include a 1.1 build factor; wire choice prefers fewer strands within 10% of the smallest area; the inductance check also requires the core's A_L spread to fit the drawing's tolerance.
 - Passing designs redrawn with realistic, varied margins (59–78% of the bias limit); answer key unchanged.
+
+## Formula audit (2026-10-17)
+- Sizer derivation lines now reproduce their results: retained fraction shown to four places, and the fill line shows wire with enamel (what the check uses) instead of bare copper.
+- Output filter basis: L = V_bus/(4·f_sw·ΔI) is the half-bridge worst case; a unipolar full bridge ripples at 2·f_sw and needs half this L, a bipolar one twice. (Line 62 above said unipolar; corrected.)
