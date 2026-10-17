@@ -44,6 +44,7 @@ main{max-width:1100px;margin:0 auto;padding:16px}h1{font-size:22px;font-weight:6
 .notice summary{cursor:pointer;list-style:none}.notice summary::-webkit-details-marker{display:none}
 .notice summary .more{text-decoration:underline;margin-left:6px;font-weight:400}.notice[open] summary .more{display:none}.notice p{margin:6px 0 2px}
 .pills{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}.pill{font-size:12px;padding:3px 10px;border-radius:999px}
+.alert{font-size:13px;line-height:1.45;padding:8px 12px;border-radius:6px;margin:8px 0}
 .ok{background:var(--okbg);color:var(--ok)}.bad{background:var(--badbg);color:var(--bad)}.warn{background:var(--warnbg);color:var(--warn)}.na{background:var(--soft);color:var(--muted)}
 .md{display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;border-top:1px solid var(--line);padding-top:12px}
 .list{border-right:1px solid var(--line);padding-right:10px}.blk{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:12px 0 4px}
@@ -59,7 +60,7 @@ pre{background:var(--soft);border-radius:8px;padding:12px;overflow-x:auto;font-s
 details>summary{cursor:pointer;color:var(--muted);font-size:13px}
 @media (max-width:768px){.md{grid-template-columns:1fr}.list{border-right:0}.pane{display:block;border-top:1px solid var(--line);padding-top:8px}}
 @media print{.list,.hint{display:none}.md{grid-template-columns:1fr}.pane{display:block!important;break-inside:avoid;border-top:1px solid var(--line)}
-.notice,.pill{print-color-adjust:exact;-webkit-print-color-adjust:exact}details{display:block}details>summary{display:none}details>*{display:block}}
+.notice,.pill,.alert{print-color-adjust:exact;-webkit-print-color-adjust:exact}details{display:block}details>summary{display:none}details>*{display:block}}
 """
 
 JS = """
@@ -155,7 +156,7 @@ def render_report(b: Build, previous_header: str = "", katex_path: str = "assets
                 if s.origin != "constant"
             )
             code = "\n".join(define_block(c)) if c.status in (OK, SKIPPED) else ""
-            msg = f'<p class="pill {cls}" style="display:inline-block">{_e(c.message)}</p>' if c.message else ""
+            msg = f'<p class="alert {cls}">{_e(c.message)}</p>' if c.message else ""
             fmt = ""
             if c.encoded:
                 err = f", quantization error {c.encoded.rel_error * 100:.3g}%" if c.encoded.rel_error else ""
@@ -198,7 +199,7 @@ def render_report(b: Build, previous_header: str = "", katex_path: str = "assets
 <h2>Checks</h2><table><tr><th></th><th>Check</th><th>Math</th></tr>{''.join(check_rows)}</table>
 <h2>Data sheet consistency</h2>{f'<table><tr><th></th><th>Finding</th><th>Handling</th></tr>{"".join(ds_rows)}</table>' if ds_rows else '<p class="sub">No inconsistencies found in this data sheet.</p>'}
 <h2>Staleness of engineer-supplied values</h2><table><tr><th></th><th>Value</th><th>Design basis</th></tr>{''.join(st_rows)}</table>
-<h2>Generated C</h2>{f'<details><summary>calgen_{_e(v.name)}.h ({len(c_text.splitlines())} lines)</summary><pre>{_e(c_text)}</pre></details>' if c_text else '<p class="pill bad" style="display:inline-block">Not generated: gates failed, nothing written.</p>'}
+<h2>Generated C</h2>{f'<details><summary>calgen_{_e(v.name)}.h ({len(c_text.splitlines())} lines)</summary><pre>{_e(c_text)}</pre></details>' if c_text else '<p class="alert bad">Not generated: gates failed, nothing written.</p>'}
 <h2>Diff against committed version</h2>{_diff_html(previous_header, c_text, f'calgen_{v.name}.h') if c_text else '<p class="sub">—</p>'}
 <div class="sign"><div>Reviewed by <span></span></div><div>Date <span style="min-width:120px"></span></div><div>Decision: approve / reject / waiver</div></div>
 </main><script src="{katex_path}/katex.min.js"></script><script>{JS}</script></body></html>

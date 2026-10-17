@@ -245,7 +245,7 @@
 
   function constantBody(c) {
     return '<p class="sub" style="margin:0">' + esc(c.describe) + ' <span class="tag tag-' + c.tag + '">' + esc(TAGNAME[c.tag]) + "</span></p>" +
-      (c.message ? '<p class="pill ' + (c.status === "fail" ? "bad" : "na") + '" style="display:inline-block">' + esc(c.message) + "</p>" : "") +
+      (c.message ? '<p class="alert ' + (c.status === "fail" ? "bad" : "na") + '">' + esc(c.message) + "</p>" : "") +
       eqs(c.latex) +
       (c.sources.length ? "<table><tr><th>Input</th><th>From</th><th>Data sheet text / note</th></tr>" + c.sources.map(function (s) {
         return "<tr><td class='mono'>" + esc(s.name) + "</td><td>" + esc(s.origin) + "</td><td>" + esc(s.quote) + "</td></tr>"; }).join("") + "</table>" : "");
@@ -275,7 +275,7 @@
       }
     } else if (state.tab === "c") {
       out = DATA.header ? '<p><a class="btn" id="dl" href="#">Download calgen_' + esc(DATA.variant) + ".h</a></p><pre>" + esc(DATA.header) + "</pre>"
-        : '<p class="pill bad" style="display:inline-block">Not generated: ' + esc(DATA.gate_message) + "</p>";
+        : '<p class="alert bad">Not generated: ' + esc(DATA.gate_message) + "</p>";
     } else {
       out = DATA.diff ? "<pre>" + DATA.diff.split("\n").map(function (l) {
         var cls = l[0] === "+" && l.slice(0, 3) !== "+++" ? "add" : l[0] === "-" && l.slice(0, 3) !== "---" ? "del" : "";
