@@ -51,7 +51,17 @@ a{color:inherit}.btn{display:inline-block;border:1px solid var(--line);border-ra
 .fb:hover{background:var(--soft)}.fb.sel{background:var(--sel);color:var(--selfg)}.fb.bad{border-color:var(--bad)}.fb .t{font-weight:600;margin-bottom:4px}.fb .r{font-family:var(--mono);font-size:11px;line-height:1.5;overflow-wrap:anywhere}
 .fb.sel .tag{background:transparent;color:var(--selfg);border:1px solid var(--selfg)}.under{grid-column:5}.tab{cursor:pointer;border:1px solid var(--line);background:var(--bg)}.tab.on{background:var(--sel);color:var(--selfg)}
 .inp label{display:block;font-size:12px;color:var(--muted)}.inp input,.inp select{width:100%;font:inherit;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
-@media (max-width:768px){.fgrid{grid-template-columns:1fr}.farrow{transform:rotate(90deg)}.under,.fvert{grid-column:auto}}ol.problems li{margin:6px 0}footer{color:var(--muted);font-size:12px;border-top:1px solid var(--line);margin-top:36px;padding-top:10px}
+@media (max-width:768px){.fgrid{grid-template-columns:1fr}.farrow{transform:rotate(90deg)}.under,.fvert{grid-column:auto}}ol.problems li{margin:6px 0}h1.hero{font-size:28px;line-height:1.25;margin:24px 0 8px;max-width:30ch}.lead{font-size:19px;line-height:1.5;margin:0 0 24px;max-width:70ch}
+.proof{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:16px 0;margin:0 0 20px}
+.proof b{display:block;font-family:var(--mono);font-size:24px;font-weight:600}.proof span{display:block;font-size:13px;color:var(--muted);line-height:1.4}
+.cta{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;margin:0 0 40px}.cta a{font-size:14px}
+.cta a.primary{background:var(--fg);color:var(--bg);border:1px solid var(--fg);border-radius:8px;padding:9px 16px;font-size:15px;font-weight:600;text-decoration:none}
+.cards.outlined .card{background:transparent;border:1px solid var(--line);border-radius:8px;padding:16px}
+.cards.outlined .card h3{font-size:17px;font-weight:600;color:var(--fg);margin:0 0 6px}.cards.outlined .card p{font-size:15px;color:var(--muted)}
+main h2{margin-top:40px}.prose{max-width:75ch}.prose p{margin:0 0 12px}
+.more-box{margin-top:40px;border-top:1px solid var(--line);padding-top:12px;font-size:14px}.more-box summary{font-size:15px;color:var(--fg)}
+@media (max-width:480px){.proof b{font-size:20px}.proof span{font-size:12px}h1.hero{font-size:24px}.lead{font-size:17px}}
+footer{color:var(--muted);font-size:12px;border-top:1px solid var(--line);margin-top:36px;padding-top:10px}
 """
 
 
@@ -86,31 +96,39 @@ def _eqs(lines: list[str]) -> str:
 
 
 def page_home() -> str:
-    body = """
-<h1>From data sheet to firmware constants, with proof</h1>
-<p class="sub">A working demo for AMETEK IntelliPower's AI Automation Intern posting, initiative 2: automate firmware modification and calibration from engineering specifications.</p>
-<div class="cards">
-<div class="card"><h3>The problem I think you have</h3><p>Calibration gains, limits, and register values are hand-edited in C for each product variant and board revision, from data sheets that don't always agree with themselves.</p></div>
-<div class="card"><h3>What this demo does</h3><p>Generates those constants from the spec with every number traced to its source, checks existing firmware against the spec, and refuses to write anything when a gate fails.</p></div>
-<div class="card"><h3>What I don't claim</h3><p>Power-electronics design, loop tuning, magnetics, EMI, or certification. Those values come from engineers; the tool carries them safely.</p></div>
+    sample = (
+        "/* Comparator DAC code for the positive overcurrent trip\n"
+        " * = round((target.v_ref / 2 + iout_trip_pk * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)\n"
+        " *   target.v_ref = 3.3 V  [target f28004x.yaml]\n"
+        " *   board.r_shunt = 5 mohm  [board ups_ctrl_revA.yaml]\n"
+        " *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]\n"
+        " *   target.dac_max = 4095 counts  [target f28004x.yaml] */\n"
+        "#define UPS_IOUT_TRIP_DAC_HI       3364u          /* 3364 counts, uint16 */"
+    )
+    body = f"""
+<h1 class="hero">Firmware constants, generated from the data sheet and proven before they reach C</h1>
+<p class="lead">A working demo for AMETEK IntelliPower's AI Automation Intern posting, initiative 2: automate firmware calibration and configuration constants from engineering specifications. Runs entirely in your browser.</p>
+<div class="proof">
+<div><b>3</b><span>real IntelliPower data sheets, cited per value</span></div>
+<div><b>6 of 33</b><span>legacy constants that disagree with the spec, found by audit</span></div>
+<div><b>0</b><span>values written when any gate fails</span></div>
 </div>
-<p><a class="btn" href="playground.html">Try the playground →</a><a class="btn" href="audit.html">See the legacy audit →</a><a class="btn" href="reports/index.html">Review reports →</a></p>
-
-<h2>1. What the posting appears to be hiring for</h2>
-<p>Read from the posting, an AI-first intern to work on one or more of these problems:</p>
-<ol class="problems">
-<li><b>Magnetics design takes too many iterations</b>: ML on past designs and simulations to recommend inductors and transformers.</li>
-<li><b>Firmware changes are hand-edited</b>: hard-coded values and calibration gains in C source, updated manually, should be generated from engineering specifications.</li>
-<li><b>Specs aren't machine-usable</b>: requirements must become reliable firmware change rules; data sheet standards and governance.</li>
-<li><b>Changes must be provably validated</b>: test cases, build checks, result review.</li>
-<li><b>Process knowledge isn't written down</b>: document process, tool usage, limitations; process maps.</li>
-<li><b>Adopt AI responsibly</b>: prototypes, AI agents and productivity tools, outcomes presented to leaders.</li>
-</ol>
-<h2>2. Focus of this demo</h2>
-<p>This demo addresses <b>problem 2</b>, supported by 3 (a spec format and a data sheet consistency gate), 4 (gates, compile check, review report), and 5 (process map, documented limits). It does not attempt problem 1: magnetics needs real design data and power-engineering judgment I don't have, and a toy would mislead.</p>
-<h2>3. Thesis</h2>
-<p>IntelliPower publicly describes a configure-to-order catalog ("2,000+ variations", "building block methodology") and, in its engineering job postings, maintaining legacy boards and qualifying alternate components. Each product's ratings and each board's measurement chain must end up as correct constants in firmware. This tool makes that path automatic, traceable, and gated, and uses AI only where the input is messy, measured against a blind answer key and always reviewed by a person.</p>
-<h2>4. My assumptions, and how I'd check them in week one</h2>
+<p class="cta"><a class="primary" href="playground.html">Open the playground →</a><a href="audit.html">Legacy audit</a><a href="reports/index.html">Review reports</a></p>
+<div class="cards outlined">
+<div class="card"><h3>The problem I think you have</h3><p>Calibration gains, limits, and register values are hand-edited in C for each product variant and board revision, from data sheets that don't always agree with themselves.</p></div>
+<div class="card"><h3>What this demo does</h3><p>Generates those constants from the spec with every number traced to its source, audits existing firmware against the spec, and writes nothing when a gate fails.</p></div>
+<div class="card"><h3>What I don't claim</h3><p>Power-electronics design, loop tuning, magnetics, EMI, or certification. Those values come from engineers; the tool carries them safely from spec to source.</p></div>
+</div>
+<h2>What a generated line looks like</h2>
+<pre>{_e(sample)}</pre>
+<p class="sub">The formula, every input, and the file each came from travel with the constant. The review report typesets the same derivation, and a test checks that the typeset math equals the computed value.</p>
+<h2>Backstory and thesis</h2>
+<div class="prose">
+<p><b>Backstory.</b> I wrote C firmware and BIOS code at Phoenix Technologies, Quantum, AMD, and VM Labs, where constants had to be exactly right for each specific board. I've come back to engineering through an A.A.S. in AI software engineering, and this posting described a problem I recognized: numbers hand-edited in C source that should come from the spec. I built this demo to show how I'd approach it, before asking for the job.</p>
+<p><b>Thesis.</b> IntelliPower publicly describes thousands of configure-to-order variants built from shared designs, and its engineering postings mention keeping legacy boards alive with alternate components. Every variant's ratings and every board's measurement chain must end up as correct constants in firmware; I assume much of that is done by hand today, from data sheets that aren't always consistent (all three I transcribed contain an inconsistency). The right tool makes that path deterministic, traceable, and gated. AI belongs only where the input is messy: here it drafts what each unexplained legacy constant is, scored 91% on category and 97% on units against a blind answer key, and a person reviews every draft. AI never writes firmware.</p>
+</div>
+<details class="more-box"><summary>The posting, my assumptions, and how I'd check them in week one</summary>
+<p>The posting describes six problems: magnetics design iterations, hand-edited firmware constants, specs that aren't machine-usable, provable validation, undocumented process, and responsible AI adoption. This demo addresses the second and supports the next three. It doesn't attempt magnetics; that needs real design data and power-engineering judgment, and a toy would mislead.</p>
 <table><tr><th>#</th><th>Assumption</th><th>Why I think so</th><th>Confidence</th><th>How to check</th></tr>
 <tr><td>A1</td><td>Calibration and config constants live in C source (#defines / const tables)</td><td>The posting says so</td><td>High</td><td>Read one product's source</td></tr>
 <tr><td>A2</td><td>Many constants derive from data sheet ratings</td><td>Data sheet fields map cleanly to limits (1500 VA ÷ 120 V × 1.20 = 15 A)</td><td>Medium</td><td>Trace ten constants to their origin</td></tr>
@@ -118,7 +136,7 @@ def page_home() -> str:
 <tr><td>A4</td><td>The processor is a TI C2000 part</td><td>Posting asks for TI chipsets; public site says DSP firmware</td><td>Medium</td><td>Look at a board</td></tr>
 <tr><td>A5</td><td>Specs are not machine-readable today</td><td>All three data sheets checked contain an internal inconsistency</td><td>Medium</td><td>See the spec source of truth</td></tr>
 <tr><td>A6</td><td>Some calibration is per unit at a test station</td><td>The phrase "calibration gains"</td><td>Low</td><td>Ask production test</td></tr>
-</table>
+</table></details>
 """
     return _page("firmware-calgen: data sheet to firmware constants", "index.html", body)
 
