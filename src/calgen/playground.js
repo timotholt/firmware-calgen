@@ -6,7 +6,7 @@
   "use strict";
   var DATA = JSON.parse(document.getElementById("default-data").textContent);
   var OPTS = JSON.parse(document.getElementById("options").textContent);
-  var state = { product: "FA10507", board: "A", target: "f28004x", edits: {}, stage: "out", open: {}, tab: "math" };
+  var state = { product: "FA10507", board: "A", target: "f28004x", edits: {}, stage: "out", open: {}, tab: "c" };
   var engine = null;
   var prev = null; // id -> display from the previous computation, for flashing what just changed
   var FLOW = {
@@ -35,6 +35,17 @@
   function shown(c) {
     if (!changed(c.id) || !DATA.baseline) return esc(c.display);
     return '<span class="was">' + esc(DATA.baseline[c.id]) + "</span> → <b>" + esc(c.display) + "</b>";
+  }
+  function problems(b) {
+    var out = DATA.constants.filter(function (c) { return c.block === b && c.status === "fail"; }).map(function (c) { return c.symbol + ": " + c.message; });
+    out = out.concat(DATA.checks.filter(function (k) { return k.block === b && k.status === "fail"; }).map(function (k) { return k.message; }));
+    if (b === "inv") out = out.concat(DATA.staleness.filter(function (x) { return x.status === "fail"; }).map(function (x) { return x.param + ": " + x.message; }));
+    return out;
+  }
+  function allProblems() {
+    var n = 0;
+    Object.keys(FLOW).forEach(function (b) { n += problems(b).length; });
+    return n; // staleness problems are counted under the inverter stage
   }
   function stageBad(b) {
     return DATA.constants.some(function (c) { return c.block === b && c.status === "fail"; }) ||
@@ -65,8 +76,10 @@
       summary += '<div class="sense' + (sat ? " bad" : "") + '">' + esc(DATA.summaries.sense) + "</div>";
     }
     var any = DATA.constants.some(function (c) { return c.block === b && changed(c.id); });
+    var probs = problems(b);
+    var probHtml = probs.length ? '<ul class="probs">' + probs.map(function (m) { return "<li>" + esc(m) + "</li>"; }).join("") + "</ul>" : "";
     return '<div class="fb' + (state.stage === b ? " sel" : "") + (stageBad(b) ? " bad" : "") + (any ? " has-chg" : "") +
-      '" data-b="' + b + '" role="button" tabindex="0" aria-pressed="' + (state.stage === b) + '"><div class="t">' + esc(DATA.blocks[b]) + "</div>" + summary + rows + "</div>";
+      '" data-b="' + b + '" id="stage-' + b + '" role="button" tabindex="0" aria-pressed="' + (state.stage === b) + '"><div class="t">' + esc(DATA.blocks[b]) + "</div>" + summary + rows + probHtml + "</div>";
   }
 
   function renderFlow() {
@@ -134,11 +147,15 @@
       [DATA.ok ? "ok" : "bad", DATA.ok ? "C generated" : "Nothing written (fail closed)"],
       [n ? "chgpill" : "na", n ? n + " value" + (n === 1 ? "" : "s") + " changed vs shipped" : "matches shipped product"]
     ];
-    $("gates").innerHTML = pills.map(function (p) { return '<span class="pill ' + p[0] + '">' + esc(p[1]) + "</span>"; }).join("");
-    var msgs = DATA.checks.filter(function (k) { return k.status === "fail"; }).map(function (k) { return k.message; })
-      .concat(DATA.staleness.filter(function (s) { return s.status === "fail"; }).map(function (s) { return s.param + ": " + s.message; }))
-      .concat(DATA.constants.filter(function (c) { return c.status === "fail"; }).map(function (c) { return c.symbol + ": " + c.message; }));
-    $("failmsg").innerHTML = msgs.length ? '<ul style="color:var(--bad);font-size:13px;margin:8px 0">' + msgs.map(function (m) { return "<li>" + esc(m) + "</li>"; }).join("") + "</ul>" : "";
+    var np = allProblems();
+    $("gates").innerHTML = pills.map(function (p) { return '<span class="pill ' + p[0] + '">' + esc(p[1]) + "</span>"; }).join("") +
+      (np ? '<button type="button" class="pill bad probpill" id="probjump">' + np + " problem" + (np === 1 ? "" : "s") + " · show ↓</button>" : "");
+    var jump = $("probjump");
+    if (jump) jump.onclick = function () {
+      var b = firstFailingStage(); if (!b) return;
+      state.stage = b; render();
+      var el = $("stage-" + b); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    };
   }
 
   // ---- formulas for the selected stage --------------------------------------
@@ -155,8 +172,8 @@
   function isOpen(c) { return state.open[c.id] !== undefined ? state.open[c.id] : (c.status === "fail" || changed(c.id)); }
 
   function renderFormulas() {
-    var tabs = [["math", "Derivations"], ["c", "Generated C"], ["diff", "Diff vs shipped"]];
-    $("fhead").textContent = state.tab === "math" ? "Formulas · " + DATA.blocks[state.stage] : "Output";
+    var tabs = [["c", "Generated C"], ["math", "Derivations"], ["diff", "Diff vs shipped"]];
+    $("fhead").textContent = state.tab === "math" ? "Derivations · " + DATA.blocks[state.stage] + " (click a stage to switch)" : "Output";
     $("tabs").innerHTML = tabs.map(function (t) { return '<span class="pill tab' + (state.tab === t[0] ? " on" : "") + '" data-t="' + t[0] + '" role="button" tabindex="0">' + t[1] + "</span>"; }).join("");
     $("tabs").querySelectorAll(".tab").forEach(function (e) { keyed(e, function () { state.tab = e.dataset.t; renderFormulas(); }); });
     var out = "";
