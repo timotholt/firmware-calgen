@@ -406,10 +406,11 @@ def similar(designs: list[Design], k: int = 3) -> dict[str, list[tuple[str, floa
 def _figures(core: Core | None, d: Design) -> list[str]:
     if core is None:
         return []
-    figs = [svg_window(core, [(w.name, w.turns, w.strands, w.awg) for w in d.windings])]
-    if d.kind == "inductor" and core.family == "toroid":
-        figs.append(svg_l_vs_i(core, d.windings[0].turns, d.i_pk_a, parse_inductance_uh(d.l_text), ref_at="zero"))
-    return figs
+    win = svg_window(core, [(w.name, w.turns, w.strands, w.awg) for w in d.windings])
+    if d.kind != "inductor" or core.family != "toroid":
+        return [win]
+    curve = svg_l_vs_i(core, d.windings[0].turns, d.i_pk_a, parse_inductance_uh(d.l_text), ref_at="zero")
+    return [win, curve] if "bigfig" in win else [curve, win]  # lead with what matters: the curve, unless the winding doesn't fit
 
 
 def site_records(root: Path) -> dict:
@@ -506,7 +507,7 @@ def size_inductor(cores: dict[str, Core], limits: dict, l_uh: float, i_rms: floa
                 "core": core.name, "stack": n, "turns": turns, "awg": awg, "strands": strands,
                 "l0_uh": l0, "l_pk_uh": l_pk, "retained": f, "h_oe": h, "j": i_rms / cu, "fill": fill,
                 "core_volume_mm3": core.ve_mm3 * n, "copper_mm2": cu, "material": core.material,
-                "figures": [svg_window(core, [("W1", turns, strands, awg)], n), svg_l_vs_i(core, turns, i_pk, l_uh, n)],
+                "figures": [svg_l_vs_i(core, turns, i_pk, l_uh, n), svg_window(core, [("W1", turns, strands, awg)], n)],
                 "latex": [
                     rf"H_{{pk}} = \frac{{0.4\pi \times {turns} \times {_f(i_pk)}\,\mathrm{{A}}}}{{{_f(le_cm)}\,\mathrm{{cm}}}} = {_f(h)}\,\mathrm{{Oe}} \;\Rightarrow\; {f * 100:.0f}\%\ \text{{of }} A_L \text{{ remains}}",
                     rf"L(I_{{pk}}) = {n} \times {_f(core.al_nh)}\,\mathrm{{nH}} \times {turns}^2 \times {f:.2f} = {_f(l_pk, 4)}\,\mu\mathrm{{H}} \geq {_f(l_uh, 4)}\,\mu\mathrm{{H}}",

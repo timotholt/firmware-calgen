@@ -581,7 +581,7 @@ def build_site(root: Path, out: Path, vendor_cache: Path, download: bool = False
         pdf.close()
     (out / "magnetics.html").write_text(page_magnetics(mdata, (agree, len(mdata["records"]))), encoding="utf-8")
     thumb_rec = next(r for r in mdata["records"] if r["id"] == "MAG-001")
-    fig = thumb_rec["figures"][0]
+    fig = next(f for f in thumb_rec["figures"] if "thumbfig" in f or "bigfig" in f)
     thumb = fig[fig.index("<svg"):fig.index("</svg>") + len("</svg>")]
     pfc = playground.run(specs)["inductors"]["rect"]
     mag = {"drawings": len(mdata["records"]), "cores": len(mdata["cores"]), "agree": agree, "thumb": thumb, "pfc": pfc}
