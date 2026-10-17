@@ -152,7 +152,7 @@ def header(build: Build) -> str:
         lines += [
             f"#define CALGEN_GLOBAL_Q {q}  /* fixed-point target: values below are IQ{q} integers */",
             f"typedef calgen_iq_t calgen_num_t;  /* measurements are compared as IQ{q} integers, no float */",
-            f"#define CALGEN_NUM(x)  ((calgen_num_t)((x) * {float(1 << q):.1f} + ((x) >= 0 ? 0.5 : -0.5)))  /* rounds to nearest, like the generator; constant expressions only */",
+            f"#define CALGEN_NUM(x)  ((calgen_num_t)((x) * {float(1 << q):.1f} + ((x) >= 0 ? 0.5 : -0.5)))  /* rounds to nearest (ties away from zero; the generator ties to even); float constant expressions only */",
             f"#define CALGEN_REAL(x) ((float)(x) / {float(1 << q):.1f}f)  /* host-side checks only */",
         ]
     else:

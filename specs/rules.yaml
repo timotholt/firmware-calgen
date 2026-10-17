@@ -245,6 +245,7 @@ constants:
     symbol: UPS_PWM_DEADBAND_CNT
     describe: Dead-time register
     # DBRED/DBFED counts at TBCLK = EPWMCLK (assumed); rounded up so dead time is never shorter than designed
+    # (a product that is an exact integer in decimal but not in binary could round up one count: checked by the tests for the shipped values)
     formula: ceil(design.t_deadband * target.f_pwmclk)
     unit: counts
     format: uint16

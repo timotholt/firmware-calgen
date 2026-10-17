@@ -117,7 +117,7 @@
     } else {
       h += '<p class="sub">' + c.length + " candidate" + (c.length === 1 ? "" : "s") + ", smallest core volume first. Click a row to see its math and evidence below.</p>";
       if (lastReq && lastReq.min_retained < 0.8) h += '<p class="alert na">These keep less than 80% of their inductance at peak current. That is common for PFC inductors, but a drawing of one would be flagged by the drawing check below, which requires 80%.</p>';
-      h += '<table class="szt"><tr><th>Core</th><th>Stack · height</th><th>Turns</th><th>Wire</th><th>L at 0 A</th><th>L at peak</th><th>Kept</th><th>J</th><th>Fill</th><th>Core volume</th></tr>' +
+      h += '<table class="szt"><tr><th>Core</th><th>Stack · height</th><th>Turns</th><th>Wire</th><th>L at 0 A (min A<sub>L</sub>)</th><th>L at peak</th><th>Kept</th><th>J</th><th>Fill</th><th>Core volume</th></tr>' +
         c.map(function (x, i) {
           var row = '<tr class="cand' + (open === i ? " on" : "") + '" data-i="' + i + '" tabindex="0"><td class="mono">' + esc(x.core) + "</td><td>" + x.stack + "× · " + x.height_mm.toFixed(0) + " mm</td><td>" + x.turns + "</td><td>" + x.strands + " × " + x.awg + " AWG</td><td>" +
             fmtL(x.l0_uh) + "</td><td><b>" + fmtL(x.l_pk_uh) + "</b></td><td>" + Math.round(x.retained * 100) + "%</td><td>" + x.j.toFixed(2) + " A/mm²</td><td>" + Math.round(x.fill * 100) + "%</td><td>" + (x.core_volume_mm3 / 1000).toFixed(1) + " cm³</td></tr>";

@@ -90,6 +90,7 @@ def test_legacy_target_uses_iq20_and_10bit_dac():
     c = x.constant("vbus_set")
     assert c.fmt == "iq20" and c.encoded.code == 410 * (1 << 20)
     assert value(x, "pwm_period") == 1500  # 60 MHz / (2 * 20 kHz)
+    assert value(x, "pwm_deadband") == 60  # ceil(1 us * 60 MHz): no binary-float step past 60
     # 10-bit comparator DAC, V = DACVAL * VDDA / 1023 (SPRUGE5F 2.3.1): 782.75 -> floor 782, lo 240.25 -> ceil 241
     assert value(x, "iout_pklim_dac_hi") == 782
     assert value(x, "iout_pklim_dac_lo") == 241

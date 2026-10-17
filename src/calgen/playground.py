@@ -317,12 +317,15 @@ def inductor_requirements(b: Build) -> dict[str, dict]:
         di = r * math.sqrt(2) * val["iout_rated"]
         # A half-bridge swings ±V_bus/2, so it can only serve outputs whose peak fits under half the bus;
         # otherwise a full bridge (unipolar PWM: ripple at 2 f_sw, worst case V_bus / (8 f_sw L)).
-        half = vbus / 2 > math.sqrt(2) * val["vout_hi"]
-        k, topo = (4, "half-bridge (V_bus/2 clears the output peak)") if half else (8, "unipolar full bridge (V_bus/2 can't reach the output peak; ripple at 2 f_sw)")
+        m = b.env["design.m_max"].value if "design.m_max" in b.env else 1.0
+        cf = b.env["design.crest_factor"].value if "design.crest_factor" in b.env else math.sqrt(2)
+        half = m * vbus / 2 >= math.sqrt(2) * val["vout_hi"]
+        k, topo = (4, f"half-bridge ({m:g} × V_bus/2 clears the output peak)") if half else (8, f"unipolar full bridge ({m:g} × V_bus/2 can't reach the output peak; ripple at 2 f_sw)")
+        load_pk = max(cf * val["iout_rated"], math.sqrt(2) * val["iout_trip"])  # the inductor carries the load's current peaks
         out["out"] = {"name": "Output filter inductor", "l_uh": vbus / (k * f_sw * di) * 1e6, "i_rms": val["iout_rated"],
-                      "i_pk": math.sqrt(2) * val["iout_trip"] + di / 2, "min_retained": 0.8,
+                      "i_pk": load_pk + di / 2, "min_retained": 0.8,
                       "basis": f"L = V_bus / ({k} f_sw ΔI), ΔI = {r:g} × rated peak; {topo}; "
-                               f"peak at the {val['iout_trip']:.1f} A RMS overload the unit must ride through, RMS (heating) at rated; "
+                               f"peak = the larger of a rated {cf:g}:1 crest-factor load ({cf * val['iout_rated']:.1f} A) and a sinusoidal {val['iout_trip']:.1f} A RMS overload ({math.sqrt(2) * val['iout_trip']:.1f} A), plus ripple; RMS (heating) at rated; "
                                f"the {val['iout_pk_limit']:.1f} A hardware limit is a brief fault event, checked separately; {shared}"}
     return out
 

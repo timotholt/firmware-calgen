@@ -143,8 +143,9 @@ def test_playground_requirements_and_known_sizing_outcomes():
     # L = V_bus / (4 f_sw dI), dI = 0.3 x sqrt(2) x 20 A at 410 V, 20 kHz
     assert pfc["l_uh"] == pytest.approx(410 / (4 * 20e3 * 0.3 * 2 ** 0.5 * 20) * 1e6)
     assert pfc["i_pk"] == pytest.approx(2 ** 0.5 * 20 * 1.15)
-    # output filter: peak at the 15 A RMS overload plus ripple/2, heating at rated; 410 V bus -> half-bridge (205 V > 175 V peak)
-    assert out["i_pk"] == pytest.approx(2 ** 0.5 * 15 + 0.15 * 2 ** 0.5 * 12.5) and out["i_rms"] == pytest.approx(12.5)
+    # output filter: peak = max(3:1 crest load at rated = 37.5 A, sine overload 21.2 A) + ripple/2, heating at rated;
+    # 410 V bus -> half-bridge (0.95 x 205 V = 194.75 V > 175 V peak)
+    assert out["i_pk"] == pytest.approx(3 * 12.5 + 0.15 * 2 ** 0.5 * 12.5) and out["i_rms"] == pytest.approx(12.5)
     assert out["l_uh"] == pytest.approx(410 / (4 * 20e3 * 0.3 * 2 ** 0.5 * 12.5) * 1e6) and "half-bridge" in out["basis"]
     # 210 V bus: half of it (105 V) can't reach a 175 V output peak, so a unipolar full bridge, L = V_bus / (8 f_sw dI)
     small = run(specs, "FA10434")["inductors"]["out"]

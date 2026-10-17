@@ -44,3 +44,15 @@ waveform (RMS = I_pk/CF exactly); H = 0.4πNI/l_e (Oe, cm); L = A_L·N² and sta
 DC-bias fit, its inverse and derating; cores.csv self-consistency (A_L vs µµ₀A_e/l_e within 4%,
 V_e ≈ A_e·l_e within 1%); AWG formula and enamel OD; transformer L_m, ratio and square-wave flux;
 bobbin build model; all 12 answer-key verdicts; PFC boost worst case L = V_bus/(4·f·ΔI).
+
+## Second pass (review of the fixes, 2026-10-17)
+| # | Severity | Defect | Fix |
+|---|---|---|---|
+| P1 | Wrong | Output filter peak was the sinusoidal overload (23.9 A) though a rated 3:1 crest-factor load peaks at 37.5 A; sized cores kept only 64–67% of inductance at that peak. | Peak = max(crest factor × rated, √2 × trip) + ripple/2. |
+| P2 | Misleading | Half-bridge vs full-bridge choice had no modulation-index margin. | Half-bridge only when m_max × V_bus/2 clears the output peak. |
+| P3 | Nit | README realised limit 43.747 A (it is 43.7476). | 43.748 A. |
+| P4 | Nit | `CALGEN_NUM` ties away from zero; the generator ties to even. | Documented in the macro comment. |
+| P5 | Nit | `ceil`/`floor` on binary floats can step one count on decimal-exact products. | Noted in the rule; shipped values pinned by tests. |
+| P6 | Nit | Sizer table "L at 0 A" showed the minimum-A_L value unlabelled. | Header says min A_L. |
+
+The F2803x comparator DAC divisor (1023) was re-checked against TI's current reference manual, SPRUI10A (DAC Reference: V = DACVAL × (VDDA − VSSA) / 1023), as well as SPRUGE5F §2.3.1.

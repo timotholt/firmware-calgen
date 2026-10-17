@@ -5,7 +5,7 @@
  *           ratings from DS-10507 Rev.101119 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f2803x (default format iq20)
- * inputs  : sha256 6badd9a9be681acd514a45b00782a479a7d1e1a9b35fa0a1c482520f3f99d96f
+ * inputs  : sha256 8bd6444cda716ccc349e7e7b44a25e3398a649d2a9783358e1d00c1b3f82a0cd
  *
  * SYNTHETIC DEMO: firmware names and circuit values are invented; product ratings
  * come from the public data sheet cited above. Not from any vendor SDK.
@@ -17,7 +17,7 @@
 
 #define CALGEN_GLOBAL_Q 20  /* fixed-point target: values below are IQ20 integers */
 typedef calgen_iq_t calgen_num_t;  /* measurements are compared as IQ20 integers, no float */
-#define CALGEN_NUM(x)  ((calgen_num_t)((x) * 1048576.0 + ((x) >= 0 ? 0.5 : -0.5)))  /* rounds to nearest, like the generator; constant expressions only */
+#define CALGEN_NUM(x)  ((calgen_num_t)((x) * 1048576.0 + ((x) >= 0 ? 0.5 : -0.5)))  /* rounds to nearest (ties away from zero; the generator ties to even); float constant expressions only */
 #define CALGEN_REAL(x) ((float)(x) / 1048576.0f)  /* host-side checks only */
 
 /* ==== AC input ============================================================== */

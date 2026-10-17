@@ -105,7 +105,7 @@ $$I_\text{rated} = \frac{S}{V_\text{out}} = \frac{1500\ \text{VA}}{120\ \text{V}
 
 $$N_\text{DAC,hi} = \left\lfloor\frac{\tfrac{3.3}{2}\ \text{V} + 43.75\ \text{A}\cdot 2\ \text{m}\Omega \cdot 10}{3.3\ \text{V}}\cdot 4096\right\rfloor = \lfloor 3134.06 \rfloor = 3134$$
 
-(The CMPSS DAC gives V = code × V_ref / 4096; the code rounds toward mid-rail so the realised limit, 43.747 A, never exceeds the design limit.)
+(The CMPSS DAC gives V = code × V_ref / 4096; the code rounds toward mid-rail so the realised limit, 43.748 A, never exceeds the design limit.)
 
 ## Where AI is used, and where it is not
 
