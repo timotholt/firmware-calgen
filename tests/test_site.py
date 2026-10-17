@@ -24,7 +24,7 @@ def site(tmp_path_factory):
 @needs_vendor
 def test_pages_exist_and_carry_notice(site):
     pages = list(site.rglob("*.html"))
-    assert {p.name for p in pages} >= {"index.html", "playground.html", "audit.html", "how.html", "ai.html", "backstory.html", "fa10507.html", "fa10507_revB.html"}
+    assert {p.name for p in pages} >= {"index.html", "playground.html", "audit.html", "how.html", "ai.html", "magnetics.html", "backstory.html", "fa10507.html", "fa10507_revB.html"}
     for p in pages:
         assert "Results are representative and informational only." in p.read_text(), p
 

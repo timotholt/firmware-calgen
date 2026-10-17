@@ -32,7 +32,7 @@ from calgen.spec import load_rules, load_variant
 REPO = "https://github.com/timotholt/firmware-calgen"
 VARIANTS = ["fa10507", "fa10449", "fa10434", "fa10507_f2803x", "fa10507_revB"]
 NAV = [("index.html", "Overview"), ("playground.html", "Playground"), ("reports/index.html", "Review reports"),
-       ("audit.html", "Audit"), ("how.html", "How it works"), ("ai.html", "AI practice"), ("backstory.html", "Tim Otholt · backstory")]
+       ("audit.html", "Audit"), ("magnetics.html", "Magnetics"), ("how.html", "How it works"), ("ai.html", "AI practice"), ("backstory.html", "Tim Otholt · backstory")]
 
 SITE_CSS = REPORT_CSS + """
 nav{display:flex;flex-wrap:wrap;gap:4px 18px;border-bottom:1px solid var(--line);padding:10px 0;margin-bottom:6px;font-size:14px}
@@ -113,7 +113,7 @@ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/sv
 .cards.outlined .card{background:transparent;border:1px solid var(--line);border-radius:8px;padding:16px}
 .cards.outlined .card h3{font-size:17px;font-weight:600;color:var(--fg);margin:0 0 6px}.cards.outlined .card p{font-size:15px;color:var(--muted)}
 main h2{margin-top:40px}.prose{max-width:75ch}.prose p{margin:0 0 12px}
-.posting{margin:12px 0 16px}.posting .shot{max-height:440px;max-width:760px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;background:#f2f2f2}.posting img{display:block;width:100%;height:auto}.posting figcaption{font-size:12.5px;color:var(--muted);margin-top:6px;max-width:760px}.sblock{border-left:4px solid;border-radius:0 8px 8px 0;padding:14px 18px 2px;margin:0 0 28px}.sblock .slabel{font-size:12px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:6px}.sblock.back{border-color:var(--warn);background:var(--warnbg)}.sblock.back .slabel{color:var(--warn)}.sblock.why{border-color:var(--ok);background:var(--okbg)}.sblock.why .slabel{color:var(--ok)}.sblock.thesis{border-color:var(--acc);background:var(--accbg)}.sblock.thesis .slabel{color:var(--acc)}.story-page.wide{max-width:80ch}.plan td{vertical-align:top}.plan td:first-child{white-space:nowrap;font-family:var(--mono)}.sblock ul{margin:0 0 16px;padding-left:20px}.sblock li{margin:6px 0}.story-page{max-width:68ch;margin:56px 0 80px}.story-page h1{font-size:28px;margin:0 0 10px}.prose.roomy{font-size:17px;line-height:1.7}.prose.roomy p{margin:0 0 28px}.more-box{margin-top:40px;border-top:1px solid var(--line);padding-top:12px;font-size:14px}.more-box summary{font-size:15px;color:var(--fg)}
+.posting{margin:12px 0 16px}.posting .shot{max-height:440px;max-width:760px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;background:#f2f2f2}.posting img{display:block;width:100%;height:auto}.posting figcaption{font-size:12.5px;color:var(--muted);margin-top:6px;max-width:760px}.sblock{border-left:4px solid;border-radius:0 8px 8px 0;padding:14px 18px 2px;margin:0 0 28px}.sblock .slabel{font-size:12px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:6px}.sblock.back{border-color:var(--warn);background:var(--warnbg)}.sblock.back .slabel{color:var(--warn)}.sblock.why{border-color:var(--ok);background:var(--okbg)}.sblock.why .slabel{color:var(--ok)}.sblock.thesis{border-color:var(--acc);background:var(--accbg)}.sblock.thesis .slabel{color:var(--acc)}.story-page.wide{max-width:80ch}.plan td{vertical-align:top}.plan td:first-child{white-space:nowrap;font-family:var(--mono)}.sblock ul{margin:0 0 16px;padding-left:20px}.sblock li{margin:6px 0}.msearch{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:flex-end;margin:18px 0 6px;font-size:13px}.msearch label{display:flex;flex-direction:column;gap:3px;color:var(--muted)}.msearch .grow{flex:1;min-width:180px}.msearch input,.msearch select{font:inherit;height:30px;padding:0 8px;border:1px solid var(--line);border-radius:6px;background-color:var(--bg);color:var(--fg);width:110px;box-sizing:border-box}.msearch .grow input{width:100%}.msearch select{width:140px}.msearch .btn{margin:0;height:30px;cursor:pointer;background:var(--bg);color:var(--fg);font:inherit}.mlist tr.mrow{cursor:pointer}.mlist tr.mrow:hover{background:var(--soft)}.mlist tr.mrow.on{background:var(--sel);color:var(--selfg)}#m-detail{margin-top:18px;border-top:1px solid var(--line);padding-top:12px}.mdetail{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px}.mdraw object{width:100%;aspect-ratio:11/8.5;border:1px solid var(--line);border-radius:6px;background:#fff}.minfo table{font-size:12.5px}.mcheck{border-bottom:1px solid var(--line);padding:6px 0}.mcheck p{margin:4px 0}.msim li{margin:4px 0}@media (max-width:820px){.mdetail{grid-template-columns:1fr}}.story-page{max-width:68ch;margin:56px 0 80px}.story-page h1{font-size:28px;margin:0 0 10px}.prose.roomy{font-size:17px;line-height:1.7}.prose.roomy p{margin:0 0 28px}.more-box{margin-top:40px;border-top:1px solid var(--line);padding-top:12px;font-size:14px}.more-box summary{font-size:15px;color:var(--fg)}
 @media (max-width:480px){.proof b{font-size:20px}.proof span{font-size:12px}h1.hero{font-size:24px}.lead{font-size:17px}}
 footer{color:var(--muted);font-size:12px;border-top:1px solid var(--line);margin-top:36px;padding-top:10px}
 """
@@ -365,6 +365,54 @@ def page_how(specs: Path, rules) -> str:
     return _page("How it works", "how.html", body)
 
 
+def page_magnetics(data: dict, key_match: tuple[int, int]) -> str:
+    recs = data["records"]
+    nflag = sum(r["flagged"] for r in recs)
+    lim = data["limits"]
+    core_rows = "".join(
+        f"<tr><td class='mono'>{_e(c['name'])}</td><td>{_e(c['vendor'])} {_e(c['material'])} {_e(c['family'])}</td><td>{c['al_nh']:g} ± {c['al_tol_pct']:g}%</td>"
+        f"<td>{c['ae_mm2']:g}</td><td>{c['le_mm']:g}</td><td>{c['wa_mm2']:g}{' *' if c['wa_basis'] != 'data sheet' else ''}</td>"
+        f"<td>{'' if c['h80_oe'] is None else format(c['h80_oe'], 'g') + ' Oe'}{'' if c['bsat_mt'] is None else format(c['bsat_mt'], 'g') + ' mT'}</td><td class='sub'>{_e(c['source'])}</td></tr>"
+        for c in data["cores"])
+    body = f"""<h1>Magnetics</h1>
+<p class="lead">The posting's first initiative is an AI tool that speeds up inductor and transformer design using past designs. That tool needs something first: past drawings turned into structured, checked, searchable data. This page demonstrates that step. It does not design magnetics.</p>
+<div class="proof">
+<div><b>{len(recs)}</b><span>synthetic component drawings (PDF), read back from their text layer</span></div>
+<div><b>{len(data['cores'])}</b><span>real cores, values transcribed from vendor data sheets with citations</span></div>
+<div><b>{nflag} flagged</b><span>for review by physics checks; agrees with the blind answer key on {key_match[0]} of {key_match[1]} drawings</span></div>
+</div>
+<div class="msearch">
+<label>Kind <select id="f-kind"><option value="">All</option><option value="inductor">Inductors</option><option value="transformer">Transformers</option></select></label>
+<label>Inductance from <input id="f-lmin" type="number" min="0" step="any" placeholder="µH"></label>
+<label>to <input id="f-lmax" type="number" min="0" step="any" placeholder="µH"></label>
+<label>Current at least <input id="f-imin" type="number" min="0" step="any" placeholder="A"></label>
+<label>Status <select id="f-status"><option value="">All</option><option value="pass">Passed</option><option value="flag">Needs review</option></select></label>
+<label class="grow">Search <input id="f-text" type="text" placeholder="drawing, title, core, material"></label>
+<button id="f-reset" class="btn" type="button">Clear</button>
+</div>
+<p class="sub" id="m-count"></p>
+<table class="mlist"><thead><tr><th>Drawing</th><th>Title</th><th>Core</th><th>Inductance</th><th>Current</th><th>Checks</th></tr></thead><tbody id="m-list"></tbody></table>
+<div id="m-detail"></div>
+<h2>How it works</h2>
+<ol class="prose">
+<li><b>Extract.</b> Each drawing's PDF text layer is parsed into fields (core, winding table, electrical table, title block). Every field keeps the text it came from. These drawings share one template; real drawings vary, so the first real step would be sampling about ten of yours to fix the schema, with a vision model and human review for scans.</li>
+<li><b>Check.</b> Textbook physics against vendor data: stated inductance vs A<sub>L</sub>·N² (within the core's A<sub>L</sub> tolerance), DC bias on powder cores (peak magnetizing force vs the data sheet's 80%-permeability point), transformer peak flux vs B<sub>sat</sub>, turns ratio, current density, and window fill. Anything that fails goes to review with the reason and the math.</li>
+<li><b>Search.</b> Filter checked records, and rank the closest past designs, the question a design engineer actually asks first.</li>
+</ol>
+<h2>Core catalog (real data)</h2>
+<table><tr><th>Core</th><th>Type</th><th>A<sub>L</sub> (nH/T²)</th><th>A<sub>e</sub> (mm²)</th><th>l<sub>e</sub> (mm)</th><th>W<sub>a</sub> (mm²)</th><th>Limit</th><th>Source</th></tr>{core_rows}</table>
+<p class="sub">Limit is the DC bias at 80% permeability for powder toroids, or minimum B<sub>sat</sub> at 100 °C for ferrite. * E-core window derived from nominal dimensions as (B − C)/2 × 2E, before the coil former.</p>
+<h2>Assumptions and limits</h2>
+<ul class="prose">
+<li>Drawings, part numbers, and designs are <b>synthetic</b>; seeded mistakes are listed in a blind answer key the checks never read.</li>
+<li>Design limits are textbook assumptions: current density ≤ {lim['j_max_a_per_mm2']:g} A/mm²; window fill ≤ {lim['fill_max_toroid'] * 100:.0f}% (toroids) or {lim['fill_max_ecore'] * 100:.0f}% (E cores, bare window); transformer flux ≤ {lim['bsat_margin'] * 100:.0f}% of B<sub>sat</sub>; turns ratio within {lim['ratio_tol_pct']:g}%.</li>
+<li>First-order physics only: no core-loss, AC winding-loss, or thermal model yet. Those, and the design recommendations, are the next steps once real data exists, and they belong to your magnetics engineers.</li>
+</ul>
+<script id="mag-data" type="application/json">{_script_json(data)}</script>"""
+    scripts = '<script src="assets/magnetics.js?v=' + ASSET_VERSION + '"></script>'
+    return _page("Magnetics", "magnetics.html", body, scripts=scripts)
+
+
 def page_ai(ai: dict[str, float]) -> str:
     cost = f"${ai['cost']:.4f}" if ai.get("cost") else "under a cent"
     body = f"""<div class="story-page wide">
@@ -456,11 +504,13 @@ def build_site(root: Path, out: Path, vendor_cache: Path, download: bool = False
     assets = out / "assets"
     stage(vendor_cache, assets, download=download)
     js = Path(__file__).with_name("playground.js").read_text(encoding="utf-8")
+    mjs = Path(__file__).with_name("magnetics.js").read_text(encoding="utf-8")
     engine = json.dumps(bundle(root))
     global ASSET_VERSION  # browsers and the Pages CDN cache assets; a new hash forces a fresh copy
-    ASSET_VERSION = hashlib.sha256((SITE_CSS + js + engine).encode()).hexdigest()[:12]
+    ASSET_VERSION = hashlib.sha256((SITE_CSS + js + mjs + engine).encode()).hexdigest()[:12]
     (assets / "site.css").write_text(SITE_CSS, encoding="utf-8")
     (assets / "playground.js").write_text(js, encoding="utf-8")
+    (assets / "magnetics.js").write_text(mjs, encoding="utf-8")
     (assets / "calgen_bundle.json").write_text(engine, encoding="utf-8")
     corpus, cands, conf = audit_results(root, specs, rules)
     nano = [x[0] for x in model_runs(corpus, cands, rules).get("gpt-5.4-nano", [])]
@@ -477,6 +527,15 @@ def build_site(root: Path, out: Path, vendor_cache: Path, download: bool = False
     (out / "how.html").write_text(page_how(specs, rules), encoding="utf-8")
     (out / "backstory.html").write_text(page_backstory(ai), encoding="utf-8")
     (out / "ai.html").write_text(page_ai(ai), encoding="utf-8")
+    from calgen import magnetics as mg
+
+    mdata = mg.site_records(root)
+    key = yaml.safe_load((root / "corpus" / "magnetics" / "ANSWER_KEY.yaml").read_text(encoding="utf-8"))
+    agree = sum(sorted(c["id"] for c in r["checks"] if c["status"] == mg.FLAG) == sorted(key.get(r["id"], [])) for r in mdata["records"])
+    (out / "magnetics").mkdir(exist_ok=True)
+    for r in mdata["records"]:
+        shutil.copyfile(root / "corpus" / "magnetics" / "drawings" / f"{r['id']}.pdf", out / "magnetics" / f"{r['id']}.pdf")
+    (out / "magnetics.html").write_text(page_magnetics(mdata, (agree, len(mdata["records"]))), encoding="utf-8")
     (out / "playground.html").write_text(page_playground(playground.run(specs)), encoding="utf-8")
     (out / ".nojekyll").write_text("", encoding="utf-8")
     shutil.copyfile(root / "LICENSE", out / "LICENSE.txt")

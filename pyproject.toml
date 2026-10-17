@@ -16,7 +16,12 @@ ai = ["openai>=1.0", "anthropic>=0.40"]
 calgen = "calgen.cli:main"
 
 [dependency-groups]
-dev = ["pytest>=8.0", "hypothesis>=6.100"]
+dev = [
+    "pytest>=8.0",
+    "hypothesis>=6.100",
+    "pypdf>=6.21.0",
+    "reportlab>=5.0.1",
+]
 
 [build-system]
 requires = ["hatchling"]

@@ -1,0 +1,15 @@
+# Blind answer key for corpus/magnetics (SYNTHETIC). The checks never read this file;
+# tests compare the checks' verdicts against it. Each id lists the checks that must flag it
+# (empty list = must pass every check).
+MAG-001: []
+MAG-002: []
+MAG-003: [inductance]      # turns typo: 35 drawn, ~45 needed for 270 uH on this core
+MAG-004: []
+MAG-005: [inductance]      # unit slip: 4.5 mH drawn, core and turns give ~456 uH
+MAG-006: [current_density] # 22 AWG for 3 A RMS
+MAG-007: []
+MAG-008: [window_fill]     # 88 turns of 2 x 16 AWG cannot fit this toroid
+MAG-009: [dc_bias]         # 67 turns x 11 A peak drives the core far past its 80% point
+MAG-010: [core_known]      # core part number typo (0077038A7 for 0077083A7)
+XFMR-001: []
+XFMR-002: [ratio]          # drawing says 4:1, winding table is 40:12

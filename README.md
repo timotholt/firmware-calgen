@@ -122,6 +122,19 @@ gpt-5.4-nano, the low-cost model tried, maps legacy constants to the right rule 
 
 History: an earlier single run scored 91% on category with a different rule set, and the very first run scored 39% because of two bugs in my harness (a dropped id suffix; per-file ids colliding in scoring), both fixed and tested. Every run is kept in [`corpus/legacy_ups/ai_runs/`](corpus/legacy_ups/ai_runs/).
 
+## Magnetics (initiative 1, first step)
+
+The posting's other initiative is an AI tool that speeds up inductor and transformer design using past designs. That needs past drawings turned into structured, checked, searchable data first, so that's what the Magnetics tab shows. It does not design magnetics.
+
+- **Real core data:** six Magnetics Inc. Kool Mµ toroids and two Ferroxcube 3C94 E cores, transcribed with citations ([sources](specs/magnetics/SOURCES.md)).
+- **Synthetic drawings:** 12 PDFs (10 inductors, 2 transformers) with seeded mistakes and a blind answer key.
+- **Extract → check → search:** fields are read back from each PDF's text layer; physics checks compare them with the core data (A_L·N², DC bias, peak flux, turns ratio, current density, window fill); flagged drawings go to review with the math. The checks agree with the key on all 12.
+
+```
+calgen magnetics render    # regenerate the drawings (deterministic)
+calgen magnetics check     # extract and check every drawing from its PDF
+```
+
 ## Usage
 
 ```bash

@@ -1,0 +1,7 @@
+# Design limits for the magnetics checks. ASSUMPTIONS (typical textbook values), not vendor data.
+j_max_a_per_mm2: 5.0        # copper current density, RMS
+fill_max_toroid: 0.40       # bare copper / window area; Magnetics quotes wound sizes at a 40% winding factor
+fill_max_ecore: 0.25        # bare copper / bare core window; leaves room for the coil former and insulation
+toroid_bias_limit: h80      # peak magnetizing force must not exceed the data sheet's 80%-permeability point
+bsat_margin: 0.80           # transformer peak flux density <= 80% of the data sheet's minimum B_sat
+ratio_tol_pct: 1.0          # stated turns ratio vs. the winding table

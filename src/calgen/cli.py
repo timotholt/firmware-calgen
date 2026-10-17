@@ -190,6 +190,29 @@ def cmd_site(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_magnetics(args: argparse.Namespace) -> int:
+    from calgen import magnetics as mg
+
+    root = Path(args.root)
+    corpus, specs = root / "corpus" / "magnetics", root / "specs" / "magnetics"
+    designs = mg.load_designs(corpus / "designs.yaml")
+    if args.action == "render":
+        (corpus / "drawings").mkdir(parents=True, exist_ok=True)
+        for d in designs:
+            mg.render_pdf(d, corpus / "drawings" / f"{d.id}.pdf")
+        print(f"rendered {len(designs)} drawings into {corpus / 'drawings'}")
+        return 0
+    cores, limits = mg.load_cores(specs / "cores.csv"), mg.load_limits(specs / "limits.yaml")
+    flagged = 0
+    for d in designs:
+        rec = mg.design_from_extract(mg.extract(corpus / "drawings" / f"{d.id}.pdf"))
+        bad = [c for c in mg.check(rec, cores, limits) if c.status == mg.FLAG]
+        flagged += bool(bad)
+        print(f"  {'FLAG' if bad else 'pass'}  {rec.id:<9} {rec.title:<36} " + "; ".join(c.message for c in bad))
+    print(f"{len(designs) - flagged} passed, {flagged} flagged for review")
+    return 0
+
+
 def cmd_vendor(args: argparse.Namespace) -> int:
     from calgen.vendor import fetch
 
@@ -240,6 +263,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--ai", default="replay", help="backend: replay[:file] | openai:<model> | anthropic:<model> | none")
     p.add_argument("--record", help="save responses for offline replay")
     p.set_defaults(func=cmd_eval)
+
+    p = sub.add_parser("magnetics", help="magnetics demo: render synthetic drawings, or extract and check them")
+    p.add_argument("action", choices=["render", "check"])
+    p.add_argument("--root", default=".", help="repository root")
+    p.set_defaults(func=cmd_magnetics)
 
     p = sub.add_parser("vendor", help="download and verify the site's pinned third-party assets")
     p.add_argument("--vendor", default="vendor", help="cache directory")
