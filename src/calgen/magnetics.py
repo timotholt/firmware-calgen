@@ -408,7 +408,7 @@ def _figures(core: Core | None, d: Design) -> list[str]:
         return []
     figs = [svg_window(core, [(w.name, w.turns, w.strands, w.awg) for w in d.windings])]
     if d.kind == "inductor" and core.family == "toroid":
-        figs.append(svg_l_vs_i(core, d.windings[0].turns, d.i_pk_a, parse_inductance_uh(d.l_text)))
+        figs.append(svg_l_vs_i(core, d.windings[0].turns, d.i_pk_a, parse_inductance_uh(d.l_text), ref_at="zero"))
     return figs
 
 
@@ -609,14 +609,17 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
     circles = "".join(f'<circle class="mw-w{k}" cx="{x:.2f}" cy="{y:.2f}" r="{r:.3f}"/>' for k, x, y, r in placed)
     label = ", ".join(f"{name}: {t} × {n} × {a} AWG" for name, t, n, a in windings)
     note = f"{len(wires) - overflow} of {len(wires)} conductors drawn" + (f"; {overflow} don't fit" if overflow else "")
-    return (f'<figure class="mfig"><svg viewBox="{view}" role="img" aria-label="Winding view: {label}; copper fills {fill * 100:.0f}% of the window">'
+    size = "bigfig" if overflow else "thumbfig"  # the picture earns space only when the winding doesn't fit
+    return (f'<figure class="mfig {size}"><svg viewBox="{view}" role="img" aria-label="Winding view: {label}; copper fills {fill * 100:.0f}% of the window">'
             f"{body}{circles}</svg><figcaption>{'Toroid, top view: each turn passes through the hole and returns around the outside' if core.family == 'toroid' else 'E-core window (one side)'}{f', {stack} stacked' if stack > 1 else ''} · {label} · "
             f"bare copper {fill * 100:.0f}% of the window · {note}</figcaption></figure>")
 
 
-def svg_l_vs_i(core: Core, turns: int, i_pk: float, l_req_uh: float | None, stack: int = 1) -> str:
+def svg_l_vs_i(core: Core, turns: int, i_pk: float, l_req_uh: float | None, stack: int = 1, ref_at: str = "peak") -> str:
     """Inductance vs DC current for a powder toroid, from the data sheet's 100/80/50% points
-    (linear between them, as the checks assume); stops at the 50% point."""
+    (linear between them, as the checks assume); stops at the 50% point.
+    ref_at: "peak" = l_req_uh is required at peak current (sizing); "zero" = it is a drawing's
+    0 A value, which says nothing about peak current (records)."""
     le_cm = core.le_mm / 10
     i50 = core.h50_oe * le_cm / (0.4 * math.pi * turns)
     l0 = core.al_nh * stack * turns * turns / 1000
@@ -637,13 +640,16 @@ def svg_l_vs_i(core: Core, turns: int, i_pk: float, l_req_uh: float | None, stac
     for frac, lab in ((0.8, "80%"), (0.5, "50%")):
         g.append(f'<line class="mc-g" x1="{ml}" x2="{ml + pw}" y1="{y(l0 * frac):.1f}" y2="{y(l0 * frac):.1f}"/><text class="mc-t" x="{ml + pw}" y="{y(l0 * frac) - 3:.1f}" text-anchor="end">{lab}</text>')
     if l_req_uh:
-        g.append(f'<line class="mc-req" x1="{ml}" x2="{ml + pw}" y1="{y(l_req_uh):.1f}" y2="{y(l_req_uh):.1f}"/><text class="mc-t mc-reqt" x="{ml + 4}" y="{y(l_req_uh) - 3:.1f}">required {l_req_uh:.0f} µH</text>')
+        lab = f"required at peak: {l_req_uh:.0f} µH" if ref_at == "peak" else f"drawing: {l_req_uh:.0f} µH at 0 A"
+        g.append(f'<line class="mc-req" x1="{ml}" x2="{ml + pw}" y1="{y(l_req_uh):.1f}" y2="{y(l_req_uh):.1f}"/><text class="mc-t mc-reqt" x="{ml + 4}" y="{y(l_req_uh) - 3:.1f}">{lab}</text>')
     f_pk = retained(core, 0.4 * math.pi * turns * i_pk / le_cm)
-    g.append(f'<line class="mc-pk" x1="{x(i_pk):.1f}" x2="{x(i_pk):.1f}" y1="{mt}" y2="{mt + ph}"/><text class="mc-t" x="{x(i_pk) + 3:.1f}" y="{mt + 10}">peak {i_pk:g} A</text>')
+    g.append(f'<line class="mc-pk" x1="{x(i_pk):.1f}" x2="{x(i_pk):.1f}" y1="{mt}" y2="{mt + ph}"/><text class="mc-t" x="{x(i_pk) + 3:.1f}" y="{mt + ph - 4}">peak {i_pk:g} A</text>')
     if f_pk is not None:
         g.append(f'<circle class="mc-dot" cx="{x(i_pk):.1f}" cy="{y(l0 * f_pk):.1f}" r="4"/>')
     g.append(f'<text class="mc-t" x="{x(i50):.1f}" y="{mt + ph + 14}" text-anchor="middle">{i50:.1f}</text><text class="mc-t" x="{ml}" y="{mt + ph + 14}" text-anchor="middle">0</text>')
     cap = (f"{core.name}{f' ×{stack}' if stack > 1 else ''}, {turns} turns: {l0:.0f} µH at 0 A; "
            + (f"{l0 * f_pk:.0f} µH ({f_pk * 100:.0f}%) at {i_pk:g} A peak" if f_pk is not None else f"past the data sheet's 50% point at {i_pk:g} A")
-           + ". Line: data sheet points joined straight (conservative).")
+           + (". The drawing specifies inductance at 0 A only, so it doesn't say how much is needed at full current: a question for the designer."
+              if ref_at == "zero" else "")
+           + " Line: data sheet points joined straight (conservative).")
     return f'<figure class="mfig"><svg viewBox="0 0 {W} {H}" role="img" aria-label="Inductance versus current">{"".join(g)}</svg><figcaption>{cap}</figcaption></figure>'

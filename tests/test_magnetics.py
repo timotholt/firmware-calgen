@@ -171,3 +171,15 @@ def test_inductance_curve_matches_the_check_at_peak():
     svg = mg.svg_l_vs_i(core, d.windings[0].turns, d.i_pk_a, 330)
     f = mg.retained(core, 0.4 * 3.141592653589793 * d.windings[0].turns * d.i_pk_a / (core.le_mm / 10))
     assert f"{core.al_nh * d.windings[0].turns ** 2 / 1000 * f:.0f} µH ({f * 100:.0f}%)" in svg
+
+
+def test_curve_label_says_what_the_reference_inductance_means():
+    from pathlib import Path as _P  # noqa: F401
+
+    recs = {r["id"]: r for r in mg.site_records(ROOT)["records"]}
+    curve = recs["MAG-001"]["figures"][1]
+    assert "drawing: 330 µH at 0 A" in curve and "required at peak" not in curve
+    sized = mg.size_inductor(CORES, LIMITS, 330, 4, 4.5, 0.8)["candidates"][0]["figures"][1]
+    assert "required at peak: 330 µH" in sized
+    assert 'class="mfig thumbfig"' in recs["MAG-001"]["figures"][0]
+    assert 'class="mfig bigfig"' in recs["MAG-008"]["figures"][0]  # shown large only when it doesn't fit
