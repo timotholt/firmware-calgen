@@ -130,7 +130,7 @@ def _e(x: object) -> str:
 
 SITE_CSS += Path(__file__).with_name("workspace.css").read_text(encoding="utf-8")
 
-ASSET_VERSION = ""  # content hash of site.css, playground.js and the engine bundle; set by build_site
+ASSET_VERSION = ""  # content hash of page templates, styles, scripts and the engine bundle; set by build_site
 
 
 def _page(title: str, active: str, body: str, depth: int = 0, extra_head: str = "", scripts: str = "") -> str:
@@ -194,20 +194,10 @@ def page_home(counts: dict[str, int], ai: dict[str, float], mag: dict) -> str:
 <div class="overview-intro">
 <div class="kicker">Independent demo · AMETEK IntelliPower AI Automation Intern</div>
 <h1 class="hero">From engineering requirements to checked designs and firmware.</h1>
-<p class="lead">Explore two working tools built around the posting’s two initiatives. Size an inductor from real core data, or change a product’s hardware and see which firmware constants pass the modeled checks.</p>
+<p class="lead">Explore two working tools built around the posting’s two initiatives. Change a product’s hardware and see which firmware constants pass the modeled checks, or size an inductor from real core data.</p>
 <p class="overview-meta">Runs locally in your browser · No install or account · Nothing uploaded</p>
 </div>
 <div class="initiatives">
-<section class="init">
-<div class="kicker">Initiative 1 · Magnetics design automation</div>
-<h2>Find a starting point for an inductor.</h2>
-<p>Enter inductance and current requirements to compare candidate windings on real cores. Explore checked, searchable records from past synthetic drawings.</p>
-<p><a class="primary-link" href="magnetics.html?v={ASSET_VERSION}">Explore Magnetics →</a></p>
-<div class="try-story"><b>Try this</b> Change the peak current and compare which candidates still pass the modeled constraints.</div>
-<div class="thumb">{mag["thumb"]}</div>
-<ul class="mini"><li><b>{mag["drawings"]}</b> synthetic drawings, read back from PDF</li><li><b>{mag["cores"]}</b> real cores with cited data</li><li>checks agree with the blind key on <b>{mag["agree"]} of {mag["drawings"]}</b></li></ul>
-<p class="sub">First-pass screening. Core loss, AC winding loss, temperature rise, and engineering validation remain outside this model.</p>
-</section>
 <section class="init">
 <div class="kicker">Initiative 2 · Firmware modification and calibration</div>
 <h2>See what a hardware change breaks.</h2>
@@ -217,6 +207,16 @@ def page_home(counts: dict[str, int], ai: dict[str, float], mag: dict) -> str:
 <div class="thumb miniflow">{flow}<div class="sub" style="width:100%;margin-top:6px">rev B on the 1500 VA unit: the sensor saturates before the peak limit fires, so nothing is written.</div></div>
 <ul class="mini"><li><b>3</b> real IntelliPower data sheets, cited per value</li><li><b>{counts['contradicts']} of {counts['total']}</b> legacy constants contradict the data sheet</li><li><b>0</b> values written when any gate fails</li></ul>
 <p class="sub">Generation stops when a modeled gate fails. Passing checks still requires engineering review.</p>
+</section>
+<section class="init">
+<div class="kicker">Initiative 1 · Magnetics design automation</div>
+<h2>Find a starting point for an inductor.</h2>
+<p>Enter inductance and current requirements to compare candidate windings on real cores. Explore checked, searchable records from past synthetic drawings.</p>
+<p><a class="primary-link" href="magnetics.html?v={ASSET_VERSION}">Explore Magnetics →</a></p>
+<div class="try-story"><b>Try this</b> Change the peak current and compare which candidates still pass the modeled constraints.</div>
+<div class="thumb">{mag["thumb"]}</div>
+<ul class="mini"><li><b>{mag["drawings"]}</b> synthetic drawings, read back from PDF</li><li><b>{mag["cores"]}</b> real cores with cited data</li><li>checks agree with the blind key on <b>{mag["agree"]} of {mag["drawings"]}</b></li></ul>
+<p class="sub">First-pass screening. Core loss, AC winding loss, temperature rise, and engineering validation remain outside this model.</p>
 </section>
 </div>
 <section class="overview-connection"><h2>Two tools, connected by the same requirements.</h2><div class="connect"><b>Follow a requirement.</b> The firmware playground's rectifier stage estimates its PFC inductor (FA10507: ≈ {pfc['l_uh']:.0f} µH, {pfc['i_rms']:.3g} A RMS, {pfc['i_pk']:.1f} A peak) <span class="miniarrow">→</span> one click sizes it in Magnetics against real cores <span class="miniarrow">→</span> with the closest past designs alongside. Same products, both initiatives.</div><p class="sub">Start with either tool; Firmware can also hand an estimated inductor requirement directly to Magnetics.</p></section>
@@ -564,7 +564,7 @@ def build_site(root: Path, out: Path, vendor_cache: Path, download: bool = False
     mjs = Path(__file__).with_name("magnetics.js").read_text(encoding="utf-8")
     engine = json.dumps(bundle(root))
     global ASSET_VERSION  # browsers and the Pages CDN cache assets; a new hash forces a fresh copy
-    ASSET_VERSION = hashlib.sha256((SITE_CSS + js + mjs + engine).encode()).hexdigest()[:12]
+    ASSET_VERSION = hashlib.sha256((Path(__file__).read_text(encoding="utf-8") + SITE_CSS + js + mjs + engine).encode()).hexdigest()[:12]
     (assets / "site.css").write_text(SITE_CSS, encoding="utf-8")
     (assets / "playground.js").write_text(js, encoding="utf-8")
     (assets / "magnetics.js").write_text(mjs, encoding="utf-8")
