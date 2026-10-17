@@ -36,6 +36,9 @@ def test_iq24_overflow():
     with pytest.raises(FormatError):
         encode(128.0, "iq24")
     assert encode(127.99999, "iq24").code < (1 << 31)
+    for volts in (265.0, 410.0):  # FA10507's input limit and bus setpoint: why the F2803x profile uses IQ20
+        with pytest.raises(FormatError):
+            encode(volts, "iq24")
 
 
 def test_q15_resolution():

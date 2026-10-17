@@ -71,7 +71,8 @@ def test_conformance_match_and_mismatch(tmp_path):
     ]
     res = {r.candidate.symbol: r for r in conform(cs, mapping, b)}
     assert res["TRIP_I"].status == MISMATCH and res["TRIP_I"].expected == 15.0
-    assert res["K_VS"].status == MATCH  # 0.12168 vs 0.121684976: within 0.5%
+    # 0.12168 is 498.3/4095 (max code as divisor); the rule's own 1e-4 tolerance catches the 0.02% off-by-one-LSB
+    assert res["K_VS"].status == MISMATCH and res["K_VS"].expected == pytest.approx(498.3 / 4096, rel=1e-6)
     assert res["PWM_PRD"].status == MATCH
     assert res["UART_BAUD"].status == UNMAPPED
 

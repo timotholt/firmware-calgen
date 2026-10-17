@@ -221,7 +221,8 @@ def conform(candidates: list[Candidate], mapping: list[MapEntry], build: Build, 
         is_int = r.encoded.code is not None and r.fmt and r.fmt.startswith(("uint", "int"))
         diff = abs(legacy - expected)
         rel = diff / abs(expected) if expected else (0.0 if diff == 0 else float("inf"))
-        ok = diff <= 1.0 if is_int else rel <= rel_tol
+        tol = r.rule.tolerance if r.rule.tolerance is not None else rel_tol  # a rule's own quantization tolerance is the stricter bar
+        ok = diff <= 1.0 if is_int else rel <= tol
         basis = "data sheet" if rests_on_data_sheet_only(build, m.rule) else "design"
         out.append(Conformance(c, MATCH if ok else MISMATCH, m.rule, expected, legacy, rel, m.note, basis))
     return out

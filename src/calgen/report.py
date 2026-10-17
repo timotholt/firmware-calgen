@@ -142,7 +142,7 @@ def render_report(b: Build, previous_header: str = "", katex_path: str = "assets
         items.append(f'<div class="blk">{_e(title)}</div>')
         for c in consts:
             cls, label = _STATUS[c.status]
-            shown = c.enum_ident or (c.encoded.literal if c.encoded else ("—" if c.status == SKIPPED else "fail"))
+            shown = c.enum_ident or (c.encoded.literal if c.encoded else ("n/a (not on data sheet)" if c.status == SKIPPED else "fail"))
             start = " start" if c.rule.id == start_id else ""
             items.append(
                 f'<div class="it{start}" data-id="{_e(c.rule.id)}" role="button" tabindex="0" aria-pressed="false">'
@@ -159,8 +159,8 @@ def render_report(b: Build, previous_header: str = "", katex_path: str = "assets
             msg = f'<p class="alert {cls}">{_e(c.message)}</p>' if c.message else ""
             fmt = ""
             if c.encoded:
-                err = f", quantization error {c.encoded.rel_error * 100:.3g}%" if c.encoded.rel_error else ""
-                fmt = f'<p class="sub">Stored as <span class="mono">{_e(c.fmt)}</span> → <span class="mono">{_e(c.encoded.literal)}</span>{err}; rounding half-to-even.</p>'
+                err = f", quantization error {c.encoded.rel_error * 100:.3g}% (round half to even)" if c.encoded.rel_error else " (exact)"
+                fmt = f'<p class="sub">Stored as <span class="mono">{_e(c.fmt)}</span> → <span class="mono">{_e(c.encoded.literal)}</span>{err}.</p>'
             panes.append(
                 f'<section class="pane" id="p-{_e(c.rule.id)}"><h3 class="mono" style="margin:0">{_e(c.rule.symbol)}</h3>'
                 f'<p class="sub">{_e(c.rule.describe)} · <span class="pill {cls}">{label}</span></p>{msg}{_eqs(d.lines)}{fmt}'
@@ -190,7 +190,7 @@ def render_report(b: Build, previous_header: str = "", katex_path: str = "assets
 <title>{_e(title)}</title><meta name="robots" content="noai, noimageai"><meta name="tdm-reservation" content="1"><meta name="tdm-policy" content="https://github.com/timotholt/firmware-calgen/blob/main/LICENSE"><link rel="stylesheet" href="{katex_path}/katex.min.css"><style>{CSS}</style></head><body><main>
 {f'<p class="sub"><a href="{back}">← All review reports</a></p>' if back else ''}{notice_html()}
 <h1>{_e(title)}</h1>
-<div class="sub">{_e(ds.part)} · {_e(ds.params['model_string'].value)} · board {_e(v.board.name)} rev {_e(v.board.extra.get('rev', '?'))} · target {_e(v.target.name)} ({_e(v.target.extra.get('default_format', 'float32'))})</div>
+<div class="sub">{_e(ds.part)} · {_e(ds.params['model_string'].value)} · board {_e(v.board.name)} rev {_e(v.board.extra.get('rev', '?'))} · target {_e(v.target.name[:1].upper() + v.target.name[1:])} ({_e(v.target.extra.get('default_format', 'float32').upper().replace('FLOAT32', 'float32'))})</div>
 <div class="sub mono">inputs sha256 {_e(b.digest)}</div>
 <div class="pills">{''.join(f'<span class="pill {c}">{_e(t)}</span>' for c, t in pills)}</div>
 {f'<p><b>Reviewer-visible overrides</b></p><ul>{overrides}</ul>' if overrides else ''}

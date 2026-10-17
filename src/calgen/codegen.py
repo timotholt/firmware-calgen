@@ -38,7 +38,7 @@ def _source_line(s: Source) -> str:
     if isinstance(s.value, str):
         shown = s.value
     else:
-        shown = f"{_fmt_num(from_si(s.value.value, s.unit or '1'))} {s.unit or ''}".strip()
+        shown = f"{_fmt_num(from_si(s.value.value, s.unit or '1'))} {'' if s.unit in ('ratio', '1') else s.unit or ''}".strip()
     where = s.origin
     if s.quote and s.name.startswith("ds."):
         quote = s.quote if len(s.quote) <= 60 else s.quote[:57] + "..."
@@ -48,7 +48,7 @@ def _source_line(s: Source) -> str:
 
 def _value_note(c: ConstResult) -> str:
     e = c.encoded
-    parts = [f"{_fmt_num(e.stored)} {c.rule.unit}"]
+    parts = [f"{_fmt_num(e.stored)} {c.rule.shown_unit}".strip() if c.rule.shown_unit not in ("ratio", "1") else _fmt_num(e.stored)]
     if c.fmt != "float32":
         parts.append(c.fmt)
     if e.rel_error > 0 and c.fmt != "float32":

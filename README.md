@@ -31,8 +31,9 @@ This is a working demo for AMETEK IntelliPower's **AI Automation Intern** postin
 | A4 | The processor is a TI C2000 part | Medium | Look at a board |
 | A5 | Specs aren't machine-readable today | Medium (3 of 3 data sheets have an inconsistency) | See the spec source of truth |
 | A6 | Some calibration is per unit at a test station | Low | Ask production test |
+| A7 | Past magnetics designs live in drawings and spreadsheets, not a database | Medium | Ask for ten recent inductor drawings |
 
-**What I don't claim:** power-electronics design, loop tuning, magnetics, EMI, certification. Those values come from engineers; the tool carries them safely from spec to source.
+**What I don't claim:** power-electronics design, loop tuning, finished magnetics designs, EMI, certification. Those values come from engineers; the tool carries them safely from spec to source.
 
 ## Process
 
@@ -61,7 +62,7 @@ $ calgen check specs/variants/fa10507_revB.yaml
   FAIL  UPS_IOUT_PKLIM_DAC_LO      uint16: -124 out of range [0, 65535]
   FAIL  check iout_sense_range      43.75 <= 39.1875 A is false: Hardware peak limit must sit inside the
                                     current sensor's range, or the sensor saturates before the limit fires
-  FAIL  check dac_hi_in_range       4219 <= 4095 is false: Positive peak-limit DAC code must exist on this chip's comparator DAC
+  FAIL  check dac_hi_in_range       4220 <= 4095 is false: Positive peak-limit DAC code must exist on this chip's comparator DAC
 3 failure(s); nothing written
 ```
 
@@ -79,8 +80,9 @@ $ calgen audit corpus/legacy_ups --variant specs/variants/fa10507.yaml --map cor
   FAIL  ups_config.h:33  I_TRIP_RMS     14.0f        contradicts data sheet: 15 (iout_trip)
   diff  ups_config.h:26  VBUS_REF       400.0f       differs from design value: 410 (vbus_set)
   diff  protect.c:34     <inline>       21.2f        differs from design value: 43.75 (iout_pk_limit)
+  diff  sense_scale.h:14 K_VS           (VBUS_FS / ADC_FULL) differs from design value: 0.121655 (vbus_scale)
   ...
-11 match, 3 contradict the data sheet, 9 differ from design values, 10 unexplained
+10 match, 3 contradict the data sheet, 10 differ from design values, 10 unexplained
 ```
 
 The `protect.c:34` line is the interesting one: the legacy fast trip sits at the *peak of the RMS overload level*, so a fully loaded unit feeding crest-factor loads would trip.
@@ -94,14 +96,14 @@ Each generated line carries its formula and inputs, down to the data sheet quote
  * = floor((target.v_ref / 2 + iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_div)
  *   target.v_ref = 3.3 V  [target f28004x.yaml]
  *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
- *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]
+ *   board.g_amp = 10  [board ups_ctrl_revA.yaml]
  *   target.dac_div = 4096 counts  [target f28004x.yaml] */
 #define UPS_IOUT_PKLIM_DAC_HI      3134u          /* 3134 counts, uint16 */
 ```
 
 Worked by hand (the review report and site typeset this from the same syntax tree the evaluator runs; a test checks they agree):
 
-$$I_\text{rated} = \frac{S}{V_\text{out}} = \frac{1500\ \text{VA}}{120\ \text{V}} = 12.5\ \text{A} \qquad I_\text{OL} = 12.5\ \text{A} \times 1.20 = 15\ \text{A RMS (timed)} \qquad I_\text{pk,lim} = 3.5 \times 12.5\ \text{A} = 43.75\ \text{A}$$
+$$I_\text{rated} = \frac{S}{V_\text{out,nom}} = \frac{1500\ \text{VA}}{120\ \text{V}} = 12.5\ \text{A} \qquad I_\text{trip} = 12.5\ \text{A} \times 1.20 = 15\ \text{A RMS (timed)} \qquad I_\text{pk,lim} = 3.5 \times 12.5\ \text{A} = 43.75\ \text{A}$$
 
 $$N_\text{DAC,hi} = \left\lfloor\frac{\tfrac{3.3}{2}\ \text{V} + 43.75\ \text{A}\cdot 2\ \text{m}\Omega \cdot 10}{3.3\ \text{V}}\cdot 4096\right\rfloor = \lfloor 3134.06 \rfloor = 3134$$
 
@@ -163,10 +165,10 @@ Development: `uv run pytest` (tests include generated-file freshness and recorde
 - PWM uses up-down (center-aligned) counting; dead-time limits come from each chip profile. EPWM clock = SYSCLK is assumed per target and flagged.
 - Product ratings are public; every circuit value, gain, firmware name, and the legacy code are invented. Formulas are textbook relations, not IntelliPower's design rules.
 - Loop gains and compensator coefficients are carried and staleness-tracked, never computed. TI's own tools (powerSUITE) generate such coefficients; this tool's value is linking constants to the product spec, with traceability and gates around tools like that.
-- "Shutdown at 20% Overload" is read as a timed RMS trip at 120% of rated; the 30 s delay and the 3.5× hardware peak-limit factor are invented design values. FA10434's swapped rows are resolved by a written override a reviewer must confirm.
+- "Shutdown at 20% Overload" is read as a timed RMS trip at 120% of rated; the 30 s delay, the 3.5× hardware peak-limit factor and the 3:1 rated crest factor are invented design values. FA10434's swapped rows are resolved by a written override a reviewer must confirm.
 - The AI eval uses a synthetic corpus; it measures the pipeline, not real-world accuracy.
 - Per-unit calibration (test-station trims stored in EEPROM or flash) is a separate path, not built here.
-- Changing processors: the chip is an independent input, so a port is "swap the target profile, regenerate, diff". The F2803x-class profile regenerates FA10507 in IQ20 fixed point, and an IQ24 overflow of the 265 V limit is caught as an error. Real ports also move pins and peripherals, which this demo does not model.
+- Changing processors: the chip is an independent input, so a port is "swap the target profile, regenerate, diff". The F2803x-class profile regenerates FA10507 in IQ20 fixed point, and an IQ24 build (range ±128) refuses the 265 V input limit and 410 V bus setpoint as overflow errors (tested). Real ports also move pins and peripherals, which this demo does not model.
 
 ## Repository map
 

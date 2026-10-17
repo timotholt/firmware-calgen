@@ -56,3 +56,12 @@ bobbin build model; all 12 answer-key verdicts; PFC boost worst case L = V_bus/(
 | P6 | Nit | Sizer table "L at 0 A" showed the minimum-A_L value unlabelled. | Header says min A_L. |
 
 The F2803x comparator DAC divisor (1023) was re-checked against TI's current reference manual, SPRUI10A (DAC Reference: V = DACVAL × (VDDA − VSSA) / 1023), as well as SPRUGE5F §2.3.1.
+
+## Presentation pass (2026-10-17)
+Two further reviews read every page as a hiring engineer would (numbers, units, labels, legends, captions, claims). About 80 items were fixed; the ones that touched correctness:
+- The audit now judges a legacy scale factor against the rule's own quantization tolerance, so `K_VS = VBUS_FS / 4095` is reported (0.02% off the 4096 divisor) instead of passing at 0.5%.
+- Flagged magnetics records state what failed ("stated inductance doesn't match Aₗ × N² within tolerance"), not the passing check's title.
+- Transformers show AC winding loss as not modelled, with the skin depth at the drive frequency.
+- The unedited playground download is byte-identical to the committed header (tested).
+- Checks typeset their inputs (h, m_max, CF) the way constants do; scale factors print in V/count; cell counts print as cells; µs typesets correctly.
+Not changed, needs a decision: the constant description for `vout_set` still says one header is generated per selectable output (a YAML comment notes none is built); rewording it would change the recorded AI-audit prompts, which costs a paid re-recording.

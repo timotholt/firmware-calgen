@@ -21,5 +21,5 @@ isolation,Isolation (galvanic isolation/non-isolated):,Isolated,isolated,,DS-105
 pfc,PFC Feature:,Yes,yes,,DS-10507 Rev.101119 p2
 batt_type,"Battery Type (rating, PbAcid/Pure PbAcid/Lithium Iron):",Lithium Iron Phosphate,lifepo4,,DS-10507 Rev.101119 p2
 batt_string_v,Battery String Voltage:,89.6 VDC,89.6,V,DS-10507 Rev.101119 p2
-batt_series_cells,"Battery String (number of strings, quantity per string)",28SIP,28,counts,"DS-10507 Rev.101119 p2 (""28SIP"" read as 28S1P)"
+batt_series_cells,"Battery String (number of strings, quantity per string)",28SIP,28,cells,"DS-10507 Rev.101119 p2 (""28SIP"" read as 28S1P)"
 application,Application (shipboard/airborne/ground/all):,Ground,ground,,DS-10507 Rev.101119 p2

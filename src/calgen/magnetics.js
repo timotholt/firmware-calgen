@@ -11,6 +11,9 @@
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function num(id) { var v = parseFloat($(id).value); return isNaN(v) ? null : v; }
   function fmtL(uh) { return uh >= 1000 ? (uh / 1000).toPrecision(3) + " mH" : uh.toPrecision(3) + " µH"; }
+  var FAIL_TEXT = { inductance: "stated inductance doesn't match Aₗ × N² within tolerance", core_known: "core not in the catalog",
+    ratio: "turns ratio doesn't match the winding table", current_density: "wire too thin for the current", window_fill: "winding doesn't fit the window",
+    dc_bias: "peak current drives the core past its rated permeability point", magnetizing: "minimum magnetizing inductance not met", flux: "peak flux above the limit" };
   function tex(el) {
     if (!window.katex) return;
     el.querySelectorAll(".tex").forEach(function (t) {
@@ -28,7 +31,7 @@
     if (lmin !== null && r.l_uh < lmin) return false;
     if (lmax !== null && r.l_uh > lmax) return false;
     if (imin !== null && r.i_a < imin) return false;
-    if (q && (r.id + " " + r.title + " " + r.core + " " + r.material).toLowerCase().indexOf(q) < 0) return false;
+    if (q && (r.id + " " + r.title + " " + r.core + " " + r.material).toLowerCase().replace(/µ/g, "u").indexOf(q.replace(/µ/g, "u")) < 0) return false;
     return true;
   }
 
@@ -37,7 +40,7 @@
     $("m-count").textContent = rows.length + " of " + DATA.records.length + " drawings";
     $("m-list").innerHTML = rows.map(function (r) {
       return '<tr class="mrow' + (r.id === sel ? " on" : "") + '" data-id="' + esc(r.id) + '" tabindex="0"><td class="mono">' + esc(r.id) + "</td><td>" + esc(r.title) +
-        '</td><td class="mono">' + esc(r.core) + "</td><td>" + esc(r.l_text) + "</td><td>" + r.i_a + " A</td><td>" +
+        '</td><td class="mono">' + esc(r.core) + "</td><td>" + esc(r.l_text) + (r.kind === "transformer" ? " min" : "") + "</td><td>" + r.i_a + " A RMS</td><td>" +
         (r.flagged ? '<span class="pill bad">review</span>' : '<span class="pill ok">pass</span>') + "</td></tr>";
     }).join("") || '<tr><td colspan="6" class="sub">No drawings match these filters.</td></tr>';
     $("m-list").querySelectorAll(".mrow").forEach(function (tr) {
@@ -68,17 +71,18 @@
     if (!tab || !avail[tab]) tab = r.default_tab;
     var fields = [["Drawing", r.id + " rev " + r.rev, "id"], ["Title", r.title, "title"], ["Core", r.core + " (" + r.core_desc + ")", "core"]];
     if (r.kind === "inductor") {
-      fields.push(["Inductance", r.l_text, "l_text"]);
+      fields.push(["Inductance (0 A)", r.l_text, "l_text"], ["Tolerance", "±" + r.l_tol_pct + "%", "l_tol_pct"], ["Peak current", r.i_pk_a + " A", "i_pk_a"]);
     } else {
-      fields.push(["Magnetizing inductance (min)", r.l_text, "lm_text"], ["Turns ratio", r.source.ratio_text || "", "ratio_text"]);
+      fields.push(["Magnetizing inductance (min)", r.l_text, "lm_text"], ["Primary drive", r.v_pri + " V square, " + r.f_khz + " kHz", "v_pri"], ["Turns ratio", r.source.ratio_text || "", "ratio_text"]);
     }
     r.windings.forEach(function (w) {
       fields.push(["Winding " + w.name, w.turns + " turns, " + w.strands + " × " + w.awg + " AWG, " + w.i_rms_a + " A RMS", w.name]);
     });
     var bad = r.checks.filter(function (c) { return c.status === "flag"; });
+    var ran = r.checks.filter(function (c) { return c.status !== "n/a"; }).length, nm = r.checks.length - ran;
     var verdict = bad.length
-      ? '<p class="verdict bad"><b>Needs review:</b> ' + bad.map(function (c) { return esc(c.title.toLowerCase()); }).join("; ") + ". The evidence tab on the right is opened to show why.</p>"
-      : '<p class="verdict ok"><b>Passes all ' + r.checks.length + " checks.</b></p>";
+      ? '<p class="verdict bad"><b>Needs review:</b> ' + bad.map(function (c) { return esc(FAIL_TEXT[c.id] || c.title); }).join("; ") + ". The evidence tab on the right is opened to show why.</p>"
+      : '<p class="verdict ok"><b>Passes all ' + ran + " checks" + (nm ? "</b> (" + nm + " not modelled, listed below)." : ".</b>") + "</p>";
     var left = "<h3>" + esc(r.id) + " · " + esc(r.title) + "</h3>" + verdict +
       '<h4>Extracted from the PDF</h4><table class="mfields"><tr><th>Field</th><th>Value</th><th>Text it came from</th></tr>' +
       fields.map(function (f) { return "<tr><td>" + esc(f[0]) + "</td><td>" + esc(f[1]) + '</td><td class="mono sub">' + esc(r.source[f[2]] || "") + "</td></tr>"; }).join("") + "</table>" +
@@ -116,20 +120,20 @@
       h += '<p class="alert bad">No core in this catalog meets it, even stacked four high. That is an honest answer: the requirement needs a larger core family (for example powder E cores) or a different design approach.</p>';
     } else {
       h += '<p class="sub">' + c.length + " candidate" + (c.length === 1 ? "" : "s") + ", smallest core volume first. Click a row to see its math and evidence below.</p>";
-      if (lastReq && lastReq.min_retained < 0.8) h += '<p class="alert na">These keep less than 80% of their inductance at peak current. That is common for PFC inductors, but a drawing of one would be flagged by the drawing check below, which requires 80%.</p>';
-      h += '<table class="szt"><tr><th>Core</th><th>Stack · height</th><th>Turns</th><th>Wire</th><th>L at 0 A (min A<sub>L</sub>)</th><th>L at peak</th><th>Kept</th><th>J</th><th>Fill</th><th>Core volume</th></tr>' +
+      if (c.some(function (x) { return x.retained < 0.8; })) h += '<p class="alert na">Candidates marked <span class="pill na">below 80%</span> keep less than 80% of their inductance at peak current. That is common for PFC inductors, but a drawing of one would be flagged by the drawing check below, which requires 80%.</p>';
+      h += '<table class="szt"><tr><th>Core</th><th>Stack · core height</th><th>Turns</th><th>Wire</th><th>L at 0 A (min A<sub>L</sub>)</th><th>L at peak</th><th>L kept at peak</th><th>J (RMS)</th><th>Fill</th><th>Core volume</th></tr>' +
         c.map(function (x, i) {
-          var row = '<tr class="cand' + (open === i ? " on" : "") + '" data-i="' + i + '" tabindex="0"><td class="mono">' + esc(x.core) + "</td><td>" + x.stack + "× · " + x.height_mm.toFixed(0) + " mm</td><td>" + x.turns + "</td><td>" + x.strands + " × " + x.awg + " AWG</td><td>" +
-            fmtL(x.l0_uh) + "</td><td><b>" + fmtL(x.l_pk_uh) + "</b></td><td>" + Math.round(x.retained * 100) + "%</td><td>" + x.j.toFixed(2) + " A/mm²</td><td>" + Math.round(x.fill * 100) + "%</td><td>" + (x.core_volume_mm3 / 1000).toFixed(1) + " cm³</td></tr>";
+          var row = '<tr class="cand' + (open === i ? " on" : "") + '" data-i="' + i + '" tabindex="0"><td class="mono">' + esc(x.core) + "</td><td>×" + x.stack + " · " + x.height_mm.toFixed(0) + " mm</td><td>" + x.turns + "</td><td>" + x.strands + " × " + x.awg + " AWG</td><td>" +
+            fmtL(x.l0_uh) + "</td><td><b>" + fmtL(x.l_pk_uh) + "</b></td><td>" + Math.round(x.retained * 100) + "%" + (x.retained < 0.8 ? ' <span class="pill na">below 80%</span>' : "") + "</td><td>" + x.j.toFixed(2) + " A/mm²</td><td>" + Math.round(x.fill * 100) + "%</td><td>" + (x.core_volume_mm3 / 1000).toFixed(1) + " cm³</td></tr>";
           return row;
         }).join("") + "</table>";
       var x = c[open] || c[0];
-      h += '<div class="m2col szdetail"><div class="mleft"><h4>' + esc(x.core) + (x.stack > 1 ? " × " + x.stack + " stacked" : "") + ": " + x.turns + " turns of " + x.strands + " × " + x.awg + " AWG</h4>" +
+      h += '<div class="m2col szdetail"><div class="mleft"><h4>' + esc(x.core) + (x.stack > 1 ? " ×" + x.stack + " stacked" : "") + ": " + x.turns + " turns of " + x.strands + " × " + x.awg + " AWG</h4>" +
         x.latex.map(function (l) { return '<div class="eq"><div class="tex">' + esc(l) + "</div></div>"; }).join("") + "</div>" +
         '<aside class="mright" aria-label="Evidence">' + tabsHtml({ curve: true, winding: true }, sztab, "data-sztab") + '<div class="epanel">' + x.fig[sztab] + "</div></aside></div>";
     }
     if (res.rejected.length) {
-      h += '<details><summary class="sub">Why the other ' + res.rejected.length + " core" + (res.rejected.length === 1 ? "" : "s") + " don't work</summary><ul>" +
+      h += '<details><summary class="sub">' + (res.rejected.length === 1 ? "Why the other core doesn't work" : "Why the other " + res.rejected.length + " cores don't work") + "</summary><ul>" +
         res.rejected.map(function (r) { return '<li><span class="mono">' + esc(r.core) + "</span>: " + esc(r.reason) + "</li>"; }).join("") + "</ul></details>";
     }
     if (res.past.length) {

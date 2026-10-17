@@ -183,7 +183,7 @@ def test_inductance_curve_matches_the_check_at_peak():
     core = CORES[d.core]
     svg = mg.svg_l_vs_i(core, d.windings[0].turns, d.i_pk_a, 330)
     f = mg.retained(core, 0.4 * 3.141592653589793 * d.windings[0].turns * d.i_pk_a / (core.le_mm / 10))
-    assert f"{core.al_nh * d.windings[0].turns ** 2 / 1000 * f:.0f} µH ({f * 100:.0f}%)" in svg
+    assert f"{mg._fmt_l(core.al_nh * d.windings[0].turns ** 2 / 1000 * f)} ({f * 100:.0f}%)" in svg
 
 
 def test_curve_label_says_what_the_reference_inductance_means():
@@ -263,10 +263,12 @@ def test_sizer_math_lines_reproduce_their_results():
     import re
 
     for c in mg.size_inductor(CORES, LIMITS, 330, 4, 4.5, 0.8)["candidates"]:
-        l_line, j_line = c["latex"][1], c["latex"][3]
-        n, al, k, turns, f, l_pk = (float(v) for v in re.match(r"L\(I_\{pk\}\) = (\d+) \\times ([\d.]+)\\,\\mathrm\{nH\} \\times ([\d.]+)_\{\\,\\min A_L\} \\times (\d+)\^2 \\times ([\d.]+) = ([\d.]+)", l_line).groups())
-        assert n * al * k * turns ** 2 * f / 1000 == pytest.approx(l_pk, rel=1e-3)
-        t, s, d, wa, pct = (float(v) for v in re.search(r"\\frac\{(\d+) \\times (\d+) \\times \\pi \\times ([\d.]+)\^2/4\}\{([\d.]+)\\,\\mathrm\{mm\^2\}\} = (\d+)", j_line).groups())
+        a_line, l_line, j_line = c["latex"][1], c["latex"][2], c["latex"][4]
+        al, tol, al_min = (float(v) for v in re.match(r"A_\{L,\\min\} = ([\d.]+)\\,\\mathrm\{nH\} \\times \(1 - ([\d.]+)\\%\) = ([\d.]+)", a_line).groups())
+        assert al * (1 - tol / 100) == pytest.approx(al_min, rel=1e-3)
+        n, al_m, turns, f, l_pk = (float(v) for v in re.match(r"L\(I_\{pk\}\) = (\d+) \\times ([\d.]+)\\,\\mathrm\{nH\} \\times (\d+)\^2 \\times ([\d.]+) = ([\d.]+)", l_line).groups())
+        assert al_m == al_min and n * al_m * turns ** 2 * f / 1000 == pytest.approx(l_pk, rel=1e-3)
+        t, s, d, wa, pct = (float(v) for v in re.search(r"\\frac\{(\d+) \\times (\d+) \\times \\pi \\times \(([\d.]+)\\,\\mathrm\{mm\}\)\^2/4\}\{([\d.]+)\\,\\mathrm\{mm\^2\}\} = (\d+)", j_line).groups())
         assert round(t * s * math.pi * d ** 2 / 4 / wa * 100) == pytest.approx(pct, abs=1)
 
 

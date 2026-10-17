@@ -29,7 +29,7 @@ datasheet_overrides:
       -25%). Reviewer must confirm both with the data sheet owner.
   batt_series_cells:
     value: 12
-    unit: counts
+    unit: cells
     reason: >
       DS-10434 lists three 12 V LiFePO4 modules in one string but not the cell
       count; 12 V LiFePO4 modules are normally 4 cells in series, so 3 x 4 = 12.

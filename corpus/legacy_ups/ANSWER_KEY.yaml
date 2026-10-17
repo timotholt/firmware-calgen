@@ -276,9 +276,9 @@
   units: V/count
   typed: false
   maps_to_rule: vbus_scale
-  expected_conformance: match
-  correct_value: 0.121685
-  notes: "cryptic name; derived 498.3/4095"
+  expected_conformance: mismatch
+  correct_value: 0.121655
+  notes: "cryptic name; derived 498.3/4095, but 1 LSB = V_ref/4096 on C2000 ADCs (TRM): 0.024% off, outside the rule's 1e-4 tolerance"
 
 - file: sense_scale.h
   line: 17
@@ -329,8 +329,8 @@
   typed: true
   maps_to_rule: iout_pklim_dac_hi
   expected_conformance: mismatch
-  correct_value: 3133
-  notes: "encodes 21.2 A, the peak of the 15 A RMS overload, on the 33 A legacy scale; the hardware peak limit is 3.5 x 12.5 A = 43.75 A -> 3133 (the fast trip at 21.2 A would fire on a fully loaded unit's 3:1 crest-factor peaks)"
+  correct_value: 3134
+  notes: "encodes 21.2 A, the peak of the 15 A RMS overload, on the 33 A legacy scale; the hardware peak limit is 3.5 x 12.5 A = 43.75 A -> 3134 (the fast trip at 21.2 A would fire on a fully loaded unit's 3:1 crest-factor peaks)"
 
 - file: sense_scale.h
   line: 25

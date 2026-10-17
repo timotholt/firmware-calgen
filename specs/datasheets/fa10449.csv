@@ -22,5 +22,5 @@ isolation,Isolation (galvanic isolation/non-isolated):,Non-Isolated,non-isolated
 pfc,PFC Feature:,Input Power Factor Correction,yes,,DS-10449 Rev.09172021 p1
 batt_type,"Battery Type (rating, PbAcid/Pure PbAcid/Lithium Iron):","92.4V 2.85 Ah, Battery String, Lithium Iron Phosphate",lifepo4,,DS-10449 Rev.09172021 p2
 batt_string_v,Battery String Voltage:,92.4 VDC,92.4,V,DS-10449 Rev.09172021 p2
-batt_series_cells,Battery Total Quantity:,28 S1P Batteries,28,counts,DS-10449 Rev.09172021 p2
+batt_series_cells,Battery Total Quantity:,28 S1P Batteries,28,cells,DS-10449 Rev.09172021 p2
 application,Application (shipboard/airborne/ground/all):,All,all,,DS-10449 Rev.09172021 p2

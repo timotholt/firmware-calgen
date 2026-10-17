@@ -51,7 +51,7 @@ About a day. No paid model calls in v1. New dependencies: a PDF writer for the g
 **Goal:** turn the tab from a gallery into the workflow the initiative describes: requirement → candidate designs from real cores, checked → closest past designs. Deterministic physics only; ML would later correct it against bench measurements.
 
 **Sizing engine (Python, `calgen.magnetics.size_inductor`, runs in the browser via Pyodide):**
-- Inputs: required inductance *at peak current*, RMS current, peak current, switching frequency, minimum inductance retained at peak (80% conservative, 50% common for PFC; user picks).
+- Inputs: required inductance *at peak current*, RMS current, peak current, minimum inductance retained at peak (80% conservative, 50% common for PFC; user picks).
 - Cores: the Kool Mµ toroids in the catalog, stacked 1–3 high (as built: 1–4, since a 1500 VA PFC inductor needed four) (A_L, A_e, V_e scale with the stack; l_e and window don't). Two larger real cores are added (0077110A7, 0077908A7), cited like the rest. Ferrite E cores are excluded: they need a gap for inductors and the catalog holds ungapped A_L only.
 - Inductance at peak current: A_L·N² times the fraction of permeability left at the peak magnetizing force, linearly interpolated between the data sheet's points (0 → 100%, H₈₀ → 80%, H₅₀ → 50%); the real curve sits above these lines at low bias, so this is conservative. Beyond H₅₀ the core is rejected (no extrapolation).
 - For each core and stack: smallest turns meeting the inductance; smallest copper (AWG 10–24, 1–6 strands) meeting the current-density limit; then window fill. Passing candidates are ranked by core volume, then copper; failures show their first reason.
@@ -64,7 +64,7 @@ About a day. No paid model calls in v1. New dependencies: a PDF writer for the g
 
 **Tests:** every returned candidate re-checked independently against the limits; interpolation matches data sheet points; known requirement → known best core; requirement estimates for FA10507 match hand-worked numbers; KaTeX parse of the new math.
 
-**Navigation:** Overview · Firmware playground · Magnetics · Audit · Review reports · How it works · AI practice · Tim Otholt (done first).
+**Navigation (as built):** Overview · Magnetics · Firmware · Audit · Reports · How it works · AI practice · Tim Otholt.
 
 ## Phase 3: vendor DC-bias curves; transformer drawing fixes (2026-10-17)
 - **Source:** Magnetics *Powder Cores* catalog, 2025, p. 63, "Permeability versus DC Bias Curves — Fit Formula", Kool Mµ Toroids: % initial permeability = 1 / (a + b·H^c), H in oersteds. Coefficients for 26µ, 60µ, 125µ go in `specs/magnetics/dc_bias_fit.csv`, cited.
@@ -96,3 +96,7 @@ About a day. No paid model calls in v1. New dependencies: a PDF writer for the g
 ## Formula audit (2026-10-17)
 - Sizer derivation lines now reproduce their results: retained fraction shown to four places, and the fill line shows wire with enamel (what the check uses) instead of bare copper.
 - Output filter basis: L = V_bus/(4·f_sw·ΔI) is the half-bridge worst case; a unipolar full bridge ripples at 2·f_sw and needs half this L, a bipolar one twice. (Line 62 above said unipolar; corrected.)
+
+## Presentation pass (2026-10-17)
+- Drawings: transformer cores listed as a pair with bobbin; heavy-build wire and insulation construction (margins, tape layers) in the notes; sheet, scale and units in the title block. DC resistance is not on the drawings and not checked in v1 (no DCR row, though the draft above planned one).
+- Transformers show an AC winding-loss line marked not modelled, with the skin depth at the drive frequency, so a pass can't be read as covering it.

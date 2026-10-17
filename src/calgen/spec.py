@@ -93,6 +93,11 @@ class Rule:
     kind: str = "numeric"  # "numeric" | "enum"
     choices: dict[str, str] = field(default_factory=dict)  # enum: data sheet text -> C identifier
     fallback: str | None = None  # formula used when `formula`'s data sheet inputs are absent (same fact, other form)
+    display_unit: str | None = None  # unit as printed (e.g. V/count for a scale factor); `unit` stays the dimensional one
+
+    @property
+    def shown_unit(self) -> str:
+        return self.display_unit or self.unit
 
 
 @dataclass(frozen=True)
@@ -361,6 +366,7 @@ def load_rules(path: str | Path) -> Rules:
                 kind=kind,
                 choices=dict(c.get("choices", {})) if kind == "enum" else {},
                 fallback=str(c["fallback"]) if c.get("fallback") is not None else None,
+                display_unit=str(c["display_unit"]) if c.get("display_unit") else None,
             )
         )
     checks: list[Check] = []

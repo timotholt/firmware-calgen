@@ -21,7 +21,7 @@ from calgen.units import format_dim
 
 _PREC = {ast.Add: 1, ast.Sub: 1, ast.Mult: 2, ast.Div: 2, ast.Pow: 4}
 
-UNIT_TEX = {"ohm": r"\Omega", "mohm": r"\mathrm{m}\Omega", "kohm": r"\mathrm{k}\Omega", "Mohm": r"\mathrm{M}\Omega", "%": r"\%", "1": "", "ratio": "", "counts": ""}
+UNIT_TEX = {"ohm": r"\Omega", "mohm": r"\mathrm{m}\Omega", "kohm": r"\mathrm{k}\Omega", "Mohm": r"\mathrm{M}\Omega", "%": r"\%", "1": "", "ratio": "", "counts": "", "cells": r"\text{cells}", "us": r"\mu\mathrm{s}"}
 
 
 def unit_tex(unit: str | None) -> str:
@@ -183,17 +183,17 @@ def derive_constant(build, rule_id: str) -> Derivation:
     tree = parse(r.formula).tree
     head = rf"{r.latex} = {rd.symbolic}"
     if r.supplied:
-        return Derivation([rf"{r.latex} = {_quantity_tex(value, r.unit)} \quad (\text{{engineer-supplied}})"], value)
+        return Derivation([rf"{r.latex} = {_quantity_tex(value, r.shown_unit)} \quad (\text{{engineer-supplied}})"], value)
     if isinstance(tree, ast.Call) and tree.func.id in ("round", "floor", "ceil"):
         inner = render(ast.unparse(tree.args[0]), _symbols_for(build), build.env, build.units)
         inner_v = from_si(inner.value, r.unit)
         wrap = {"round": (r"\operatorname{round}\!\left(", r"\right)"), "floor": (r"\left\lfloor ", r" \right\rfloor"),
                 "ceil": (r"\left\lceil ", r" \right\rceil")}[tree.func.id]
-        lines = [head, rf"= {wrap[0]}{inner.substituted}{wrap[1]}", rf"= {wrap[0]}{number_tex(round(inner_v, 4))}{wrap[1]} = {_quantity_tex(value, r.unit)}"]
+        lines = [head, rf"= {wrap[0]}{inner.substituted}{wrap[1]}", rf"= {wrap[0]}{number_tex(round(inner_v, 4))}{wrap[1]} = {_quantity_tex(value, r.shown_unit)}"]
     elif rd.substituted == rd.symbolic or dotted_name(tree) is not None:
-        lines = [rf"{head} = {_quantity_tex(value, r.unit)}"]
+        lines = [rf"{head} = {_quantity_tex(value, r.shown_unit)}"]
     else:
-        lines = [head, rf"= {rd.substituted}", rf"= {_quantity_tex(value, r.unit)}"]
+        lines = [head, rf"= {rd.substituted}", rf"= {_quantity_tex(value, r.shown_unit)}"]
     return Derivation(lines, value)
 
 
@@ -215,7 +215,12 @@ def derive_check(build, check_id: str) -> Derivation:
         return Derivation([rf"{lhs_s} {op} {rhs_s} \quad (\text{{not applicable}})"], None)
     unit = k.unit if k.unit not in (None, "1") else ""
     mark = r"\quad \checkmark" if k.status == "ok" else r"\quad \color{#c0392b}{\times}"
-    return Derivation(
-        [rf"{lhs_s} {op} {rhs_s}", rf"\Rightarrow {_quantity_tex(k.lhs, unit)} {op} {_quantity_tex(k.rhs, unit)}{mark}"],
-        k.lhs,
-    )
+    lines = [rf"{lhs_s} {op} {rhs_s}"]
+    try:  # show the inputs, as the constants do, when the sides aren't single names
+        ls, rs = (render(e, syms, build.env, build.units).substituted for e in (k.check.lhs, k.check.rhs))
+        if (ls, rs) != (lhs_s, rhs_s) and not (dotted_name(parse(k.check.lhs).tree) and dotted_name(parse(k.check.rhs).tree)):
+            lines.append(rf"= {ls} {op} {rs}")
+    except Exception:  # noqa: BLE001 - the typeset inputs are a convenience; the verdict line below is authoritative
+        pass
+    lines.append(rf"\Rightarrow {_quantity_tex(k.lhs, unit)} {op} {_quantity_tex(k.rhs, unit)}{mark}")
+    return Derivation(lines, k.lhs)

@@ -4,7 +4,7 @@
 - id: MAG-001
   rev: B
   kind: inductor
-  title: INDUCTOR, OUTPUT FILTER, 330 uH
+  title: INDUCTOR, OUTPUT FILTER, 330 µH
   core: "0077083A7"
   windings: [{name: W1, start: 1, finish: 2, turns: 64, awg: 18, strands: 2, i_rms_a: 3.0}]
   l_text: "330 µH"
@@ -13,7 +13,7 @@
 - id: MAG-002
   rev: A
   kind: inductor
-  title: INDUCTOR, PFC BOOST, 150 uH
+  title: INDUCTOR, PFC BOOST, 150 µH
   core: "0077717A7"
   windings: [{name: W1, start: 1, finish: 2, turns: 68, awg: 15, strands: 2, i_rms_a: 8.0}]
   l_text: "150 µH"
@@ -22,7 +22,7 @@
 - id: MAG-003
   rev: A
   kind: inductor
-  title: INDUCTOR, CHARGER BUCK, 270 uH
+  title: INDUCTOR, CHARGER BUCK, 270 µH
   core: "0077439A7"
   windings: [{name: W1, start: 1, finish: 2, turns: 35, awg: 16, strands: 2, i_rms_a: 5.0}]
   l_text: "270 µH"
@@ -31,7 +31,7 @@
 - id: MAG-004
   rev: C
   kind: inductor
-  title: INDUCTOR, DC LINK CHOKE, 220 uH
+  title: INDUCTOR, DC LINK CHOKE, 220 µH
   core: "0077071A7"
   windings: [{name: W1, start: 1, finish: 2, turns: 60, awg: 19, strands: 2, i_rms_a: 2.5}]
   l_text: "220 µH"
@@ -40,7 +40,7 @@
 - id: MAG-005
   rev: A
   kind: inductor
-  title: INDUCTOR, OUTPUT FILTER, 450 uH
+  title: INDUCTOR, OUTPUT FILTER, 450 µH
   core: "0077083A7"
   windings: [{name: W1, start: 1, finish: 2, turns: 75, awg: 18, strands: 2, i_rms_a: 2.5}]
   l_text: "4.5 mH"
@@ -49,7 +49,7 @@
 - id: MAG-006
   rev: A
   kind: inductor
-  title: INDUCTOR, AUX SUPPLY, 120 uH
+  title: INDUCTOR, AUX SUPPLY, 120 µH
   core: "0077894A7"
   windings: [{name: W1, start: 1, finish: 2, turns: 40, awg: 22, strands: 1, i_rms_a: 3.0}]
   l_text: "120 µH"
@@ -67,7 +67,7 @@
 - id: MAG-008
   rev: A
   kind: inductor
-  title: INDUCTOR, PFC BOOST, 470 uH
+  title: INDUCTOR, PFC BOOST, 470 µH
   core: "0077071A7"
   windings: [{name: W1, start: 1, finish: 2, turns: 88, awg: 16, strands: 2, i_rms_a: 2.5}]
   l_text: "470 µH"
@@ -76,7 +76,7 @@
 - id: MAG-009
   rev: A
   kind: inductor
-  title: INDUCTOR, INVERTER OUTPUT, 600 uH
+  title: INDUCTOR, INVERTER OUTPUT, 600 µH
   core: "0077439A7"
   windings: [{name: W1, start: 1, finish: 2, turns: 67, awg: 14, strands: 1, i_rms_a: 8.0}]
   l_text: "600 µH"
@@ -85,7 +85,7 @@
 - id: MAG-010
   rev: A
   kind: inductor
-  title: INDUCTOR, OUTPUT FILTER, 330 uH
+  title: INDUCTOR, OUTPUT FILTER, 330 µH
   core: "0077038A7"
   windings: [{name: W1, start: 1, finish: 2, turns: 64, awg: 18, strands: 2, i_rms_a: 3.0}]
   l_text: "330 µH"
@@ -94,7 +94,7 @@
 - id: XFMR-001
   rev: A
   kind: transformer
-  title: TRANSFORMER, ISOLATED DC-DC, 48V
+  title: TRANSFORMER, ISOLATED DC-DC, 48 V
   core: E32/16/9-3C94
   windings:
     - {name: PRI, start: 1, finish: 3, turns: 24, awg: 20, strands: 1, i_rms_a: 2.0}
@@ -106,7 +106,7 @@
 - id: XFMR-002
   rev: B
   kind: transformer
-  title: TRANSFORMER, GATE DRIVE SUPPLY
+  title: TRANSFORMER, AUX SUPPLY, 24 V
   core: E42/21/15-3C94
   windings:
     - {name: PRI, start: 1, finish: 3, turns: 40, awg: 22, strands: 1, i_rms_a: 0.8}

@@ -134,6 +134,11 @@ class Check:
     latex: list[str] = field(default_factory=list)
 
 
+def _fmt_l(uh: float) -> str:
+    """Inductance for text: mH from 1000 µH up, as the page's tables do."""
+    return f"{uh / 1000:.3g} mH" if uh >= 1000 else f"{uh:.4g} µH"
+
+
 def _f(x: float, nd: int = 3) -> str:
     s = f"{x:.{nd}g}"
     return f"{x:.0f}" if "e+" in s else s  # 2500, not 2.5e+03
@@ -160,26 +165,27 @@ def _inductor_checks(d: Design, core: Core, limits: dict) -> list[Check]:
     l_stated = parse_inductance_uh(d.l_text)
     tex = [rf"L = A_L N^2 = {_f(core.al_nh)}\,\mathrm{{nH}} \times {w.turns}^2 = {_f(l_calc, 4)}\,\mu\mathrm{{H}}"]
     if l_stated is None:
-        out.append(Check("inductance", "Stated inductance matches A_L × N²", FLAG, f"cannot read inductance {d.l_text!r}", tex))
+        out.append(Check("inductance", "Stated inductance matches Aₗ × N²", FLAG, f"cannot read inductance {d.l_text!r}", tex))
     else:
         err = (l_stated - l_calc) / l_calc
-        # every core in the A_L spread must land inside the drawing's band, not just the nominal one
+        # every core in the Aₗ spread must land inside the drawing's band, not just the nominal one
         at, lt = core.al_tol_pct / 100, d.l_tol_pct / 100
         lo, hi, d_lo, d_hi = l_calc * (1 - at), l_calc * (1 + at), l_stated * (1 - lt), l_stated * (1 + lt)
         ok = lo >= d_lo and hi <= d_hi
-        tex.append(rf"\text{{core spread: }} {_f(lo, 4)}\text{{ to }} {_f(hi, 4)}\,\mu\mathrm{{H}}\ (\pm {_f(core.al_tol_pct)}\%) \quad \text{{drawing: }} {_f(d_lo, 4)}\text{{ to }} {_f(d_hi, 4)}\,\mu\mathrm{{H}}\ ({_f(l_stated, 4)} \pm {_f(d.l_tol_pct)}\%)")
+        tex += [rf"\text{{core spread: }} {_f(lo, 4)}\text{{ to }} {_f(hi, 4)}\,\mu\mathrm{{H}}\ (\pm {_f(core.al_tol_pct)}\%)",
+                rf"\text{{drawing band: }} {_f(d_lo, 4)}\text{{ to }} {_f(d_hi, 4)}\,\mu\mathrm{{H}}\ ({_f(l_stated, 4)} \pm {_f(d.l_tol_pct)}\%)"]
         hint = "" if abs(err) <= at else (" (looks like a unit slip)" if abs(math.log10(l_stated / l_calc)) > 0.9 else " (check the turns count)")
-        band = (f"; every core in the ±{_f(core.al_tol_pct)}% A_L spread ({_f(lo, 4)} to {_f(hi, 4)} µH) lands inside the drawing's {_f(d_lo, 4)} to {_f(d_hi, 4)} µH" if ok
-                else f"; the ±{_f(core.al_tol_pct)}% A_L spread ({_f(lo, 4)} to {_f(hi, 4)} µH) leaves the drawing's {_f(d_lo, 4)} to {_f(d_hi, 4)} µH band")
-        out.append(Check("inductance", "Stated inductance matches A_L × N²", PASS if ok else FLAG,
-                         f"drawing {d.l_text} vs {_f(l_calc, 4)} µH from the core and turns: {err * 100:+.1f}%{hint}{band}", tex))
+        band = (f"; every core in the ±{_f(core.al_tol_pct)}% Aₗ spread ({_fmt_l(lo)} to {_fmt_l(hi)}) lands inside the drawing's {_fmt_l(d_lo)} to {_fmt_l(d_hi)}" if ok
+                else f"; the ±{_f(core.al_tol_pct)}% Aₗ spread ({_fmt_l(lo)} to {_fmt_l(hi)}) leaves the drawing's {_fmt_l(d_lo)} to {_fmt_l(d_hi)} band")
+        out.append(Check("inductance", "Stated inductance matches Aₗ × N²", PASS if ok else FLAG,
+                         f"drawing {d.l_text} vs {_fmt_l(l_calc)} from the core and turns: {err * 100:+.1f}%{hint}{band}", tex))
     if core.family == "toroid":
         h_oe = 0.4 * math.pi * w.turns * d.i_pk_a / (core.le_mm / 10)
         pct = 80 if limits["toroid_bias_limit"] == "h80" else 50
         lim = core.h80_oe if pct == 80 else core.h50_oe
         ok = h_oe <= lim
         tex = [rf"H_{{pk}} = \frac{{0.4\pi N I_{{pk}}}}{{l_e}} = \frac{{0.4\pi \times {w.turns} \times {_f(d.i_pk_a)}\,\mathrm{{A}}}}{{{_f(core.le_mm / 10, 4)}\,\mathrm{{cm}}}} = {_f(h_oe)}\,\mathrm{{Oe}}",
-               rf"\text{{limit: }} H_{{{pct}\%}} = {_f(lim)}\,\mathrm{{Oe}} \quad \text{{(data sheet: keeps }} \geq {pct}\% \text{{ of the inductance at peak current)}}"]
+               rf"\text{{limit: }} H_{{{pct}\%}} = {_f(lim)}\,\mathrm{{Oe}} \quad (\text{{data sheet min.: }} {pct}\% \text{{ of }} \mu_i)"]
         out.append(Check("dc_bias", f"Peak current keeps {pct}% of the inductance", PASS if ok else FLAG,
                          f"{_f(h_oe)} Oe at {_f(d.i_pk_a)} A peak vs {_f(lim)} Oe limit" + ("" if ok else f": the core loses more than {100 - pct}% of its inductance"), tex))
     return out
@@ -194,7 +200,7 @@ def _transformer_checks(d: Design, core: Core, limits: dict) -> list[Check]:
     tex = [rf"L_m = A_L N_p^2 = {_f(core.al_nh)}\,\mathrm{{nH}} \times {p.turns}^2 = {_f(lm_calc, 4)}\,\mu\mathrm{{H}} \quad (\geq {_f(lm_min_calc, 4)}\,\mu\mathrm{{H}} \text{{ at }} -{_f(core.al_tol_pct)}\%)"]
     ok = lm_stated is not None and lm_min_calc >= lm_stated
     out.append(Check("magnetizing", "Minimum magnetizing inductance is met", PASS if ok else FLAG,
-                     f"drawing requires {d.lm_text} minimum; core and turns give at least {_f(lm_min_calc, 4)} µH", tex))
+                     f"drawing requires {d.lm_text} minimum; core and turns give at least {_fmt_l(lm_min_calc)}", tex))
     m = re.fullmatch(r"\s*([\d.]+)\s*:\s*([\d.]+)\s*", d.ratio_text)
     ratio_stated = float(m.group(1)) / float(m.group(2)) if m else None
     ratio = p.turns / s.turns
@@ -206,9 +212,17 @@ def _transformer_checks(d: Design, core: Core, limits: dict) -> list[Check]:
     lim = limits["bsat_margin"] * core.bsat_mt
     ok = b_mt <= lim
     out.append(Check("flux", "Peak flux stays below saturation", PASS if ok else FLAG,
-                     f"{_f(b_mt)} mT vs {_f(lim)} mT ({limits['bsat_margin'] * 100:.0f}% of {_f(core.bsat_mt)} mT B_sat)",
-                     [rf"B_{{pk}} = \frac{{V}}{{4 f N_p A_e}} = \frac{{{_f(d.v_pri)}\,\mathrm{{V}}}}{{4 \times {_f(d.f_khz)}\,\mathrm{{kHz}} \times {p.turns} \times {_f(core.ae_mm2)}\,\mathrm{{mm^2}}}} = {_f(b_mt)}\,\mathrm{{mT}}",
-                      rf"\text{{limit: }} {limits['bsat_margin']:g} \times B_{{sat}} = {_f(lim)}\,\mathrm{{mT}} \quad \text{{(square-wave drive)}}"]))
+                     f"{_f(b_mt)} mT vs {_f(lim)} mT ({limits['bsat_margin'] * 100:.0f}% of {_f(core.bsat_mt)} mT Bₛₐₜ)",
+                     [rf"B_{{pk}} = \frac{{V_{{pri}}}}{{4 f N_p A_e}} = \frac{{{_f(d.v_pri)}\,\mathrm{{V}}}}{{4 \times {_f(d.f_khz)}\,\mathrm{{kHz}} \times {p.turns} \times {_f(core.ae_mm2)}\,\mathrm{{mm^2}}}} = {_f(b_mt)}\,\mathrm{{mT}}",
+                      rf"\text{{limit: }} {limits['bsat_margin']:g} \times B_{{sat}} = {_f(lim)}\,\mathrm{{mT}} \quad \text{{(square-wave drive, full primary voltage)}}"]))
+    # Not modelled, but shown so a pass can't be read as covering it: skin effect at the switching frequency.
+    delta = 66.2 / math.sqrt(d.f_khz * 1e3)  # mm, copper at 20 °C
+    w = max(d.windings, key=lambda x: awg_area_mm2(x.awg))
+    r_over_d = math.sqrt(awg_area_mm2(w.awg) / math.pi) / delta
+    out.append(Check("ac_loss", "AC winding loss (skin and proximity effect)", NA,
+                     f"not modelled in v1: at {d.f_khz:g} kHz the skin depth is {delta:.2f} mm, and the {w.awg} AWG {w.name} wire is "
+                     f"{r_over_d:.1f} skin depths in radius; a production design would use Litz wire or foil and check AC resistance",
+                     [rf"\delta = \frac{{66.2}}{{\sqrt{{f}}}}\,\mathrm{{mm}} = \frac{{66.2}}{{\sqrt{{{d.f_khz * 1e3:.0f}}}}} = {delta:.3f}\,\mathrm{{mm}} \quad (\text{{copper, 20}}\,{{}}^\circ\mathrm{{C}})"]))
     return out
 
 
@@ -266,7 +280,7 @@ def _copper_checks(d: Design, core: Core, limits: dict) -> list[Check]:
         tape_total = sum(t1 - t0 for t0, t1 in b["tapes"])
         out.append(Check("window_fill", "Windings fit the bobbin with insulation", PASS if b["fits"] else FLAG,
                          f"winding build {b['build']:.2f} mm of the {b['w']:.2f} mm window ({b['build'] / b['w'] * 100:.0f}%), "
-                         f"with a {_f(b['wall'])} mm bobbin, {_f(b['margin'])} mm margin tape at each end, and tape between and over the windings"
+                         f"with a {_f(b['wall'])} mm bobbin wall, {_f(b['margin'])} mm margin tape at each end, and tape between and over the windings"
                          + ("" if b["fits"] else ": it won't fit with this insulation"),
                          [rf"\text{{build}} = \underbrace{{{_f(b['wall'])}}}_{{\text{{bobbin}}}} + \underbrace{{{terms}}}_{{\text{{layers}} \times {limits.get('build_factor', 1.0):g}\,d_{{ins}}}} + \underbrace{{{_f(tape_total)}}}_{{\text{{tape}}}} = {b['build']:.2f}\,\mathrm{{mm}} \le {b['w']:.2f}\,\mathrm{{mm}}",
                           rf"\text{{breadth between margins}} = {_f(b['h'])} - 2({_f(b['wall'])} + {_f(b['margin'])}) = {_f(b['y1'] - b['y0'])}\,\mathrm{{mm}} \quad \text{{(assumptions)}}"]))
@@ -278,7 +292,7 @@ def _copper_checks(d: Design, core: Core, limits: dict) -> list[Check]:
     ok = fill <= lim
     out.append(Check("window_fill", "Winding fits the core window", PASS if ok else FLAG,
                      f"wire (with enamel) fills {fill * 100:.0f}% of the window vs a {lim * 100:.0f}% winding factor" + ("" if ok else ": the winding won't fit"),
-                     [rf"\frac{{\sum N \cdot n \cdot \pi d_{{ins}}^2/4}}{{W_a}} = \frac{{{_f(cu, 4)}\,\mathrm{{mm^2}}}}{{{_f(core.wa_mm2, 4)}\,\mathrm{{mm^2}}}} = {fill * 100:.0f}\% \quad (\text{{limit }} {lim * 100:.0f}\%\ \text{{winding factor}})"]))
+                     [rf"\frac{{\sum N \cdot n \cdot \pi d_{{ins}}^2/4}}{{W_a}} = \frac{{{_f(cu, 4)}\,\mathrm{{mm^2}}}}{{{_f(core.wa_mm2, 4)}\,\mathrm{{mm^2}}}} = {fill * 100:.0f}\% \le {lim * 100:.0f}\%"]))
     return out
 
 
@@ -343,7 +357,8 @@ def render_pdf(d: Design, path: Path) -> None:
         c.line(76, H - 145, 226, H - 145)
         c.line(76, H - 149, 226, H - 149)
 
-    y = table(300, H - 70, "CORE", ["CORE PART NUMBER"], [[d.core]], [300])
+    core_txt = f"{d.core}, 2 PCS (PAIR) + BOBBIN" if d.kind == "transformer" else d.core
+    y = table(300, H - 70, "CORE", ["CORE PART NUMBER"], [[core_txt]], [300])
     y = table(300, y, "WINDING TABLE", ["WDG", "START", "FINISH", "TURNS", "WIRE", "STRANDS", "CURRENT"],
               [[w.name, w.start, w.finish, w.turns, f"{w.awg} AWG", w.strands, f"{w.i_rms_a:g} A RMS"] for w in d.windings],
               [40, 50, 50, 50, 60, 60, 80])
@@ -369,13 +384,22 @@ def render_pdf(d: Design, path: Path) -> None:
     c.drawString(x0 + 6, y0 + 46, d.title)
     c.drawString(x0 + 6, y0 + 14, d.id)
     c.drawString(x0 + 200, y0 + 14, d.rev)
+    c.setFont("Helvetica", 7)
+    c.drawRightString(x0 + 282, y0 + 62, "SHEET 1 OF 1   SCALE: NONE   UNITS: mm")
     c.setFont("Helvetica-Bold", 9)
     c.drawString(40, 150, "NOTES")
     c.setFont("Helvetica", 8)
     y = 136
+    lim = load_limits(Path(__file__).resolve().parents[2] / "specs" / "magnetics" / "limits.yaml")
+    build = (["5. MAGNET WIRE: HEAVY BUILD (DOUBLE COAT), CLASS 200 °C.",
+              f"6. MARGIN TAPE {lim['margin_mm']:g} mm EACH END OF WINDING BREADTH.",
+              f"7. {lim['tape_layers_between']} LAYERS {lim['tape_layer_mm']:g} mm POLYESTER TAPE PRI TO SEC; {lim['tape_layers_outer']} OVER THE OUTSIDE."]
+             if d.kind == "transformer" else
+             ["5. MAGNET WIRE: HEAVY BUILD (DOUBLE COAT), CLASS 200 °C.",
+              "6. TAPE-WRAP CORE BEFORE WINDING; HIPOT DOES NOT RELY ON THE CORE COATING."])
     for n in ["1. WIND EVENLY IN ONE DIRECTION; LEADS AS SHOWN.", "2. VARNISH IMPREGNATE AFTER WINDING.",
               "3. MARK WITH DRAWING NUMBER AND DATE CODE.", "4. SYNTHETIC EXAMPLE FOR A SOFTWARE DEMO; NOT FOR MANUFACTURE.",
-              *d.notes]:
+              *build, *d.notes]:
         c.drawString(40, y, n)
         y -= 12
     c.showPage()
@@ -401,7 +425,7 @@ def extract(path: Path) -> dict:
         return tok[tok.index(label) + 1] if label in tok and tok.index(label) + 1 < len(tok) else None
 
     if core := after("CORE PART NUMBER"):
-        take("core", core, core)
+        take("core", core.split(",")[0].strip(), core)  # "E32/16/9-3C94, 2 PCS (PAIR) + BOBBIN" -> the part number
     if "CURRENT" in tok and "ELECTRICAL" in tok:  # winding table: 7 cells per row
         cells = tok[tok.index("CURRENT") + 1: tok.index("ELECTRICAL")]
         for k in range(0, len(cells) - 6, 7):
@@ -501,13 +525,13 @@ def svg_flux(core: Core, d: Design, margin: float) -> str:
          f'<rect class="fx-hot" x="{x(lim):.1f}" y="{yb}" width="{x1 - x(lim):.1f}" height="{hb}"/>'
          f'<rect class="fx-val{" bad" if over else ""}" x="{x0}" y="{yb + 5}" width="{x(b) - x0:.1f}" height="{hb - 10}" rx="2"/>'
          f'<line class="fx-lim" x1="{x(lim):.1f}" x2="{x(lim):.1f}" y1="{yb - 6}" y2="{yb + hb + 6}"/>'
-         f'<text class="mc-t" x="{x(lim):.1f}" y="{yb - 10}" text-anchor="middle">limit {lim:.0f} mT ({margin * 100:.0f}% of B_sat)</text>'
-         f'<text class="mc-t" x="{x1}" y="{yb + hb + 18}" text-anchor="end">B_sat {sat:.0f} mT (min, 100 °C)</text>'
+         f'<text class="mc-t" x="{x(lim):.1f}" y="{yb - 10}" text-anchor="middle">limit {lim:.0f} mT ({margin * 100:.0f}% of Bₛₐₜ)</text>'
+         f'<text class="mc-t" x="{x1}" y="{yb + hb + 18}" text-anchor="end">Bₛₐₜ {sat:.0f} mT (min, 100 °C)</text>'
          f'<text class="mc-t" x="{x0}" y="{yb + hb + 18}">0</text>'
          f'<text class="mc-t fx-num" x="{x(b) + 6:.1f}" y="{yb + hb / 2 + 4}">{b:.0f} mT</text>')
     cap = (f"{core.name}, {p.turns} primary turns at {d.v_pri:g} V square, {d.f_khz:g} kHz: peak flux {b:.0f} mT, "
-           f"{b / sat * 100:.0f}% of B_sat. " + ("Over the limit: the core would run into saturation." if over else
-           "Headroom left for line surges and start-up transients."))
+           f"{b / sat * 100:.0f}% of Bₛₐₜ. " + ("Over the limit: the core would run into saturation." if over else
+           "Headroom for input transients and start-up flux walking."))
     return f'<figure class="mfig"><svg viewBox="0 0 {W} 92" role="img" aria-label="Peak flux {b:.0f} mT versus limit {lim:.0f} mT">{g}</svg><figcaption>{cap}</figcaption></figure>'
 
 
@@ -529,6 +553,7 @@ def site_records(root: Path) -> dict:
             "core_desc": f"{core.vendor} {core.material} {core.family}" if core else "not in catalog",
             "material": core.material if core else "", "family": core.family if core else "",
             "l_uh": f["l_uh"], "l_text": rec.l_text or rec.lm_text, "i_a": f["i_a"],
+            "i_pk_a": rec.i_pk_a, "l_tol_pct": rec.l_tol_pct, "v_pri": rec.v_pri, "f_khz": rec.f_khz,
             "windings": [dataclasses.asdict(w) for w in rec.windings],
             "source": x["source"],
             "checks": [dataclasses.asdict(c) for c in checks],
@@ -615,8 +640,8 @@ def size_inductor(cores: dict[str, Core], limits: dict, l_uh: float, i_rms: floa
                 h = 0.4 * math.pi * turns * i_pk / le_cm
                 f = retained(core, h)
                 if f is None or f < min_retained:
-                    reason = (f"{n}x: past {min_retained * 100:.0f}% retained at {turns} turns "
-                              f"({al * (turns - 1) ** 2 * (retained(core, 0.4 * math.pi * (turns - 1) * i_pk / le_cm) or 0) / 1000:.0f} µH max at peak)")
+                    reason = (f"×{n} stack: at {turns} turns the core is past its {min_retained * 100:.0f}% point at {_f(i_pk)} A peak; "
+                              f"best case {_fmt_l(al * (turns - 1) ** 2 * (retained(core, 0.4 * math.pi * (turns - 1) * i_pk / le_cm) or 0) / 1000)} at peak")
                     break
                 l_pk = al * turns * turns * f / 1000
                 if l_pk >= l_uh:
@@ -628,7 +653,7 @@ def size_inductor(cores: dict[str, Core], limits: dict, l_uh: float, i_rms: floa
             awg, strands, cu = pick_wire(i_rms, j_max)
             fill = turns * strands * math.pi * _wire_od(awg) ** 2 / 4 / core.wa_mm2  # with enamel, as the check
             if fill > fill_max:
-                reason = f"{n}x: {turns} turns of {strands} x {awg} AWG fill {fill * 100:.0f}% of the window (limit {fill_max * 100:.0f}%)"
+                reason = f"×{n} stack: {turns} turns of {strands} × {awg} AWG fill {fill * 100:.0f}% of the window (limit {fill_max * 100:.0f}%)"
                 continue
             l0 = al * turns * turns / 1000
             passing.append({
@@ -639,9 +664,10 @@ def size_inductor(cores: dict[str, Core], limits: dict, l_uh: float, i_rms: floa
                 "fig": {"curve": svg_l_vs_i(core, turns, i_pk, l_uh, n, al_scale=1 - core.al_tol_pct / 100), "winding": svg_window(core, [("W1", turns, strands, awg)], n)},
                 "latex": [
                     rf"H_{{pk}} = \frac{{0.4\pi \times {turns} \times {_f(i_pk)}\,\mathrm{{A}}}}{{{_f(le_cm, 4)}\,\mathrm{{cm}}}} = {_f(h)}\,\mathrm{{Oe}} \;\Rightarrow\; {f * 100:.0f}\%\ \text{{of }} A_L \text{{ remains}}",
-                    rf"L(I_{{pk}}) = {n} \times {_f(core.al_nh)}\,\mathrm{{nH}} \times {1 - core.al_tol_pct / 100:g}_{{\,\min A_L}} \times {turns}^2 \times {f:.4f} = {_f(l_pk, 4)}\,\mu\mathrm{{H}} \geq {_f(l_uh, 4)}\,\mu\mathrm{{H}}",
+                    rf"A_{{L,\min}} = {_f(core.al_nh)}\,\mathrm{{nH}} \times (1 - {_f(core.al_tol_pct)}\%) = {_f(core.al_nh * (1 - core.al_tol_pct / 100), 4)}\,\mathrm{{nH}}",
+                    rf"L(I_{{pk}}) = {n} \times {_f(core.al_nh * (1 - core.al_tol_pct / 100), 4)}\,\mathrm{{nH}} \times {turns}^2 \times {f:.4f} = {_f(l_pk, 4)}\,\mu\mathrm{{H}} \geq {_f(l_uh, 4)}\,\mu\mathrm{{H}}",
                     rf"J = \frac{{{_f(i_rms)}\,\mathrm{{A}}}}{{{strands} \times {_f(awg_area_mm2(awg), 4)}\,\mathrm{{mm^2}}}} = {_f(i_rms / cu)}\,\mathrm{{A/mm^2}}",
-                    rf"\text{{fill}} = \frac{{{turns} \times {strands} \times \pi \times {_wire_od(awg):.3f}^2/4}}{{{_f(core.wa_mm2)}\,\mathrm{{mm^2}}}} = {fill * 100:.0f}\%\ \text{{(wire with enamel)}}",
+                    rf"\text{{fill}} = \frac{{{turns} \times {strands} \times \pi \times ({_wire_od(awg):.3f}\,\mathrm{{mm}})^2/4}}{{{_f(core.wa_mm2)}\,\mathrm{{mm^2}}}} = {fill * 100:.0f}\%",
                 ],
             })
             break
@@ -740,9 +766,9 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
         body = "".join(parts)
         view = f"{-t - 2:.1f} {-t - 2:.1f} {w + 2 * t + 4:.1f} {h + 2 * t + 4:.1f}"
     circles = "".join(f'<circle class="mw-w{k}" cx="{x:.2f}" cy="{y:.2f}" r="{r:.3f}"/>' for k, x, y, r in placed)
-    label = ", ".join(f"{name}: {t} × {n} × {a} AWG" for name, t, n, a in windings)
+    label = ", ".join(f"{name}: {t} turns of {n} × {a} AWG" for name, t, n, a in windings)
     if core.family != "toroid":
-        note = (f"bobbin {_f(limits['bobbin_wall_mm'])} mm (grey), margin tape {_f(limits['margin_mm'])} mm at each end (hatched), "
+        note = (f"bobbin wall {_f(limits['bobbin_wall_mm'])} mm (grey), margin tape {_f(limits['margin_mm'])} mm at each end (tan), "
                 f"{limits['tape_layers_between']} tape layers between windings; build {bb['build']:.2f} of {bb['w']:.2f} mm"
                 + ("" if bb["fits"] else ", doesn't fit"))
         size = "bigfig" if overflow else "winfig"
@@ -753,12 +779,13 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
         return (f'<figure class="mfig {size}"><svg viewBox="{rview}" role="img" aria-label="Winding window: {label}; build {bb["build"]:.2f} of {bb["w"]:.2f} mm">'
                 f'<g transform="rotate(-90)">{body}{circles}</g></svg>'
                 f"<figcaption>E-core window (one side), to scale, center leg at the bottom · {label} · {note}</figcaption></figure>")
-    note = f"{len(wires) - overflow} of {len(wires)} conductors drawn" + (f"; {overflow} don't fit" if overflow else "")
+    note = (f"{len(wires) - overflow} of {len(wires)} conductors drawn at ideal packing" + (f"; {overflow} don't fit even then" if overflow else "")
+            + ("; the 40% winding factor leaves room for the shuttle, lead-outs and uneven layers" if core.family == "toroid" else ""))
     # toroids: a thumbnail beside the inductance curve, large only when the winding doesn't fit;
     # transformers have no curve, so the window is their main figure
     size = "bigfig" if overflow else ("thumbfig" if core.family == "toroid" else "winfig")
-    return (f'<figure class="mfig {size}"><svg viewBox="{view}" role="img" aria-label="Winding view: {label}; copper fills {fill * 100:.0f}% of the window">'
-            f"{body}{circles}</svg><figcaption>{'Toroid, top view: each turn passes through the hole and returns around the outside' if core.family == 'toroid' else 'E-core window (one side)'}{f', {stack} stacked' if stack > 1 else ''} · {label} · "
+    return (f'<figure class="mfig {size}"><svg viewBox="{view}" role="img" aria-label="Winding view: {label}; wire (with enamel) fills {fill * 100:.0f}% of the window">'
+            f"{body}{circles}</svg><figcaption>{'Toroid, top view: each turn passes through the hole and returns around the outside' if core.family == 'toroid' else 'E-core window (one side)'}{f', ×{stack} stacked' if stack > 1 else ''} · {label} · "
             f"wire with enamel fills {fill * 100:.0f}% of the window · {note}</figcaption></figure>")
 
 
@@ -773,10 +800,14 @@ def svg_l_vs_i(core: Core, turns: int, i_pk: float, l_req_uh: float | None, stac
     h = lambda i: i / amps_per_oe  # noqa: E731
     l0 = core.al_nh * al_scale * stack * turns * turns / 1000
     i_max = 1.5 * i_pk
-    W, H, ml, mb, mt, mr = 420, 190, 52, 30, 10, 12
+    W, H, ml, mb, mt, mr = 420, 198, 64, 30, 18, 12
     pw, ph = W - ml - mr, H - mb - mt
     x = lambda i: ml + i / i_max * pw  # noqa: E731
-    y = lambda l: mt + (1 - l / (l0 * 1.08)) * ph  # noqa: E731
+    # a drawing value up to 2x above the core's reach rescales the chart (the gap is the evidence);
+    # beyond that it is pinned at the top and marked, so the curve stays readable
+    off_scale = bool(l_req_uh) and l_req_uh > 2 * l0
+    top = (l0 if off_scale else max(l0, l_req_uh or 0)) * 1.08
+    y = lambda l: mt + (1 - l / top) * ph  # noqa: E731
     i_end = min(i_max, core.h50_oe * amps_per_oe)
     solid = " ".join(f"{x(i):.1f},{y(l0 * retained(core, min(h(i), core.h50_oe))):.1f}" for i in (i_end * k / 120 for k in range(121)))
     g = [f'<line class="mc-ax" x1="{ml}" y1="{mt + ph}" x2="{ml + pw}" y2="{mt + ph}"/><line class="mc-ax" x1="{ml}" y1="{mt}" x2="{ml}" y2="{mt + ph}"/>']
@@ -793,28 +824,32 @@ def svg_l_vs_i(core: Core, turns: int, i_pk: float, l_req_uh: float | None, stac
     if i_end < i_max:
         g.append(f'<text class="mc-t" x="{x(i_end) + 4:.1f}" y="{y(l0 * 0.5) + 14:.1f}">past the data sheet</text>')
     if l_req_uh:
-        lab = f"required at peak: {l_req_uh:.0f} µH" if ref_at == "peak" else f"drawing: {l_req_uh:.0f} µH at 0 A"
-        g.append(f'<line class="mc-req" x1="{ml}" x2="{ml + pw}" y1="{y(l_req_uh):.1f}" y2="{y(l_req_uh):.1f}"/><text class="mc-t mc-reqt" x="{ml + 4}" y="{y(l_req_uh) - 3:.1f}">{lab}</text>')
+        lab = f"required at peak: {_fmt_l(l_req_uh)}" if ref_at == "peak" else f"drawing: {_fmt_l(l_req_uh)} at 0 A"
+        yr = mt - 3 if off_scale else y(l_req_uh)  # off scale: a line above the plot area
+        lab += " (above the chart)" if off_scale else ""
+        g.append(f'<line class="mc-req" x1="{ml}" x2="{ml + pw}" y1="{yr:.1f}" y2="{yr:.1f}"/><text class="mc-t mc-reqt" x="{ml + 4}" y="{yr - 3:.1f}">{lab}</text>')
     f_pk = retained(core, h(i_pk))
     g.append(f'<line class="mc-pk" x1="{x(i_pk):.1f}" x2="{x(i_pk):.1f}" y1="{mt}" y2="{mt + ph}"/><text class="mc-t" x="{x(i_pk) + 3:.1f}" y="{mt + ph - 4}">peak {i_pk:g} A</text>')
     if f_pk is not None:
         g.append(f'<circle class="mc-dot" cx="{x(i_pk):.1f}" cy="{y(l0 * f_pk):.1f}" r="4"/>')
     g.append(f'<text class="mc-t" x="{ml}" y="{mt + ph + 14}" text-anchor="middle">0</text><text class="mc-t" x="{ml + pw}" y="{mt + ph + 14}" text-anchor="end">{i_max:.3g} A</text>'
-             f'<text class="mc-t" x="{ml + pw / 2:.0f}" y="{H - 4}" text-anchor="middle">DC current</text>'
-             f'<text class="mc-t" x="4" y="{mt + 8}">{l0:.0f} µH</text><text class="mc-t" x="4" y="{mt + ph}">0</text>')
-    cap = (f"{core.name}{f' ×{stack}' if stack > 1 else ''}, {turns} turns: {l0:.0f} µH at 0 A{' (minimum A_L)' if al_scale < 1 else ''}; "
-           + (f"{l0 * f_pk:.0f} µH ({f_pk * 100:.0f}%) at {i_pk:g} A peak" if f_pk is not None else f"past the data sheet's 50% point at {i_pk:g} A")
-           + (". The drawing specifies inductance at 0 A only, so it doesn't say how much is needed at full current: a question for the designer." if ref_at == "zero" else "."))
+             f'<text class="mc-t" x="{ml + pw / 2:.0f}" y="{H - 4}" text-anchor="middle">bias current</text>'
+             f'<line class="mc-ax" x1="{ml - 4}" x2="{ml}" y1="{y(l0):.1f}" y2="{y(l0):.1f}"/><text class="mc-t" x="{ml - 6}" y="{y(l0) + 4:.1f}" text-anchor="end">{_fmt_l(l0)}</text>'
+             f'<text class="mc-t" x="{ml - 6}" y="{mt + ph}" text-anchor="end">0</text>'
+             f'<text class="mc-t" transform="translate(10,{mt + ph * 0.62:.0f}) rotate(-90)" text-anchor="middle">inductance</text>')
+    cap = (f"{core.name}{f' ×{stack}' if stack > 1 else ''}, {turns} turns: {_fmt_l(l0)} at 0 A{' (minimum Aₗ)' if al_scale < 1 else ''}; "
+           + (f"{_fmt_l(l0 * f_pk)} ({f_pk * 100:.0f}%) at {i_pk:g} A peak" if f_pk is not None else f"past the data sheet's 50% point at {i_pk:g} A")
+           + (". The drawing specifies inductance at 0 A only, so it doesn't say how much is needed at full current: a question for the designer." if ref_at == "zero" else ".")
+           + (" Derated curve: the vendor's typical curve scaled to sit at or below both guaranteed points; used for sizing and these figures." if core.fit else ""))
     sw = lambda body: f'<svg class="mc-sw" viewBox="0 0 22 10" aria-hidden="true">{body}</svg>'  # noqa: E731
     line = lambda cls: sw(f'<line class="{cls}" x1="1" y1="5" x2="21" y2="5"/>')  # noqa: E731
-    keys = [(line("mc-l"), "derated curve (used by the checks; conservative)" if core.fit
-             else "data sheet points joined (used by the checks)")]
+    keys = [(line("mc-l"), "derated curve (conservative)" if core.fit else "data sheet points joined (conservative)")]
     if core.fit:
         keys.append((line("mc-typ"), "catalog typical curve"))
     keys.append((sw('<rect class="mc-min" x="7.5" y="1.5" width="7" height="7"/>'), "guaranteed minimum (80%, 50%)"))
     if l_req_uh:
-        keys.append((line("mc-req"), "required at peak" if ref_at == "peak" else "drawing value (at 0 A)"))
+        keys.append((line("mc-req"), "required at peak" if ref_at == "peak" else "drawing value (0 A)" + (", off scale" if off_scale else "")))
     keys.append((sw('<line class="mc-pk" x1="11" y1="0" x2="11" y2="10"/>' + ('<circle class="mc-dot" cx="11" cy="5" r="3.5"/>' if f_pk is not None else "")),
-                 "peak current; dot = L left" if f_pk is not None else "peak current"))
+                 "peak current; dot: L at peak" if f_pk is not None else "peak current"))
     leg = '<div class="mc-leg">' + "".join(f"<span>{s}{t}</span>" for s, t in keys) + "</div>"
     return f'<figure class="mfig"><svg viewBox="0 0 {W} {H}" role="img" aria-label="Inductance versus current">{"".join(g)}</svg>{leg}<figcaption>{cap}</figcaption></figure>'

@@ -33,7 +33,7 @@
 /* Volts of bus per ADC count
  * = vbus_fs / target.adc_div
  *   target.adc_div = 4096 counts  [target f28004x.yaml] */
-#define UPS_VBUS_V_PER_COUNT       0.12165527f    /* 0.121655 V */
+#define UPS_VBUS_V_PER_COUNT       0.12165527f    /* 0.121655 V/count */
 /* CALGEN:END bus */
 
 /* CALGEN:BEGIN out */
@@ -59,21 +59,21 @@
 
 /* Hardware peak-current limit (fast comparator, short-circuit protection); must clear the crest factor of rated nonlinear loads
  * = design.pk_limit_factor * iout_rated
- *   design.pk_limit_factor = 3.5 ratio  [design fa10507.yaml] */
+ *   design.pk_limit_factor = 3.5  [design fa10507.yaml] */
 #define UPS_IOUT_PK_LIMIT_A        43.75f         /* 43.75 A */
 
 /* Peak current at the edge of the mid-rail-biased current-sense range
  * = target.v_ref / 2 / (board.r_shunt * board.g_amp)
  *   target.v_ref = 3.3 V  [target f28004x.yaml]
  *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
- *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml] */
+ *   board.g_amp = 10  [board ups_ctrl_revA.yaml] */
 #define UPS_IOUT_FS_PK_A           82.5f          /* 82.5 A */
 
 /* Comparator DAC code for the positive hardware peak-current limit
  * = floor((target.v_ref / 2 + iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_div)
  *   target.v_ref = 3.3 V  [target f28004x.yaml]
  *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
- *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]
+ *   board.g_amp = 10  [board ups_ctrl_revA.yaml]
  *   target.dac_div = 4096 counts  [target f28004x.yaml] */
 #define UPS_IOUT_PKLIM_DAC_HI      3134u          /* 3134 counts, uint16 */
 
@@ -81,7 +81,7 @@
  * = ceil((target.v_ref / 2 - iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_div)
  *   target.v_ref = 3.3 V  [target f28004x.yaml]
  *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
- *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]
+ *   board.g_amp = 10  [board ups_ctrl_revA.yaml]
  *   target.dac_div = 4096 counts  [target f28004x.yaml] */
 #define UPS_IOUT_PKLIM_DAC_LO      962u           /* 962 counts, uint16 */
 

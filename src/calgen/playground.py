@@ -24,7 +24,7 @@ from calgen.spec import Param, ParamSet, load_paramset, load_rules, load_variant
 PRODUCTS = {
     "FA10449": {"variant": "fa10449", "label": "FA10449 · 650 VA · half rack"},
     "FA10434": {"variant": "fa10434", "label": "FA10434 · 800 VA · 2U"},
-    "FA10507": {"variant": "fa10507", "label": "FA10507 · 1500 VA · 3U military"},
+    "FA10507": {"variant": "fa10507", "label": "FA10507 · 1500 VA · 3U isolated"},
 }
 BOARDS = {"A": "ups_ctrl_revA.yaml", "B": "ups_ctrl_revB.yaml"}
 TARGETS = {"f28004x": "f28004x.yaml", "f2803x": "f2803x.yaml"}
@@ -147,7 +147,9 @@ def run(specs: str | Path, product: str = "FA10507", board_rev: str = "A", targe
             overrides[name] = Param(name=name, value=float(v), unit=unit, source=f"OVERRIDE ({reason})", note=reason)
     variant = dataclasses.replace(
         base,
-        name=f"{PRODUCTS[product]['variant']}_rev{board_rev}_{target}",
+        # the unedited default is the committed variant, so its download matches firmware/include byte for byte
+        name=(PRODUCTS[product]["variant"] if (board.path.resolve(), tgt.path.resolve()) == (base.board.path.resolve(), base.target.path.resolve()) and not edits
+              else f"{PRODUCTS[product]['variant']}_rev{board_rev}_{target}"),
         board=_with_params(board, board_edits),
         target=tgt,
         design=_with_params(base.design, design_edits),
@@ -198,7 +200,9 @@ def summaries(b: Build) -> dict[str, str]:
 
     def v(rule_id: str, fmt: str = "{:.0f}") -> str:
         c = val.get(rule_id)
-        return fmt.format(c.value) if c is not None and c.value is not None else "?"
+        if c is None or c.value is None:
+            return "?"
+        return f"{round(c.value, 2):g}" if fmt == "2dp" else fmt.format(c.value)  # 2dp: 43.75, 12.5, 6.23
 
     f_lo, f_hi = g("ds.fin_nom_lo", "Hz"), g("ds.fin_nom_hi", "Hz")
     f_hz, f_pct = g("ds.fin_tol_hz", "Hz"), g("ds.fin_tol_pct", "%")
@@ -213,12 +217,12 @@ def summaries(b: Build) -> dict[str, str]:
     chem = str(ds["batt_type"].value).replace("lifepo4", "LiFePO4") if "batt_type" in ds else ""
     return {
         "in": f"{v('vin_min')}–{v('vin_max')} V AC 1φ* · {freq} · ≤ {v('iin_limit', '{:.1f}')} A",
-        "rect": f"Boost PFC · bus ≥ √2 × {v('vin_max')} V = {v('vbus_min')} V",
-        "bus": f"{v('vbus_set')} V DC setpoint · sensor full scale {v('vbus_fs')} V",
+        "rect": f"Boost PFC · bus ≥ √2 × {v('vin_max')} V = {v('vbus_min', '{:.4g}')} V",
+        "bus": f"{v('vbus_set')} V DC setpoint · sensor full scale {v('vbus_fs', '{:.4g}')} V",
         "inv": f"{v('vout_set')} V AC ±{g('ds.vout_tol_pct', '%') or 0:g}% · {v('fout_hz')} Hz {mode} · PWM {g('design.f_sw', 'kHz') or 0:g} kHz",
-        "out": f"{g('ds.power_va', 'VA') or 0:g} VA · {v('iout_rated', '{:.2f}')} A rated · overload {v('iout_trip', '{:.2f}')} A RMS ({trip_pct or 0:g}%) for {(g('design.overload_delay', 's') or 0):g} s → {action} · peak limit {v('iout_pk_limit', '{:.1f}')} A",
+        "out": f"{g('ds.power_va', 'VA') or 0:g} VA · {v('iout_rated', '2dp')} A rated · overload {v('iout_trip', '2dp')} A RMS ({trip_pct or 0:g}%) for {(g('design.overload_delay', 's') or 0):g} s → {action} · peak limit {v('iout_pk_limit', '2dp')} A",
         "sense": _sense_line(val, g("design.sense_headroom", "%")),
-        "batt": f"{v('vbat_nom', '{:.1f}')} V {chem} · cutoff {v('vbat_cutoff', '{:.1f}')} V",
+        "batt": f"{v('vbat_nom', '{:.4g}')} V {chem} · cutoff {v('vbat_cutoff', '{:.4g}')} V",
     }
 
 
@@ -229,7 +233,7 @@ def _sense_line(val: dict, headroom_pct: float | None) -> str:
     used = 100 * pk.value / fs.value
     limit = headroom_pct or 95
     verdict = "OK" if used <= limit else "SATURATES before the limit fires"
-    return f"Current sensor ±{fs.value:.1f} A peak · hardware peak limit {pk.value:.1f} A uses {used:.0f}% (max {limit:g}%) · {verdict}"
+    return f"Current sensor ±{round(fs.value, 2):g} A peak · hardware peak limit {round(pk.value, 2):g} A uses {used:.0f}% (max {limit:g}%) · {verdict}"
 
 
 def protection(b: Build) -> dict | None:
@@ -388,7 +392,7 @@ def _display(c) -> str:
     if c.status != OK or c.encoded is None:
         return "—" if c.status != FAIL else "FAIL"
     v = c.value
-    unit = "" if c.rule.unit in ("counts", "ratio", "1") else f" {c.rule.unit}"
+    unit = "" if c.rule.unit in ("counts", "ratio", "1") else f" {c.rule.shown_unit}"
     return f"{v:.4g}{unit}" if abs(v) < 1e4 else f"{v:.0f}{unit}"
 
 

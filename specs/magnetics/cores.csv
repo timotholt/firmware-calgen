@@ -1,11 +1,11 @@
 core,vendor,family,material,perm,al_nh,al_tol_pct,ae_mm2,le_mm,ve_mm3,wa_mm2,wa_basis,h80_oe,h50_oe,bsat_mt,od_mm,id_mm,ht_mm,source
-0077894A7,Magnetics,toroid,Kool Mu,60,75,8,65.4,63.5,4150,156,data sheet,39,87,,26.92,14.73,11.18,Magnetics 0077894A7 data sheet rev 2/11/2022 p1
-0077071A7,Magnetics,toroid,Kool Mu,60,61,8,65.6,81.4,5340,297,data sheet,39,87,,32.79,20.09,10.67,Magnetics 0077071A7 data sheet rev 10/6/2021 p1
-0077548A7,Magnetics,toroid,Kool Mu,125,127,8,65.6,81.4,5340,297,data sheet,14,35,,32.79,20.09,10.67,Magnetics 0077548A7 data sheet rev 10/6/2021 p1
-0077083A7,Magnetics,toroid,Kool Mu,60,81,8,107,98.4,10600,427,data sheet,39,87,,39.88,24.13,14.48,Magnetics 0077083A7 data sheet rev 10/6/2021 p1
-0077439A7,Magnetics,toroid,Kool Mu,60,135,8,199,107.4,21400,427,data sheet,39,87,,46.74,24.13,18.03,Magnetics 0077439A7 data sheet rev 4/21/2025 p1
-0077717A7,Magnetics,toroid,Kool Mu,26,32,8,125,127,15900,751,data sheet,95,205,,50.8,31.75,13.46,Magnetics 0077717A7 data sheet rev 10/7/2021 p1
-0077110A7,Magnetics,toroid,Kool Mu,60,75,8,144,143,20700,948,data sheet,39,87,,57.15,35.56,13.97,Magnetics 0077110A7 data sheet rev 9/30/2021 p1
-0077908A7,Magnetics,toroid,Kool Mu,26,37,8,221,196,43400,1820,data sheet,95,205,,77.8,49.23,15.88,Magnetics 0077908A7 data sheet rev 10/7/2021 p1
+0077894A7,Magnetics,toroid,Kool Mµ,60,75,8,65.4,63.5,4150,156,data sheet,39,87,,26.92,14.73,11.18,Magnetics 0077894A7 data sheet rev 2/11/2022 p1
+0077071A7,Magnetics,toroid,Kool Mµ,60,61,8,65.6,81.4,5340,297,data sheet,39,87,,32.79,20.09,10.67,Magnetics 0077071A7 data sheet rev 10/6/2021 p1
+0077548A7,Magnetics,toroid,Kool Mµ,125,127,8,65.6,81.4,5340,297,data sheet,14,35,,32.79,20.09,10.67,Magnetics 0077548A7 data sheet rev 10/6/2021 p1
+0077083A7,Magnetics,toroid,Kool Mµ,60,81,8,107,98.4,10600,427,data sheet,39,87,,39.88,24.13,14.48,Magnetics 0077083A7 data sheet rev 10/6/2021 p1
+0077439A7,Magnetics,toroid,Kool Mµ,60,135,8,199,107.4,21400,427,data sheet,39,87,,46.74,24.13,18.03,Magnetics 0077439A7 data sheet rev 4/21/2025 p1
+0077717A7,Magnetics,toroid,Kool Mµ,26,32,8,125,127,15900,751,data sheet,95,205,,50.8,31.75,13.46,Magnetics 0077717A7 data sheet rev 10/7/2021 p1
+0077110A7,Magnetics,toroid,Kool Mµ,60,75,8,144,143,20700,948,data sheet,39,87,,57.15,35.56,13.97,Magnetics 0077110A7 data sheet rev 9/30/2021 p1
+0077908A7,Magnetics,toroid,Kool Mµ,26,37,8,221,196,43400,1820,data sheet,95,205,,77.8,49.23,15.88,Magnetics 0077908A7 data sheet rev 10/7/2021 p1
 E32/16/9-3C94,Ferroxcube,E pair,3C94,,2500,25,83,74,6180,147.84,derived: (B-C)/2 x 2E from nominal dimensions,,,320,32,9.5,11.2,Ferroxcube E32/16/9 product specification 2016 p1-2
 E42/21/15-3C94,Ferroxcube,E pair,3C94,,4100,25,178,97,17300,256.04,derived: (B-C)/2 x 2E from nominal dimensions,,,320,43,12.2,14.8,Ferroxcube E42/21/15 product specification 2016 p1-2

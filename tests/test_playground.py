@@ -13,7 +13,7 @@ def test_shipped_product_has_no_changes_and_readable_summaries():
     r = run(SPECS, product="FA10449")
     assert r["ok"] and r["changed"] == []
     assert r["summaries"]["in"] == "90–138 V AC 1φ* · 60 Hz ±5 Hz · ≤ 7.9 A"
-    assert "overload 6.23 A RMS (115%) for 30 s → shutdown · peak limit 19.0 A" in r["summaries"]["out"]
+    assert "overload 6.23 A RMS (115%) for 30 s → shutdown · peak limit 18.96 A" in r["summaries"]["out"]
     assert "implied" in r["footnote"]
 
 
@@ -47,7 +47,7 @@ def test_shunt_change_is_visible_in_sensor_line():
     base = run(SPECS)["summaries"]["sense"]
     r = run(SPECS, edits={"board.r_shunt": 3})
     assert base.startswith("Current sensor ±82.5 A peak") and "uses 53%" in base
-    assert "±55.0 A" in r["summaries"]["sense"] and "uses 80%" in r["summaries"]["sense"]
+    assert "±55 A" in r["summaries"]["sense"] and "uses 80%" in r["summaries"]["sense"]
     assert {"iout_fs_pk", "iout_pklim_dac_hi"} <= set(r["changed"])
 
 
@@ -117,3 +117,11 @@ def test_protection_numbers_for_gauge_and_waveform():
     b = run(SPECS, "FA10507", "B")["protection"]
     assert b["sensor_fs"] == pytest.approx(41.25)
     assert b["sensor_fs"] < b["peak_limit"]  # rev B: the limit is off the sensor's scale
+
+
+def test_unedited_download_is_the_committed_header():
+    """'Same inputs, byte-identical output': the default playground build equals firmware/include."""
+    for product, variant in (("FA10507", "fa10507"), ("FA10449", "fa10449"), ("FA10434", "fa10434")):
+        r = run(SPECS, product)
+        assert r["variant"] == variant
+        assert r["header"] == (SPECS.parent / "firmware" / "include" / f"calgen_{variant}.h").read_text(encoding="utf-8")

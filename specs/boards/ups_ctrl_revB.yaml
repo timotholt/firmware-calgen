@@ -8,7 +8,7 @@ description: >
   current transformers; the scale-factor math is the same.
 params:
   r_shunt:     {value: 2, unit: mohm, note: "output current shunt; range must cover the hardware peak limit (~3.5x rated RMS)"}
-  g_amp:       {value: 20, unit: ratio, note: current-sense amplifier gain (alternate part, rev B)}
+  g_amp:       {value: 20, unit: ratio, note: "current-sense amplifier gain (alternate part, rev B)"}
   vbus_r_top:  {value: 1.5, unit: Mohm, note: DC bus divider, top}
   vbus_r_bot:  {value: 10, unit: kohm, note: DC bus divider, bottom}
   vout_r_top:  {value: 1.0, unit: Mohm, note: AC output divider, top (mid-rail biased)}

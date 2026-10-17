@@ -51,7 +51,7 @@ symbols:
   design.cell_full_v: 'V_{\text{cell,full}}'
   ds.batt_series_cells: 'n_{\text{cells}}'
   design.pk_limit_factor: 'k_{\text{pk}}'
-  design.overload_delay: 't_{\text{OL}}'
+  design.overload_delay: 't_{\text{OL}}^{\text{design}}'
   target.db_max: 'N_{\text{DB,max}}'
   design.vloop_kp: 'K_P'
   design.vloop_ki: 'K_I'
@@ -167,6 +167,7 @@ constants:
     # 1 LSB = V_ref / 2^n on C2000 ADCs (TRM transfer function), hence adc_div, not adc_max
     formula: vbus_fs / target.adc_div
     unit: V
+    display_unit: V/count
     format: target
     block: bus
     latex: 'k_{\text{bus}}'
@@ -438,7 +439,7 @@ checks:
     fix: "Raise the peak-limit factor, or lower the overload trip level."
 
   - id: crest_clears_pk_limit
-    describe: The peak of a rated nonlinear load (the data sheet's crest factor at rated current) must clear the hardware limit, or normal loads trip the fast protection
+    describe: The peak of a rated nonlinear load (the assumed 3:1 crest factor at rated current) must clear the hardware limit, or normal loads trip the fast protection
     lhs: design.crest_factor * iout_rated
     op: "<"
     rhs: iout_pk_limit

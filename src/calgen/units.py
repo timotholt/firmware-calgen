@@ -52,6 +52,7 @@ _UNITS: dict[str, tuple[float, Dim]] = {
     "1": (1.0, DIMENSIONLESS),
     "ratio": (1.0, DIMENSIONLESS),
     "counts": (1.0, DIMENSIONLESS),
+    "cells": (1.0, DIMENSIONLESS),
     "%": (0.01, DIMENSIONLESS),
     "V": (1.0, Dim(v=1)),
     "A": (1.0, Dim(a=1)),

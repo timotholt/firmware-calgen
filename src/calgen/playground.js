@@ -111,7 +111,7 @@
   }
 
   // ---- current-protection visuals (drawing only; numbers come from Python) ----
-  function f1(x) { return (Math.round(x * 10) / 10).toString(); }
+  function f1(x) { return (Math.round(x * 100) / 100).toString(); }  // up to 2 decimals: 43.75, not 43.8
   function gaugeSvg(p) {
     if (!p) return "";
     var S = Math.max(p.sensor_fs, p.peak_limit) * 1.1, C = 300, R = 270;
@@ -123,7 +123,7 @@
     if (p.peak_limit > p.sensor_fs) g += rect("g-blind", -S, -p.sensor_fs) + rect("g-blind", p.sensor_fs, S);
     g += rect("g-bar", -p.sensor_fs, p.sensor_fs) + rect("g-head", p.headroom * p.sensor_fs, p.sensor_fs) + rect("g-head", -p.sensor_fs, -p.headroom * p.sensor_fs);
     g += '<line class="g-mid" x1="300" y1="24" x2="300" y2="46"/><text class="g-t" x="300" y="60" text-anchor="middle">0 A = mid-rail</text>';
-    var marks = [[p.rated_pk, "g-m", "rated " + f1(p.rated_pk)], [p.crest_pk, "g-m", p.crest + ":1 load " + f1(p.crest_pk)],
+    var marks = [[p.rated_pk, "g-m", "rated " + f1(p.rated_pk) + " A"], [p.crest_pk, "g-m", p.crest + ":1 load " + f1(p.crest_pk) + " A"],
       [p.peak_limit, over ? "g-lim bad" : "g-lim", "limit " + f1(p.peak_limit) + " A"]];
     marks.forEach(function (m, i) {
       [1, -1].forEach(function (sg) { g += '<line class="' + m[1] + '" x1="' + x(sg * m[0]).toFixed(1) + '" y1="24" x2="' + x(sg * m[0]).toFixed(1) + '" y2="46"/>'; });
@@ -249,8 +249,8 @@
     var rows = [
       ['<span class="tag tag-datasheet">data sheet</span>', "Copied from the product's public data sheet"],
       ['<span class="tag tag-derived">derived</span>', "Computed only from data sheet values and public chip facts"],
-      ['<span class="tag tag-assumption">assumption</span>', "Computed using an invented board part, design margin, or generic chemistry figure"],
-      ['<span class="tag tag-design">design</span>', "Engineer-supplied value (loop gain), carried through unchanged"],
+      ['<span class="tag tag-assumption">assumption</span>', "Computed from an invented board value or design choice (shunt, gain, margin, factor, timing) or a generic chemistry figure"],
+      ['<span class="tag tag-design">design</span>', "Engineer-supplied value carried through unchanged (loop gains)"],
       ['<span class="tag tag-override">what-if</span>', "Your override of a data sheet value (marked OVERRIDE in the C)"],
       ['<span class="lgchg"><span class="was">12.5</span> → <b>16.7</b></span>', "Differs from the shipped product (rev A board, F28004x-class, default design)"],
       ['<span class="lgbad">red border</span>', "A gate failed in this stage; why, and how to fix it, appear on the left"],

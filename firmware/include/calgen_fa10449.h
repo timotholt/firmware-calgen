@@ -5,7 +5,7 @@
  *           ratings from DS-10449 Rev.09172021 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f28004x (default format float32)
- * inputs  : sha256 6900fe03f94fb90552e0415bb5053440884fb46ec992d4c6f4274c117b46f7f1
+ * inputs  : sha256 99e6d4cf9707ce0515061f744f4a7f8e1dedbf3c53d8470bd5d3670fe3ba574e
  *
  * SYNTHETIC DEMO: firmware names and circuit values are invented; product ratings
  * come from the public data sheet cited above. Not from any vendor SDK.
@@ -71,7 +71,7 @@ typedef float calgen_num_t;  /* float target */
 /* Volts of bus per ADC count
  * = vbus_fs / target.adc_div
  *   target.adc_div = 4096 counts  [target f28004x.yaml] */
-#define UPS_VBUS_V_PER_COUNT       0.12165527f    /* 0.121655 V */
+#define UPS_VBUS_V_PER_COUNT       0.12165527f    /* 0.121655 V/count */
 
 /* ==== Inverter ============================================================== */
 
@@ -144,21 +144,21 @@ typedef float calgen_num_t;  /* float target */
 
 /* Hardware peak-current limit (fast comparator, short-circuit protection); must clear the crest factor of rated nonlinear loads
  * = design.pk_limit_factor * iout_rated
- *   design.pk_limit_factor = 3.5 ratio  [design fa10449.yaml] */
+ *   design.pk_limit_factor = 3.5  [design fa10449.yaml] */
 #define UPS_IOUT_PK_LIMIT_A        18.958332f     /* 18.9583 A */
 
 /* Peak current at the edge of the mid-rail-biased current-sense range
  * = target.v_ref / 2 / (board.r_shunt * board.g_amp)
  *   target.v_ref = 3.3 V  [target f28004x.yaml]
  *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
- *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml] */
+ *   board.g_amp = 10  [board ups_ctrl_revA.yaml] */
 #define UPS_IOUT_FS_PK_A           82.5f          /* 82.5 A */
 
 /* Comparator DAC code for the positive hardware peak-current limit
  * = floor((target.v_ref / 2 + iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_div)
  *   target.v_ref = 3.3 V  [target f28004x.yaml]
  *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
- *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]
+ *   board.g_amp = 10  [board ups_ctrl_revA.yaml]
  *   target.dac_div = 4096 counts  [target f28004x.yaml] */
 #define UPS_IOUT_PKLIM_DAC_HI      2518u          /* 2518 counts, uint16 */
 
@@ -166,7 +166,7 @@ typedef float calgen_num_t;  /* float target */
  * = ceil((target.v_ref / 2 - iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_div)
  *   target.v_ref = 3.3 V  [target f28004x.yaml]
  *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
- *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]
+ *   board.g_amp = 10  [board ups_ctrl_revA.yaml]
  *   target.dac_div = 4096 counts  [target f28004x.yaml] */
 #define UPS_IOUT_PKLIM_DAC_LO      1578u          /* 1578 counts, uint16 */
 
@@ -184,7 +184,7 @@ typedef float calgen_num_t;  /* float target */
 
 /* Low-battery shutdown voltage
  * = ds.batt_series_cells * design.cell_cutoff_v
- *   ds.batt_series_cells = 28 counts  [DS-10449 Rev.09172021 p2: "28 S1P Batteries"]
+ *   ds.batt_series_cells = 28 cells  [DS-10449 Rev.09172021 p2: "28 S1P Batteries"]
  *   design.cell_cutoff_v = 2.5 V  [design fa10449.yaml] */
 #define UPS_VBAT_CUTOFF_V          70.0f          /* 70 V */
 
@@ -199,16 +199,16 @@ typedef float calgen_num_t;  /* float target */
 
 /* Voltage-loop proportional gain (tuned by power engineering)
  * = design.vloop_kp
- *   design.vloop_kp = 0.8 ratio  [design fa10449.yaml]
+ *   design.vloop_kp = 0.8  [design fa10449.yaml]
  *   engineer-supplied value, carried through unchanged */
 /*   designed against: design.f_sw = 20 kHz (staleness-tracked) */
-#define UPS_VLOOP_KP               0.8f           /* 0.8 ratio */
+#define UPS_VLOOP_KP               0.8f           /* 0.8 */
 
 /* Voltage-loop integral gain per control ISR (tuned by power engineering)
  * = design.vloop_ki
- *   design.vloop_ki = 0.015 ratio  [design fa10449.yaml]
+ *   design.vloop_ki = 0.015  [design fa10449.yaml]
  *   engineer-supplied value, carried through unchanged */
 /*   designed against: design.f_sw = 20 kHz (staleness-tracked) */
-#define UPS_VLOOP_KI               0.015f         /* 0.015 ratio */
+#define UPS_VLOOP_KI               0.015f         /* 0.015 */
 
 #endif /* CALGEN_FA10449_H */

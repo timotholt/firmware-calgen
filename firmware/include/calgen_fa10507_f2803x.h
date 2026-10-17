@@ -5,7 +5,7 @@
  *           ratings from DS-10507 Rev.101119 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f2803x (default format iq20)
- * inputs  : sha256 8bd6444cda716ccc349e7e7b44a25e3398a649d2a9783358e1d00c1b3f82a0cd
+ * inputs  : sha256 14a8ad46764b204406742cda82c9be229b987f0cd24b138cdb7cfcddb9cfc8a3
  *
  * SYNTHETIC DEMO: firmware names and circuit values are invented; product ratings
  * come from the public data sheet cited above. Not from any vendor SDK.
@@ -72,7 +72,7 @@ typedef calgen_iq_t calgen_num_t;  /* measurements are compared as IQ20 integers
 /* Volts of bus per ADC count
  * = vbus_fs / target.adc_div
  *   target.adc_div = 4096 counts  [target f2803x.yaml] */
-#define UPS_VBUS_V_PER_COUNT       127565L        /* 0.121655 V, iq20, err 0.00016% */
+#define UPS_VBUS_V_PER_COUNT       127565L        /* 0.121655 V/count, iq20, err 0.00016% */
 
 /* ==== Inverter ============================================================== */
 
@@ -144,21 +144,21 @@ typedef calgen_iq_t calgen_num_t;  /* measurements are compared as IQ20 integers
 
 /* Hardware peak-current limit (fast comparator, short-circuit protection); must clear the crest factor of rated nonlinear loads
  * = design.pk_limit_factor * iout_rated
- *   design.pk_limit_factor = 3.5 ratio  [design fa10507_f2803x.yaml] */
+ *   design.pk_limit_factor = 3.5  [design fa10507_f2803x.yaml] */
 #define UPS_IOUT_PK_LIMIT_A        45875200L      /* 43.75 A, iq20 */
 
 /* Peak current at the edge of the mid-rail-biased current-sense range
  * = target.v_ref / 2 / (board.r_shunt * board.g_amp)
  *   target.v_ref = 3.3 V  [target f2803x.yaml]
  *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
- *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml] */
+ *   board.g_amp = 10  [board ups_ctrl_revA.yaml] */
 #define UPS_IOUT_FS_PK_A           86507520L      /* 82.5 A, iq20 */
 
 /* Comparator DAC code for the positive hardware peak-current limit
  * = floor((target.v_ref / 2 + iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_div)
  *   target.v_ref = 3.3 V  [target f2803x.yaml]
  *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
- *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]
+ *   board.g_amp = 10  [board ups_ctrl_revA.yaml]
  *   target.dac_div = 1023 counts  [target f2803x.yaml] */
 #define UPS_IOUT_PKLIM_DAC_HI      782u           /* 782 counts, uint16 */
 
@@ -166,7 +166,7 @@ typedef calgen_iq_t calgen_num_t;  /* measurements are compared as IQ20 integers
  * = ceil((target.v_ref / 2 - iout_pk_limit * board.r_shunt * board.g_amp) / target.v_ref * target.dac_div)
  *   target.v_ref = 3.3 V  [target f2803x.yaml]
  *   board.r_shunt = 2 mohm  [board ups_ctrl_revA.yaml]
- *   board.g_amp = 10 ratio  [board ups_ctrl_revA.yaml]
+ *   board.g_amp = 10  [board ups_ctrl_revA.yaml]
  *   target.dac_div = 1023 counts  [target f2803x.yaml] */
 #define UPS_IOUT_PKLIM_DAC_LO      241u           /* 241 counts, uint16 */
 
@@ -184,7 +184,7 @@ typedef calgen_iq_t calgen_num_t;  /* measurements are compared as IQ20 integers
 
 /* Low-battery shutdown voltage
  * = ds.batt_series_cells * design.cell_cutoff_v
- *   ds.batt_series_cells = 28 counts  [DS-10507 Rev.101119 p2 ("28SIP" read as 28S1P): "28SIP"]
+ *   ds.batt_series_cells = 28 cells  [DS-10507 Rev.101119 p2 ("28SIP" read as 28S1P): "28SIP"]
  *   design.cell_cutoff_v = 2.5 V  [design fa10507_f2803x.yaml] */
 #define UPS_VBAT_CUTOFF_V          73400320L      /* 70 V, iq20 */
 
@@ -199,16 +199,16 @@ typedef calgen_iq_t calgen_num_t;  /* measurements are compared as IQ20 integers
 
 /* Voltage-loop proportional gain (tuned by power engineering)
  * = design.vloop_kp
- *   design.vloop_kp = 0.8 ratio  [design fa10507_f2803x.yaml]
+ *   design.vloop_kp = 0.8  [design fa10507_f2803x.yaml]
  *   engineer-supplied value, carried through unchanged */
 /*   designed against: design.f_sw = 20 kHz (staleness-tracked) */
-#define UPS_VLOOP_KP               838861L        /* 0.8 ratio, iq20, err 2.4e-05% */
+#define UPS_VLOOP_KP               838861L        /* 0.8, iq20, err 2.4e-05% */
 
 /* Voltage-loop integral gain per control ISR (tuned by power engineering)
  * = design.vloop_ki
- *   design.vloop_ki = 0.015 ratio  [design fa10507_f2803x.yaml]
+ *   design.vloop_ki = 0.015  [design fa10507_f2803x.yaml]
  *   engineer-supplied value, carried through unchanged */
 /*   designed against: design.f_sw = 20 kHz (staleness-tracked) */
-#define UPS_VLOOP_KI               15729L         /* 0.0150003 ratio, iq20, err 0.0023% */
+#define UPS_VLOOP_KI               15729L         /* 0.0150003, iq20, err 0.0023% */
 
 #endif /* CALGEN_FA10507_F2803X_H */
