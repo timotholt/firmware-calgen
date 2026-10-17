@@ -5,7 +5,7 @@
  *           ratings from DS-10507 Rev.101119 (public IntelliPower data sheet)
  * board   : ups_ctrl rev A
  * target  : f2803x (default format iq20)
- * inputs  : sha256 f130d0019dde9e5bfb427f6ac33a639547b99e3ac4d427591a16f988683f3c45
+ * inputs  : sha256 07dfebfda2f57905cd50c3814082662ebbfc80b9c025f0cbbc672a8bdc7fe73b
  *
  * SYNTHETIC DEMO: firmware names and circuit values are invented; product ratings
  * come from the public data sheet cited above. Not from any vendor SDK.

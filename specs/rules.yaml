@@ -10,6 +10,39 @@
 # Formulas are textbook relations; the AC output stage is sensed with a mid-rail
 # bias, so its usable range is +/- v_ref/2 around the bias point.
 
+# LaTeX symbols for inputs in typeset derivations (constants use their own `latex`).
+symbols:
+  ds.power_va: 'S'
+  ds.vout_nom: 'V_{\text{out,nom}}'
+  ds.vout_tol_pct: 'k_{\text{reg}}'
+  ds.vin_min: 'V_{\text{in,min}}^{\text{DS}}'
+  ds.vin_max: 'V_{\text{in,max}}^{\text{DS}}'
+  ds.iin_max: 'I_{\text{in,max}}^{\text{DS}}'
+  ds.fout_hz: 'f_{\text{out}}^{\text{DS}}'
+  ds.overload_alarm_pct: 'k_{\text{alarm}}'
+  ds.overload_trip_pct: 'k_{\text{trip}}'
+  ds.batt_string_v: 'V_{\text{bat}}^{\text{DS}}'
+  board.r_shunt: 'R_{\text{sh}}'
+  board.g_amp: 'G_{\text{amp}}'
+  board.vbus_r_top: 'R_{\text{bus,top}}'
+  board.vbus_r_bot: 'R_{\text{bus,bot}}'
+  board.vout_r_top: 'R_{\text{out,top}}'
+  board.vout_r_bot: 'R_{\text{out,bot}}'
+  board.vbat_r_top: 'R_{\text{bat,top}}'
+  board.vbat_r_bot: 'R_{\text{bat,bot}}'
+  target.v_ref: 'V_{\text{ref}}'
+  target.adc_max: 'N_{\text{ADC}}'
+  target.dac_max: 'N_{\text{DAC}}'
+  target.f_pwmclk: 'f_{\text{clk}}'
+  design.f_sw: 'f_{\text{sw}}'
+  design.t_deadband: 't_{\text{DB}}'
+  design.vbus_margin: 'm_{\text{bus}}'
+  design.sense_headroom: 'h'
+  design.batt_cutoff_ratio: 'r_{\text{cut}}'
+  design.batt_max_ratio: 'r_{\text{full}}'
+  design.vloop_kp: 'K_P'
+  design.vloop_ki: 'K_I'
+
 blocks:
   in:   AC input
   rect: Rectifier / PFC

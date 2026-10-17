@@ -80,6 +80,8 @@ class Build:
     digest: str
     datasheet: list[DatasheetFinding] = field(default_factory=list)
     staleness: list[StaleResult] = field(default_factory=list)
+    env: dict[str, Quantity] = field(default_factory=dict)  # every input and constant, SI
+    units: dict[str, str] = field(default_factory=dict)  # display unit per name
 
     @property
     def failures(self) -> list[str]:
@@ -169,7 +171,9 @@ def build(variant: Variant, rules: Rules) -> Build:
     stale = _staleness(variant, env)
     h = hashlib.sha256(variant.digest().encode())
     h.update(rules.path.read_bytes())
-    return Build(variant, rules, results, checks, h.hexdigest(), findings, stale)
+    units = {n: src.unit for n, src in sources.items() if src.unit}
+    units.update({r.rule.id: r.rule.unit for r in results if r.status == OK and r.rule.kind == "numeric"})
+    return Build(variant, rules, results, checks, h.hexdigest(), findings, stale, dict(env), units)
 
 
 def _staleness(variant: Variant, env: dict[str, Quantity]) -> list[StaleResult]:

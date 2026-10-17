@@ -110,6 +110,7 @@ class Rules:
     constants: list[Rule]
     checks: list[Check]
     blocks: dict[str, str]
+    symbols: dict[str, str] = field(default_factory=dict)  # input name -> LaTeX
 
 
 @dataclass(frozen=True)
@@ -377,4 +378,13 @@ def load_rules(path: str | Path) -> Rules:
         checks.append(Check(str(c["id"]), str(c["lhs"]), str(c["op"]), str(c["rhs"]), str(c.get("describe", "")), block))
     if issues:
         raise SpecError(str(path), issues)
-    return Rules(path=path, constants=constants, checks=checks, blocks={str(k): str(v) for k, v in blocks.items()})
+    symbols = data.get("symbols") or {}
+    if not isinstance(symbols, dict):
+        raise SpecError(str(path), ["'symbols' must be a mapping of input name -> LaTeX"])
+    return Rules(
+        path=path,
+        constants=constants,
+        checks=checks,
+        blocks={str(k): str(v) for k, v in blocks.items()},
+        symbols={str(k): str(v) for k, v in symbols.items()},
+    )

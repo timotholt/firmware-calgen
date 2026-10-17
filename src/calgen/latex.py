@@ -60,7 +60,7 @@ def render(formula: str, symbols: dict[str, str], values: dict[str, Quantity], u
         return _walk(node, prec, lambda n: symbols.get(n, default_symbol(n)))[0]
 
     def sub(node: ast.expr, prec: int = 0) -> tuple[str, float]:
-        return _walk(node, prec, lambda n: _value_tex(n, values, units), values)
+        return _walk(node, prec, lambda n: _value_tex(n, values, units) if n in values else symbols.get(n, default_symbol(n)), values)
 
     s, v = sub(tree)
     return Rendered(sym(tree), s, v)
@@ -81,7 +81,7 @@ def _walk(node: ast.expr, parent_prec: int, leaf, values: dict[str, Quantity] | 
     nan = math.nan
 
     def val(name: str) -> float:
-        return values[name].value if values is not None else nan
+        return values[name].value if values is not None and name in values else nan
 
     if isinstance(node, ast.Constant):
         return number_tex(float(node.value)), float(node.value)
@@ -131,3 +131,82 @@ def _walk(node: ast.expr, parent_prec: int, leaf, values: dict[str, Quantity] | 
         pick = min if fn == "min" else max
         return rf"\{fn}\left({', '.join(texts)}\right)", pick(vals)
     raise ValueError(f"cannot render {ast.dump(node)}")  # pragma: no cover - parse() already validated
+
+
+# --- derivations for reports ------------------------------------------------
+
+_OP_TEX = {"<=": r"\le", "<": "<", ">=": r"\ge", ">": ">", "==": "="}
+
+
+@dataclass
+class Derivation:
+    """Typeset equations for one constant or check, plus its numeric result."""
+
+    lines: list[str]  # LaTeX display equations, top to bottom
+    value: float | None  # recomputed while rendering (None for enums)
+
+
+def _symbols_for(build) -> dict[str, str]:
+    syms = dict(build.rules.symbols)
+    for r in build.rules.constants:
+        syms[r.id] = r.latex
+    return syms
+
+
+def _quantity_tex(value: float, unit: str) -> str:
+    u = unit_tex(unit)
+    num = number_tex(value)
+    if not u:
+        return num
+    return num + r"\," + (u if u.startswith("\\") else r"\mathrm{" + u + "}")
+
+
+def derive_constant(build, rule_id: str) -> Derivation:
+    from calgen.units import from_si
+
+    c = build.constant(rule_id)
+    r = c.rule
+    if r.kind == "enum":
+        src = c.sources[0].value if c.sources else "?"
+        return Derivation([rf"\text{{{r.symbol}}} = \text{{{c.enum_ident or 'n/a'}}} \quad (\text{{data sheet: {src}}})"], None)
+    if c.status != "ok":
+        return _symbolic_only(build, r)
+    rd = render(r.formula, _symbols_for(build), build.env, build.units)
+    value = from_si(rd.value, r.unit)
+    tree = parse(r.formula).tree
+    head = rf"{r.latex} = {rd.symbolic}"
+    if r.supplied:
+        return Derivation([rf"{r.latex} = {_quantity_tex(value, r.unit)} \quad (\text{{engineer-supplied}})"], value)
+    if isinstance(tree, ast.Call) and tree.func.id == "round":
+        inner = render(ast.unparse(tree.args[0]), _symbols_for(build), build.env, build.units)
+        inner_v = from_si(inner.value, r.unit)
+        lines = [head, rf"= \operatorname{{round}}\!\left({inner.substituted}\right)", rf"= \operatorname{{round}}({number_tex(round(inner_v, 4))}) = {_quantity_tex(value, r.unit)}"]
+    elif rd.substituted == rd.symbolic or dotted_name(tree) is not None:
+        lines = [rf"{head} = {_quantity_tex(value, r.unit)}"]
+    else:
+        lines = [head, rf"= {rd.substituted}", rf"= {_quantity_tex(value, r.unit)}"]
+    return Derivation(lines, value)
+
+
+def _symbolic_only(build, r) -> Derivation:
+    """Formula without numbers, for constants that could not be computed."""
+    syms = _symbols_for(build)
+    tree = parse(r.formula).tree
+    sym = _walk(tree, 0, lambda n: syms.get(n, default_symbol(n)))[0]
+    return Derivation([rf"{r.latex} = {sym}"], None)
+
+
+def derive_check(build, check_id: str) -> Derivation:
+    k = next(x for x in build.checks if x.check.id == check_id)
+    syms = _symbols_for(build)
+    op = _OP_TEX[k.check.op]
+    lhs_s = _walk(parse(k.check.lhs).tree, 0, lambda n: syms.get(n, default_symbol(n)))[0]
+    rhs_s = _walk(parse(k.check.rhs).tree, 0, lambda n: syms.get(n, default_symbol(n)))[0]
+    if k.status == "skipped" or k.lhs is None:
+        return Derivation([rf"{lhs_s} {op} {rhs_s} \quad (\text{{not applicable}})"], None)
+    unit = k.unit if k.unit not in (None, "1") else ""
+    mark = r"\quad \checkmark" if k.status == "ok" else r"\quad \color{#c0392b}{\times}"
+    return Derivation(
+        [rf"{lhs_s} {op} {rhs_s}", rf"\Rightarrow {_quantity_tex(k.lhs, unit)} {op} {_quantity_tex(k.rhs, unit)}{mark}"],
+        k.lhs,
+    )
