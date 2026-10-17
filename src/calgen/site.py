@@ -50,8 +50,11 @@ a{color:inherit}.btn{display:inline-block;border:1px solid var(--line);border-ra
 .statusbar{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:8px 0;display:flex;flex-wrap:wrap;gap:4px 16px;align-items:center}
 .statusbar .pills{margin:0}.statusbar{min-height:44px}
 .probpill{border:0;cursor:pointer;font:inherit;font-size:12px}
-.fb .probs{margin:6px 0 0;padding:6px 8px 6px 22px;border-radius:6px;background:var(--badbg);color:var(--bad);font-size:11.5px;line-height:1.4}
-.fb.sel .probs{background:transparent;color:var(--selfg);border:1px solid var(--selfg)}
+.stages .fb{position:relative}
+.fb .probs{position:absolute;left:6px;right:6px;top:calc(100% - 10px);z-index:4;padding:8px 26px 8px 10px;border-radius:8px;background:var(--bg);color:var(--bad);border:1px solid var(--bad);box-shadow:0 6px 18px rgba(0,0,0,.25);font-size:12px;line-height:1.4;animation:probin .2s ease-out}
+.fb .probs ul{margin:0;padding-left:16px}.probx{position:absolute;top:4px;right:6px;border:0;background:transparent;color:var(--bad);font-size:16px;line-height:1;cursor:pointer}
+@keyframes probin{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.fb .probs{animation:none}}
 .pg{display:grid;grid-template-columns:minmax(260px,340px) minmax(0,1fr);grid-template-areas:"stages ins" "stages fms";grid-template-rows:auto 1fr;gap:16px 24px;margin-top:16px}
 .stages{grid-area:stages}.ins{grid-area:ins}.fms{grid-area:fms}
 .colhead{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 8px}
