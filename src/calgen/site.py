@@ -25,7 +25,7 @@ from calgen.build import build
 from calgen.evals import load_key, score
 from calgen.latex import derive_check, derive_constant
 from calgen.report import CSS as REPORT_CSS
-from calgen.report import NOTICE, write_report
+from calgen.report import notice_html, write_report
 from calgen.spec import load_rules, load_variant
 
 REPO = "https://github.com/timotholt/firmware-calgen"
@@ -65,7 +65,7 @@ def _page(title: str, active: str, body: str, depth: int = 0, extra_head: str = 
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{_e(title)}</title><link rel="stylesheet" href="{up}assets/katex/katex.min.css"><link rel="stylesheet" href="{up}assets/site.css">{extra_head}</head>
 <body><main><nav><span class="brand">firmware-calgen</span>{nav}<a href="{REPO}">Source</a></nav>
-<div class="notice">{NOTICE}</div>
+{notice_html()}
 {body}
 <footer>Independent demo by Timothy Otholt. Product ratings from public IntelliPower data sheets (cited per value); all circuit values, gains, firmware names, and legacy code are invented. <a href="{REPO}">Source and tests</a>.</footer>
 </main><script src="{up}assets/katex/katex.min.js"></script>

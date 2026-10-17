@@ -16,7 +16,7 @@ def page(name, previous=""):
 def test_notice_is_first_thing_on_the_page():
     html = page("fa10507")
     body = html.split("<main>", 1)[1]
-    assert body.lstrip().startswith('<div class="notice">')
+    assert body.lstrip().startswith("<details class=\"notice\">")
     assert "Results are representative and informational only." in NOTICE
 
 

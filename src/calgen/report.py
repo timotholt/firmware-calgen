@@ -40,7 +40,9 @@ CSS = """
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,-apple-system,Segoe UI,sans-serif}
 main{max-width:1100px;margin:0 auto;padding:16px}h1{font-size:22px;font-weight:600;margin:8px 0 2px}h2{font-size:17px;font-weight:600;margin:28px 0 8px}
 .sub{color:var(--muted);font-size:13px}.mono{font-family:var(--mono);font-size:12.5px}
-.notice{background:var(--warnbg);color:var(--warn);border-radius:8px;padding:10px 12px;font-size:12.5px;margin:10px 0 14px}
+.notice{background:var(--warnbg);color:var(--warn);border-radius:8px;padding:6px 12px;font-size:12.5px;margin:10px 0 14px}
+.notice summary{cursor:pointer;list-style:none}.notice summary::-webkit-details-marker{display:none}
+.notice summary .more{text-decoration:underline;margin-left:6px;font-weight:400}.notice[open] summary .more{display:none}.notice p{margin:6px 0 2px}
 .pills{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}.pill{font-size:12px;padding:3px 10px;border-radius:999px}
 .ok{background:var(--okbg);color:var(--ok)}.bad{background:var(--badbg);color:var(--bad)}.warn{background:var(--warnbg);color:var(--warn)}.na{background:var(--soft);color:var(--muted)}
 .md{display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;border-top:1px solid var(--line);padding-top:12px}
@@ -77,6 +79,14 @@ JS = """
   })}
 })();
 """
+
+NOTICE_SHORT = "Representative results only · all C code here is synthetic · no TI code is included or displayed"
+
+
+def notice_html() -> str:
+    """Collapsed by default: one line visible, full text on toggle; printing expands it."""
+    return f'<details class="notice"><summary><b>{NOTICE_SHORT}</b> <span class="more">details</span></summary><p>{NOTICE}</p></details>'
+
 
 _STATUS = {OK: ("ok", "pass"), FAIL: ("bad", "FAIL"), SKIPPED: ("na", "n/a")}
 
@@ -177,7 +187,7 @@ def render_report(b: Build, previous_header: str = "", katex_path: str = "assets
     title = f"Review: {v.name}"
     doc = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{_e(title)}</title><link rel="stylesheet" href="{katex_path}/katex.min.css"><style>{CSS}</style></head><body><main>
-{f'<p class="sub"><a href="{back}">← All review reports</a></p>' if back else ''}<div class="notice">{NOTICE}</div>
+{f'<p class="sub"><a href="{back}">← All review reports</a></p>' if back else ''}{notice_html()}
 <h1>{_e(title)}</h1>
 <div class="sub">{_e(ds.part)} · {_e(ds.params['model_string'].value)} · board {_e(v.board.name)} rev {_e(v.board.extra.get('rev', '?'))} · target {_e(v.target.name)} ({_e(v.target.extra.get('default_format', 'float32'))})</div>
 <div class="sub mono">inputs sha256 {_e(b.digest)}</div>
