@@ -18,6 +18,7 @@ from __future__ import annotations
 import math
 import re
 import struct
+from decimal import Decimal
 from dataclasses import dataclass
 
 ROUNDING = "round-half-to-even"
@@ -96,6 +97,8 @@ def float32_literal(value: float) -> str:
         text = f"{f32:.{digits}g}"
         if to_float32(float(text)) == f32:
             break
+    if f32 == 0 or 1e-4 <= abs(f32) < 1e7:
+        text = format(Decimal(text), "f")  # positional: 210 not 2.1e+02
     if "e" not in text and "." not in text:
         text += ".0"
     return text + "f"

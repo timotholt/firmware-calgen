@@ -1,0 +1,14 @@
+board: ups_ctrl
+rev: A
+description: >
+  INVENTED control board for the demo. Sense-chain values are plausible
+  textbook choices, not from any real product.
+params:
+  r_shunt:     {value: 5, unit: mohm, note: output current shunt}
+  g_amp:       {value: 10, unit: ratio, note: current-sense amplifier gain (rev A part)}
+  vbus_r_top:  {value: 1.5, unit: Mohm, note: DC bus divider, top}
+  vbus_r_bot:  {value: 10, unit: kohm, note: DC bus divider, bottom}
+  vout_r_top:  {value: 1.0, unit: Mohm, note: AC output divider, top (mid-rail biased)}
+  vout_r_bot:  {value: 3.3, unit: kohm, note: AC output divider, bottom}
+  vbat_r_top:  {value: 499, unit: kohm, note: battery divider, top}
+  vbat_r_bot:  {value: 10, unit: kohm, note: battery divider, bottom}

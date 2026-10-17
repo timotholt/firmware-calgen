@@ -88,3 +88,11 @@ def test_int_range_edges_encode(fmt):
     assert encode(hi, fmt).code == hi
     with pytest.raises(FormatError):
         encode(hi + 1, fmt)
+
+
+@pytest.mark.parametrize(
+    "value, literal",
+    [(210.0, "210.0f"), (60.0, "60.0f"), (20.0, "20.0f"), (0.0, "0.0f"), (0.121684976, "0.121684976f"), (1e-7, "1e-07f")],
+)
+def test_float32_literal_positional_in_normal_range(value, literal):
+    assert float32_literal(value) == literal

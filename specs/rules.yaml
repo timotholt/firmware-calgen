@@ -1,0 +1,366 @@
+# How each firmware constant is derived.
+#
+# Names in formulas:
+#   ds.*      data sheet field (public, cited)          design.*  engineer-supplied design value
+#   board.*   control-board sense chain (invented)      target.*  processor profile
+#   <id>      any constant defined earlier in this file
+#
+# format: float32 | uintN | intN | iqN | qM.N | target (= the target's default_format)
+# min/max are in the constant's own unit. tolerance = max relative quantization error.
+# Formulas are textbook relations; the AC output stage is sensed with a mid-rail
+# bias, so its usable range is +/- v_ref/2 around the bias point.
+
+blocks:
+  in:   AC input
+  rect: Rectifier / PFC
+  bus:  DC bus
+  inv:  Inverter
+  out:  AC output
+  batt: Battery
+  ctl:  Control loop (engineer-supplied)
+
+constants:
+  # --- AC input -----------------------------------------------------------
+  - id: vin_min
+    symbol: UPS_VIN_MIN_V
+    describe: Lowest input voltage the unit runs on before transferring to battery
+    formula: ds.vin_min
+    unit: V
+    format: target
+    block: in
+    latex: 'V_{\text{in,min}}'
+    min: 50
+    max: 300
+
+  - id: vin_max
+    symbol: UPS_VIN_MAX_V
+    describe: Highest input voltage the unit accepts
+    formula: ds.vin_max
+    unit: V
+    format: target
+    block: in
+    latex: 'V_{\text{in,max}}'
+    min: 50
+    max: 300
+
+  - id: iin_limit
+    symbol: UPS_IIN_LIMIT_A
+    describe: Input current limit (data sheet maximum input current)
+    formula: ds.iin_max
+    unit: A
+    format: target
+    block: in
+    latex: 'I_{\text{in,max}}'
+    min: 0.5
+    max: 50
+
+  # --- Rectifier / PFC ----------------------------------------------------
+  - id: vbus_min
+    symbol: UPS_VBUS_MIN_V
+    describe: A boost PFC stage must hold the bus above the peak of the highest input voltage
+    formula: sqrt(2) * vin_max
+    unit: V
+    format: target
+    block: rect
+    latex: 'V_{\text{bus,min}}'
+    min: 50
+    max: 500
+
+  # --- DC bus -------------------------------------------------------------
+  - id: vbus_set
+    symbol: UPS_VBUS_SET_V
+    describe: DC bus regulation setpoint, bus minimum plus design margin, rounded up to 10 V
+    formula: ceil(vbus_min * (1 + design.vbus_margin) / 10) * 10
+    unit: V
+    format: target
+    block: bus
+    latex: 'V_{\text{bus,set}}'
+    min: 50
+    max: 500
+
+  - id: vbus_fs
+    symbol: UPS_VBUS_FS_V
+    describe: Bus voltage at ADC full scale (divider ratio times ADC reference)
+    formula: target.v_ref * (board.vbus_r_top + board.vbus_r_bot) / board.vbus_r_bot
+    unit: V
+    format: target
+    block: bus
+    latex: 'V_{\text{bus,FS}}'
+    min: 50
+    max: 1000
+
+  - id: vbus_scale
+    symbol: UPS_VBUS_V_PER_COUNT
+    describe: Volts of bus per ADC count
+    formula: vbus_fs / target.adc_max
+    unit: V
+    format: target
+    block: bus
+    latex: 'k_{\text{bus}}'
+    tolerance: 0.0001
+
+  # --- Inverter -----------------------------------------------------------
+  - id: vout_set
+    symbol: UPS_VOUT_SET_V
+    describe: Output voltage setpoint (RMS)
+    formula: ds.vout_nom
+    unit: V
+    format: target
+    block: inv
+    latex: 'V_{\text{out}}'
+    min: 100
+    max: 250
+
+  - id: vout_lo
+    symbol: UPS_VOUT_LO_V
+    describe: Lower edge of the data sheet output regulation band
+    formula: vout_set * (1 - ds.vout_tol_pct)
+    unit: V
+    format: target
+    block: inv
+    latex: 'V_{\text{out,lo}}'
+
+  - id: vout_hi
+    symbol: UPS_VOUT_HI_V
+    describe: Upper edge of the data sheet output regulation band
+    formula: vout_set * (1 + ds.vout_tol_pct)
+    unit: V
+    format: target
+    block: inv
+    latex: 'V_{\text{out,hi}}'
+
+  - id: vout_fs_pk
+    symbol: UPS_VOUT_FS_PK_V
+    describe: Peak output voltage at the edge of the mid-rail-biased sense range
+    formula: target.v_ref / 2 * (board.vout_r_top + board.vout_r_bot) / board.vout_r_bot
+    unit: V
+    format: target
+    block: inv
+    latex: 'V_{\text{out,FS}}'
+
+  - id: fout_hz
+    symbol: UPS_FOUT_HZ
+    describe: Output frequency
+    formula: ds.fout_hz
+    unit: Hz
+    format: target
+    block: inv
+    latex: 'f_{\text{out}}'
+    min: 45
+    max: 450
+
+  - id: fout_mode
+    kind: enum
+    symbol: UPS_FOUT_MODE
+    describe: Changer regenerates a fixed frequency; follower tracks the input
+    source: ds.fout_mode
+    choices: {changer: UPS_FOUT_CHANGER, follower: UPS_FOUT_FOLLOWER}
+    block: inv
+
+  - id: pwm_period
+    symbol: UPS_PWM_PERIOD_CNT
+    describe: PWM period register (up-count mode)
+    formula: round(target.f_pwmclk / design.f_sw)
+    unit: counts
+    format: uint16
+    block: inv
+    latex: 'N_{\text{PWM}}'
+    min: 100
+
+  - id: pwm_deadband
+    symbol: UPS_PWM_DEADBAND_CNT
+    describe: Dead-time register
+    formula: round(design.t_deadband * target.f_pwmclk)
+    unit: counts
+    format: uint16
+    block: inv
+    latex: 'N_{\text{DB}}'
+    min: 1
+    max: 1023
+
+  # --- AC output ----------------------------------------------------------
+  - id: iout_rated
+    symbol: UPS_IOUT_RATED_A
+    describe: Rated output current (RMS)
+    formula: ds.power_va / ds.vout_nom
+    unit: A
+    format: target
+    block: out
+    latex: 'I_{\text{rated}}'
+    min: 0.5
+    max: 100
+
+  - id: iout_alarm
+    symbol: UPS_IOUT_ALARM_A
+    describe: Overload alarm current (RMS)
+    formula: iout_rated * ds.overload_alarm_pct
+    unit: A
+    format: target
+    block: out
+    latex: 'I_{\text{alarm}}'
+    optional: true
+
+  - id: iout_trip
+    symbol: UPS_IOUT_TRIP_A
+    describe: Overload trip current (RMS)
+    formula: iout_rated * ds.overload_trip_pct
+    unit: A
+    format: target
+    block: out
+    latex: 'I_{\text{trip}}'
+
+  - id: iout_trip_pk
+    symbol: UPS_IOUT_TRIP_PK_A
+    describe: Instantaneous current at the RMS trip level (sine), what a hardware comparator sees
+    formula: sqrt(2) * iout_trip
+    unit: A
+    format: target
+    block: out
+    latex: 'I_{\text{trip,pk}}'
+
+  - id: iout_fs_pk
+    symbol: UPS_IOUT_FS_PK_A
+    describe: Peak current at the edge of the mid-rail-biased current-sense range
+    formula: target.v_ref / 2 / (board.r_shunt * board.g_amp)
+    unit: A
+    format: target
+    block: out
+    latex: 'I_{\text{FS}}'
+
+  - id: iout_trip_dac_hi
+    symbol: UPS_IOUT_TRIP_DAC_HI
+    describe: Comparator DAC code for the positive overcurrent trip
+    formula: round((target.v_ref / 2 + iout_trip_pk * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
+    unit: counts
+    format: uint16
+    block: out
+    latex: 'N_{\text{DAC,hi}}'
+
+  - id: iout_trip_dac_lo
+    symbol: UPS_IOUT_TRIP_DAC_LO
+    describe: Comparator DAC code for the negative overcurrent trip
+    formula: round((target.v_ref / 2 - iout_trip_pk * board.r_shunt * board.g_amp) / target.v_ref * target.dac_max)
+    unit: counts
+    format: uint16
+    block: out
+    latex: 'N_{\text{DAC,lo}}'
+
+  - id: overload_action
+    kind: enum
+    symbol: UPS_OVERLOAD_ACTION
+    describe: What the unit does when the trip level is exceeded
+    source: ds.overload_action
+    choices: {shutdown: UPS_OL_SHUTDOWN, bypass: UPS_OL_BYPASS}
+    block: out
+
+  # --- Battery ------------------------------------------------------------
+  - id: vbat_nom
+    symbol: UPS_VBAT_NOM_V
+    describe: Battery string nominal voltage
+    formula: ds.batt_string_v
+    unit: V
+    format: target
+    block: batt
+    latex: 'V_{\text{bat}}'
+    min: 12
+    max: 400
+
+  - id: vbat_cutoff
+    symbol: UPS_VBAT_CUTOFF_V
+    describe: Low-battery shutdown voltage
+    formula: vbat_nom * design.batt_cutoff_ratio
+    unit: V
+    format: target
+    block: batt
+    latex: 'V_{\text{bat,cut}}'
+
+  - id: vbat_fs
+    symbol: UPS_VBAT_FS_V
+    describe: Battery voltage at ADC full scale
+    formula: target.v_ref * (board.vbat_r_top + board.vbat_r_bot) / board.vbat_r_bot
+    unit: V
+    format: target
+    block: batt
+    latex: 'V_{\text{bat,FS}}'
+
+  # --- Control loop (engineer-supplied, carried through) -------------------
+  - id: vloop_kp
+    symbol: UPS_VLOOP_KP
+    describe: Voltage-loop proportional gain (tuned by power engineering)
+    formula: design.vloop_kp
+    unit: ratio
+    format: target
+    block: ctl
+    latex: 'K_P'
+    supplied: true
+    min: 0
+    max: 10
+
+  - id: vloop_ki
+    symbol: UPS_VLOOP_KI
+    describe: Voltage-loop integral gain per control ISR (tuned by power engineering)
+    formula: design.vloop_ki
+    unit: ratio
+    format: target
+    block: ctl
+    latex: 'K_I'
+    supplied: true
+    min: 0
+    max: 1
+
+checks:
+  - id: bus_above_output_peak
+    describe: The inverter can only make an output peak lower than the DC bus
+    lhs: sqrt(2) * vout_hi
+    op: "<"
+    rhs: vbus_set
+    block: bus
+
+  - id: bus_sense_range
+    describe: Bus setpoint must sit inside the bus sensor's range with headroom
+    lhs: vbus_set
+    op: "<="
+    rhs: design.sense_headroom * vbus_fs
+    block: bus
+
+  - id: vout_sense_range
+    describe: Output peak at the top of the regulation band must sit inside the output sensor's range
+    lhs: sqrt(2) * vout_hi
+    op: "<="
+    rhs: design.sense_headroom * vout_fs_pk
+    block: inv
+
+  - id: iout_sense_range
+    describe: Peak trip current must sit inside the current sensor's range, or the sensor saturates before the trip fires
+    lhs: iout_trip_pk
+    op: "<="
+    rhs: design.sense_headroom * iout_fs_pk
+    block: out
+
+  - id: dac_hi_in_range
+    describe: Positive trip DAC code must exist on this chip's comparator DAC
+    lhs: iout_trip_dac_hi
+    op: "<="
+    rhs: target.dac_max
+    block: out
+
+  - id: alarm_below_trip
+    describe: Overload alarm must come before the trip
+    lhs: iout_alarm
+    op: "<"
+    rhs: iout_trip
+    block: out
+
+  - id: vbat_sense_range
+    describe: A fully charged battery must sit inside the battery sensor's range
+    lhs: vbat_nom * design.batt_max_ratio
+    op: "<="
+    rhs: design.sense_headroom * vbat_fs
+    block: batt
+
+  - id: cutoff_below_nominal
+    describe: Low-battery cutoff must be below nominal
+    lhs: vbat_cutoff
+    op: "<"
+    rhs: vbat_nom
+    block: batt

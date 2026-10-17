@@ -1,0 +1,24 @@
+field,label,raw,value,unit,source
+part_number,IP Part #:,FA10507,FA10507,,DS-10507 Rev.101119 p2
+model_string,IP Model #:,IHT1500RM-M-1.25Kw-WRGlobal-FC60-120VAC-LiFeHS-3U16,IHT1500RM-M-1.25Kw-WRGlobal-FC60-120VAC-LiFeHS-3U16,,DS-10507 Rev.101119 p2
+model_string_p1,Model # (page 1 header),IHT1500RM-M-1.25Kw-WRGlobal-Isolated-FC60-120-LiFeHS-3U16,IHT1500RM-M-1.25Kw-WRGlobal-Isolated-FC60-120-LiFeHS-3U16,,DS-10507 Rev.101119 p1
+unit_description,Unit Description:,"1500VA, 1250W, 85-265VAC 50/60Hz Input, 120VAC and 60Hz Output (Optional 240VAC Output)","1500VA, 1250W, 85-265VAC 50/60Hz Input, 120VAC and 60Hz Output (Optional 240VAC Output)",,DS-10507 Rev.101119 p2
+power_va,"Power Rating (VA, Watts):","1500 VA, 1250 W",1500,VA,DS-10507 Rev.101119 p2
+power_w,"Power Rating (VA, Watts):","1500 VA, 1250 W",1250,W,DS-10507 Rev.101119 p2
+vin_min,"Input AC Voltage (AC Voltage, tolerance):",85 to 265VAC,85,V,DS-10507 Rev.101119 p2
+vin_max,"Input AC Voltage (AC Voltage, tolerance):",85 to 265VAC,265,V,DS-10507 Rev.101119 p2
+fin_nom,"Input Frequency (Hz, tolerance):","50/60 Hz, (±5%)",60,Hz,DS-10507 Rev.101119 p2 (60 Hz region assumed)
+fin_tol_pct,"Input Frequency (Hz, tolerance):","50/60 Hz, (±5%)",5,%,DS-10507 Rev.101119 p2
+iin_max,Input Max Current (Amps):,20 Amps,20,A,DS-10507 Rev.101119 p2
+vout_nom,"Output AC Voltage (AC Voltage, tolerance):","120VAC, (±3%) Selectable (Optional 240VAC Output)",120,V,DS-10507 Rev.101119 p2
+vout_tol_pct,"Output AC Voltage (AC Voltage, tolerance):","120VAC, (±3%) Selectable (Optional 240VAC Output)",3,%,DS-10507 Rev.101119 p2
+fout_hz,"Output Frequency (Hz, follower/changer):","60 Hz, Changer",60,Hz,DS-10507 Rev.101119 p2
+fout_mode,"Output Frequency (Hz, follower/changer):","60 Hz, Changer",changer,,DS-10507 Rev.101119 p2
+overload_trip_pct,"Overload – Shutdown or Bypass (shutdown/bypass, %):",Shutdown at 20% Overload,120,%,DS-10507 Rev.101119 p2 (read as 120% of rated)
+overload_action,"Overload – Shutdown or Bypass (shutdown/bypass, %):",Shutdown at 20% Overload,shutdown,,DS-10507 Rev.101119 p2
+isolation,Isolation (galvanic isolation/non-isolated):,Isolated,isolated,,DS-10507 Rev.101119 p2
+pfc,PFC Feature:,Yes,yes,,DS-10507 Rev.101119 p2
+batt_type,"Battery Type (rating, PbAcid/Pure PbAcid/Lithium Iron):",Lithium Iron Phosphate,lifepo4,,DS-10507 Rev.101119 p2
+batt_string_v,Battery String Voltage:,89.6 VDC,89.6,V,DS-10507 Rev.101119 p2
+batt_series_cells,"Battery String (number of strings, quantity per string)",28SIP,28,counts,"DS-10507 Rev.101119 p2 (""28SIP"" read as 28S1P)"
+application,Application (shipboard/airborne/ground/all):,Ground,ground,,DS-10507 Rev.101119 p2

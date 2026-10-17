@@ -1,0 +1,11 @@
+target: f28004x
+description: >
+  TI C2000 F28004x-class MCU (FPU, float32 constants). Values from TI's public
+  F28004x data sheet; pairing with any IntelliPower product is illustrative.
+default_format: float32
+params:
+  f_sysclk:  {value: 100, unit: MHz, note: max CPU clock}
+  f_pwmclk:  {value: 100, unit: MHz, note: EPWMCLK = SYSCLK assumed}
+  adc_max:   {value: 4095, unit: counts, note: 12-bit ADC}
+  dac_max:   {value: 4095, unit: counts, note: 12-bit comparator (CMPSS) DAC}
+  v_ref:     {value: 3.3, unit: V, note: internal 3.3 V ADC range selected}

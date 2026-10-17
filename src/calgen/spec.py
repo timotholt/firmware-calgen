@@ -89,6 +89,9 @@ class Rule:
     max: float | None
     tolerance: float | None  # max relative quantization error
     supplied: bool  # engineer-supplied value carried through, not derived
+    optional: bool = False  # skip (reported) when an input is absent for this product
+    kind: str = "numeric"  # "numeric" | "enum"
+    choices: dict[str, str] = field(default_factory=dict)  # enum: data sheet text -> C identifier
 
 
 @dataclass(frozen=True)
@@ -117,6 +120,7 @@ class Variant:
     board: ParamSet
     target: ParamSet
     design: ParamSet
+    overrides: dict[str, Param] = field(default_factory=dict)  # reviewer-visible data sheet waivers
 
     def digest(self) -> str:
         """sha256 over the exact bytes of every input file, in a fixed order."""
@@ -259,6 +263,23 @@ def load_variant(path: str | Path) -> Variant:
         "engineer-supplied design values",
         _params(design_data, path, "design", design_issues),
     )
+    overrides: dict[str, Param] = {}
+    for name, spec in (data.get("datasheet_overrides") or {}).items():
+        reason = str((spec or {}).get("reason", "")).strip() if isinstance(spec, dict) else ""
+        if not isinstance(spec, dict) or "value" not in spec or not reason:
+            design_issues.append(f"datasheet_overrides.{name}: needs 'value' and a written 'reason'")
+            continue
+        value, unit = spec["value"], spec.get("unit")
+        if unit is not None:
+            _check_unit(str(unit), f"datasheet_overrides.{name}", design_issues)
+        numeric = isinstance(value, (int, float)) and not isinstance(value, bool)
+        overrides[name] = Param(
+            name=name,
+            value=float(value) if numeric else str(value),
+            unit=str(unit) if (numeric and unit is not None) else None,
+            source=f"OVERRIDE in {path.name} (reason in header)",
+            note=reason,
+        )
     if design_issues:
         raise SpecError(str(path), design_issues)
     return Variant(
@@ -268,6 +289,7 @@ def load_variant(path: str | Path) -> Variant:
         board=load_paramset(base / data["board"], "board"),
         target=load_paramset(base / data["target"], "target"),
         design=design,
+        overrides=overrides,
     )
 
 
@@ -286,7 +308,12 @@ def load_rules(path: str | Path) -> Rules:
         if not isinstance(c, dict):
             issues.append(f"{where}: must be a mapping")
             continue
-        missing = [k for k in ("id", "symbol", "formula", "unit", "format", "block") if k not in c]
+        kind = str(c.get("kind", "numeric"))
+        needed = ("id", "symbol", "formula", "unit", "format", "block") if kind == "numeric" else ("id", "symbol", "source", "choices", "block")
+        if kind not in ("numeric", "enum"):
+            issues.append(f"{where}: kind must be numeric or enum")
+            continue
+        missing = [k for k in needed if k not in c]
         if missing:
             issues.append(f"{where}: missing {', '.join(missing)}")
             continue
@@ -294,14 +321,22 @@ def load_rules(path: str | Path) -> Rules:
         if c["id"] in seen:
             issues.append(f"{where}: duplicate id")
         seen.add(c["id"])
-        try:
-            parse(str(c["formula"]))
-        except ExprError as exc:
-            issues.append(f"{where}: {exc}")
-        _check_unit(str(c["unit"]), where, issues)
-        fmt = str(c["format"])
-        if fmt != "target" and not is_valid_format(fmt):
-            issues.append(f"{where}: unknown format {fmt!r}")
+        if kind == "enum":
+            choices = c["choices"]
+            if not isinstance(choices, dict) or not choices:
+                issues.append(f"{where}: choices must be a non-empty mapping")
+                choices = {}
+            c = {**c, "formula": str(c["source"]), "unit": "1", "format": "enum",
+                 "choices": {str(k).lower(): str(v) for k, v in choices.items()}}
+        else:
+            try:
+                parse(str(c["formula"]))
+            except ExprError as exc:
+                issues.append(f"{where}: {exc}")
+            _check_unit(str(c["unit"]), where, issues)
+            fmt = str(c["format"])
+            if fmt != "target" and not is_valid_format(fmt):
+                issues.append(f"{where}: unknown format {fmt!r}")
         if c["block"] not in blocks:
             issues.append(f"{where}: unknown block {c['block']!r}")
         constants.append(
@@ -310,7 +345,7 @@ def load_rules(path: str | Path) -> Rules:
                 symbol=str(c["symbol"]),
                 formula=str(c["formula"]),
                 unit=str(c["unit"]),
-                format=fmt,
+                format=str(c["format"]),
                 block=str(c["block"]),
                 describe=str(c.get("describe", "")),
                 latex=str(c.get("latex", c["id"])),
@@ -318,6 +353,9 @@ def load_rules(path: str | Path) -> Rules:
                 max=c.get("max"),
                 tolerance=c.get("tolerance"),
                 supplied=bool(c.get("supplied", False)),
+                optional=bool(c.get("optional", False)),
+                kind=kind,
+                choices=dict(c.get("choices", {})) if kind == "enum" else {},
             )
         )
     checks: list[Check] = []

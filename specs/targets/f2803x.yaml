@@ -1,0 +1,13 @@
+target: f2803x
+description: >
+  TI C2000 F2803x-class "legacy" MCU (no FPU, IQmath fixed point). Values from
+  TI's public F2803x data sheet; pairing with any IntelliPower product is
+  illustrative. Global Q chosen as IQ20 so volt-scaled constants up to +/-2048
+  fit (IQ24 tops out at +/-128 and would overflow a 410 V bus setpoint).
+default_format: iq20
+params:
+  f_sysclk:  {value: 60, unit: MHz, note: max CPU clock}
+  f_pwmclk:  {value: 60, unit: MHz, note: ePWM clocked from SYSCLKOUT}
+  adc_max:   {value: 4095, unit: counts, note: 12-bit ADC}
+  dac_max:   {value: 1023, unit: counts, note: 10-bit comparator DAC}
+  v_ref:     {value: 3.3, unit: V, note: fixed 0-3.3 V internal reference}

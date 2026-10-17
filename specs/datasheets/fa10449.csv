@@ -1,0 +1,25 @@
+field,label,raw,value,unit,source
+part_number,Part #:,FA10449,FA10449,,DS-10449 Rev.09172021 p1
+model_string,Model #:,IHT650RM-I-0.5Kw-120-FC60-120-LiFeHS-3U17,IHT650RM-I-0.5Kw-120-FC60-120-LiFeHS-3U17,,DS-10449 Rev.09172021 p1
+unit_description,Unit Description:,"650VA, 500W, 120VAC 60Hz Input and 120VAC 60Hz Output, Frequency Changer, Non-Isolated, Power Factor Corrected,1/2 Rack Unit, 3U High x 8.5"" Wide x 17"" Deep, Rugged, Double Conversion, to Provide Power Conditioning and Hot Swap Battery Hold-up for Industrial Applications","650VA, 500W, 120VAC 60Hz Input and 120VAC 60Hz Output, Frequency Changer, Non-Isolated, Power Factor Corrected,1/2 Rack Unit, 3U High x 8.5"" Wide x 17"" Deep, Rugged, Double Conversion, to Provide Power Conditioning and Hot Swap Battery Hold-up for Industrial Applications",,DS-10449 Rev.09172021 p1
+power_va,"Power Rating (VA, Watts):","650 VA, 500 Watts",650,VA,DS-10449 Rev.09172021 p1
+power_w,"Power Rating (VA, Watts):","650 VA, 500 Watts",500,W,DS-10449 Rev.09172021 p1
+vin_nom,"Input AC Voltage (AC Voltage, tolerance):","120 VAC, (-25% +15%)",120,V,DS-10449 Rev.09172021 p1
+vin_min,"Input AC Voltage (AC Voltage, tolerance):","120 VAC, (-25% +15%)",90,V,DS-10449 Rev.09172021 p1 (120 V - 25%)
+vin_max,"Input AC Voltage (AC Voltage, tolerance):","120 VAC, (-25% +15%)",138,V,DS-10449 Rev.09172021 p1 (120 V + 15%)
+fin_nom,"Input Frequency (Hz, tolerance):","60 Hz, +/- 5.0 Hz",60,Hz,DS-10449 Rev.09172021 p1
+fin_tol_hz,"Input Frequency (Hz, tolerance):","60 Hz, +/- 5.0 Hz",5,Hz,DS-10449 Rev.09172021 p1
+iin_max,Input Max Current (Amps):,7.9 Amps,7.9,A,DS-10449 Rev.09172021 p1
+vout_nom,"Output AC Voltage (AC Voltage, tolerance):","120 VAC, (±3%)",120,V,DS-10449 Rev.09172021 p1
+vout_tol_pct,"Output AC Voltage (AC Voltage, tolerance):","120 VAC, (±3%)",3,%,DS-10449 Rev.09172021 p1
+fout_hz,"Output Frequency (Hz, follower/changer):","60 Hz, Follower",60,Hz,DS-10449 Rev.09172021 p2
+fout_mode,"Output Frequency (Hz, follower/changer):","60 Hz, Follower",follower,,DS-10449 Rev.09172021 p2
+overload_alarm_pct,Output Overload – Shutdown or Bypass:,"Alarm at 105%, Shutdown at 115% of Full Load",105,%,DS-10449 Rev.09172021 p2
+overload_trip_pct,Output Overload – Shutdown or Bypass:,"Alarm at 105%, Shutdown at 115% of Full Load",115,%,DS-10449 Rev.09172021 p2
+overload_action,Output Overload – Shutdown or Bypass:,"Alarm at 105%, Shutdown at 115% of Full Load",shutdown,,DS-10449 Rev.09172021 p2
+isolation,Isolation (galvanic isolation/non-isolated):,Non-Isolated,non-isolated,,DS-10449 Rev.09172021 p2
+pfc,PFC Feature:,Input Power Factor Correction,yes,,DS-10449 Rev.09172021 p1
+batt_type,"Battery Type (rating, PbAcid/Pure PbAcid/Lithium Iron):","92.4V 2.85 Ah, Battery String, Lithium Iron Phosphate",lifepo4,,DS-10449 Rev.09172021 p2
+batt_string_v,Battery String Voltage:,92.4 VDC,92.4,V,DS-10449 Rev.09172021 p2
+batt_series_cells,Battery Total Quantity:,28 S1P Batteries,28,counts,DS-10449 Rev.09172021 p2
+application,Application (shipboard/airborne/ground/all):,All,all,,DS-10449 Rev.09172021 p2

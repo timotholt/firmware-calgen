@@ -1,0 +1,26 @@
+field,label,raw,value,unit,source
+part_number,Part #:,FA10434,FA10434,,DS-10434 Rev.09172021 p1
+model_string,Model #:,IHT800-I-0.56Kw-120V-5060-120V-60-3LiHS-2U17,IHT800-I-0.56Kw-120V-5060-120V-60-3LiHS-2U17,,DS-10434 Rev.09172021 p1
+unit_description,Unit Description:,"800VA, 560W, 120VAC 60Hz Input and 120VAC 60Hz Output, Frequency Changer, Non-Isolated, Power Factor Corrected, 2U Rack Unit, 3.5"" High x 17"" Wide x 17"" Deep, Rugged, Double Conversion, to Provide Power Conditioning and Hot Swap Battery Hold-up for Industrial Applications","800VA, 560W, 120VAC 60Hz Input and 120VAC 60Hz Output, Frequency Changer, Non-Isolated, Power Factor Corrected, 2U Rack Unit, 3.5"" High x 17"" Wide x 17"" Deep, Rugged, Double Conversion, to Provide Power Conditioning and Hot Swap Battery Hold-up for Industrial Applications",,DS-10434 Rev.09172021 p1
+power_va,"Power Rating (VA, Watts):","800 VA, 560 Watts",800,VA,DS-10434 Rev.09172021 p1
+power_w,"Power Rating (VA, Watts):","800 VA, 560 Watts",560,W,DS-10434 Rev.09172021 p1
+vin_nom,"Input AC Voltage (AC Voltage, tolerance):","120 VAC, (-15% +15%)",120,V,DS-10434 Rev.09172021 p1
+vin_min,"Input AC Voltage (AC Voltage, tolerance):","120 VAC, (-15% +15%)",102,V,DS-10434 Rev.09172021 p1 (120 V - 15%)
+vin_max,"Input AC Voltage (AC Voltage, tolerance):","120 VAC, (-15% +15%)",138,V,DS-10434 Rev.09172021 p1 (120 V + 15%)
+iin_max,Input Max Current (Amps):,50 or 60 Hz,,,DS-10434 Rev.09172021 p1 (printed as shown)
+fin_nom,"Input Frequency (Hz, tolerance):","7.4 Amps @90VAC Input, 560W Output",,,DS-10434 Rev.09172021 p1 (printed as shown)
+vout_nom,"Output AC Voltage (AC Voltage, tolerance):","120 VAC, (±3%)",120,V,DS-10434 Rev.09172021 p1
+vout_tol_pct,"Output AC Voltage (AC Voltage, tolerance):","120 VAC, (±3%)",3,%,DS-10434 Rev.09172021 p1
+fout_hz,"Output Frequency (Hz, follower/changer):","60 Hz +/- 1.5Hz, Changer",60,Hz,DS-10434 Rev.09172021 p2
+fout_tol_hz,"Output Frequency (Hz, follower/changer):","60 Hz +/- 1.5Hz, Changer",1.5,Hz,DS-10434 Rev.09172021 p2
+fout_mode,"Output Frequency (Hz, follower/changer):","60 Hz +/- 1.5Hz, Changer",changer,,DS-10434 Rev.09172021 p2
+overload_alarm_pct,Output Overload – Shutdown or Bypass:,"Alarm at 105%, Bypass at 115% of Full Load",105,%,DS-10434 Rev.09172021 p2
+overload_trip_pct,Output Overload – Shutdown or Bypass:,"Alarm at 105%, Bypass at 115% of Full Load",115,%,DS-10434 Rev.09172021 p2
+overload_action,Output Overload – Shutdown or Bypass:,"Alarm at 105%, Bypass at 115% of Full Load",bypass,,DS-10434 Rev.09172021 p2
+isolation,Isolation (galvanic isolation/non-isolated):,Non-Isolated,non-isolated,,DS-10434 Rev.09172021 p2
+pfc,PFC Feature:,Input Power Factor Correction,yes,,DS-10434 Rev.09172021 p1
+batt_type,"Battery Type (rating, PbAcid/Pure PbAcid/Lithium Iron):","12V 9.6 Ah, Lithium Iron Phosphate",lifepo4,,DS-10434 Rev.09172021 p2
+batt_string_v,Battery String Voltage:,36 VDC,36,V,DS-10434 Rev.09172021 p2
+batt_modules,"Battery String (number of strings, quantity per string)","1 String, 3 Batteries per String",3,counts,DS-10434 Rev.09172021 p2
+batt_module_v,"Battery Type (rating, PbAcid/Pure PbAcid/Lithium Iron):","12V 9.6 Ah, Lithium Iron Phosphate",12,V,DS-10434 Rev.09172021 p2
+application,Application (shipboard/airborne/ground/all):,All,all,,DS-10434 Rev.09172021 p2
