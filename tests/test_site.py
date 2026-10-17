@@ -24,7 +24,7 @@ def site(tmp_path_factory):
 @needs_vendor
 def test_pages_exist_and_carry_notice(site):
     pages = list(site.rglob("*.html"))
-    assert {p.name for p in pages} >= {"index.html", "playground.html", "audit.html", "how.html", "fa10507.html", "fa10507_revB.html"}
+    assert {p.name for p in pages} >= {"index.html", "playground.html", "audit.html", "how.html", "backstory.html", "fa10507.html", "fa10507_revB.html"}
     for p in pages:
         assert "Results are representative and informational only." in p.read_text(), p
 
@@ -62,3 +62,9 @@ def test_license_notices_and_ai_optout_on_every_page(site):
     for p in site.rglob("*.html"):
         t = p.read_text()
         assert 'name="tdm-reservation" content="1"' in t and 'content="noai, noimageai"' in t, p
+
+
+@needs_vendor
+def test_no_unfilled_template_fields(site):
+    for p in site.rglob("*.html"):
+        assert not re.search(r"\{(ai|counts|opts|default)\[", p.read_text()), p

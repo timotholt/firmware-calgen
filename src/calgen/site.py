@@ -32,7 +32,7 @@ from calgen.spec import load_rules, load_variant
 REPO = "https://github.com/timotholt/firmware-calgen"
 VARIANTS = ["fa10507", "fa10449", "fa10434", "fa10507_f2803x", "fa10507_revB"]
 NAV = [("index.html", "Overview"), ("playground.html", "Playground"), ("reports/index.html", "Review reports"),
-       ("audit.html", "Audit"), ("how.html", "How it works")]
+       ("audit.html", "Audit"), ("how.html", "How it works"), ("backstory.html", "Tim Otholt · backstory")]
 
 SITE_CSS = REPORT_CSS + """
 nav{display:flex;flex-wrap:wrap;gap:4px 18px;border-bottom:1px solid var(--line);padding:10px 0;margin-bottom:6px;font-size:14px}
@@ -113,7 +113,7 @@ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/sv
 .cards.outlined .card{background:transparent;border:1px solid var(--line);border-radius:8px;padding:16px}
 .cards.outlined .card h3{font-size:17px;font-weight:600;color:var(--fg);margin:0 0 6px}.cards.outlined .card p{font-size:15px;color:var(--muted)}
 main h2{margin-top:40px}.prose{max-width:75ch}.prose p{margin:0 0 12px}
-.posting{margin:12px 0 16px}.posting .shot{max-height:440px;max-width:760px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;background:#f2f2f2}.posting img{display:block;width:100%;height:auto}.posting figcaption{font-size:12.5px;color:var(--muted);margin-top:6px;max-width:760px}.more-box{margin-top:40px;border-top:1px solid var(--line);padding-top:12px;font-size:14px}.more-box summary{font-size:15px;color:var(--fg)}
+.posting{margin:12px 0 16px}.posting .shot{max-height:440px;max-width:760px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;background:#f2f2f2}.posting img{display:block;width:100%;height:auto}.posting figcaption{font-size:12.5px;color:var(--muted);margin-top:6px;max-width:760px}.story-page{max-width:68ch;margin:56px 0 80px}.story-page h1{font-size:28px;margin:0 0 10px}.prose.roomy{font-size:17px;line-height:1.7}.prose.roomy p{margin:0 0 28px}.more-box{margin-top:40px;border-top:1px solid var(--line);padding-top:12px;font-size:14px}.more-box summary{font-size:15px;color:var(--fg)}
 @media (max-width:480px){.proof b{font-size:20px}.proof span{font-size:12px}h1.hero{font-size:24px}.lead{font-size:17px}}
 footer{color:var(--muted);font-size:12px;border-top:1px solid var(--line);margin-top:36px;padding-top:10px}
 """
@@ -189,11 +189,6 @@ def page_home(counts: dict[str, int], ai: dict[str, float]) -> str:
 <h2>What a generated line looks like</h2>
 <pre>{_e(sample)}</pre>
 <p class="sub">The formula, every input, and the file each came from travel with the constant. The review report typesets the same derivation, and a test checks that the typeset math equals the computed value.</p>
-<h2>Backstory and thesis</h2>
-<div class="prose">
-<p><b>Backstory.</b> I wrote C firmware and BIOS code at Phoenix Technologies, Quantum, AMD, and VM Labs, where constants had to be exactly right for each specific board. I've come back to engineering through an A.A.S. in AI software engineering, and this posting described a problem I recognized: numbers hand-edited in C source that should come from the spec. I built this demo to show how I'd approach it, before asking for the job.</p>
-<p><b>Thesis.</b> IntelliPower publicly describes thousands of configure-to-order variants built from shared designs, and its engineering postings mention keeping legacy boards alive with alternate components. Every variant's ratings and every board's measurement chain must end up as correct constants in firmware; I assume much of that is done by hand today, from data sheets that aren't always consistent (all three I transcribed contain an inconsistency). The right tool makes that path deterministic, traceable, and gated. AI belongs only where the input is messy: here it drafts what each legacy constant is, and a person reviews every draft. Measured on a 33-constant synthetic set against a blind answer key, a low-cost model (gpt-5.4-nano) maps constants to the right rule {ai['rule']:.0f}% of the time but its category labels reach only {ai['category']:.0f}%, below the bar I set in advance, and I report that rather than move the bar. AI never writes firmware.</p>
-</div>
 <details class="more-box" open><summary>The posting, my assumptions, and how I'd check them in week one</summary>
 <figure class="posting"><div class="shot"><a href="assets/ametek_posting.jpg" target="_blank" rel="noopener"><img src="assets/ametek_posting.jpg" alt="Screenshot of the AI Automation Intern posting on AMETEK's careers site: about us, job summary with two initiatives (magnetics design automation; firmware modification and calibration automation), and key responsibilities" loading="lazy" width="1040" height="806"></a></div>
 <figcaption>The posting on AMETEK's careers site, posted Oct 15, 2026, captured Oct 16, 2026 (<span class="mono">jobs.ametek.com/job/Orange-AI-Automation-Intern-CA-92865/1420689600</span>). Scroll inside the box, or click for full size.</figcaption></figure>
@@ -370,6 +365,18 @@ def page_how(specs: Path, rules) -> str:
     return _page("How it works", "how.html", body)
 
 
+def page_backstory(ai: dict[str, float]) -> str:
+    body = f"""<div class="story-page">
+<h1>Tim Otholt · backstory and thesis</h1>
+<p class="lead">Who built this demo, why, and the bet it makes about the problem.</p>
+<div class="prose roomy">
+<p><b>Backstory.</b> I wrote C firmware and BIOS code at Phoenix Technologies, Quantum, AMD, and VM Labs, where constants had to be exactly right for each specific board. I've come back to engineering through an A.A.S. in AI software engineering, and this posting described a problem I recognized: numbers hand-edited in C source that should come from the spec. I built this demo to show how I'd approach it, before asking for the job.</p>
+<p><b>Thesis.</b> IntelliPower publicly describes thousands of configure-to-order variants built from shared designs, and its engineering postings mention keeping legacy boards alive with alternate components. Every variant's ratings and every board's measurement chain must end up as correct constants in firmware; I assume much of that is done by hand today, from data sheets that aren't always consistent (all three I transcribed contain an inconsistency). The right tool makes that path deterministic, traceable, and gated. AI belongs only where the input is messy: here it drafts what each legacy constant is, and a person reviews every draft. Measured on a 33-constant synthetic set against a blind answer key, a low-cost model (gpt-5.4-nano) maps constants to the right rule {ai['rule']:.0f}% of the time but its category labels reach only {ai['category']:.0f}%, below the bar I set in advance, and I report that rather than move the bar. AI never writes firmware.</p>
+</div>
+</div>"""
+    return _page("Tim Otholt: backstory and thesis", "backstory.html", body)
+
+
 def page_playground(default: dict) -> str:
     opts = playground.options()
     body = f"""<h1>Playground</h1>
@@ -424,6 +431,7 @@ def build_site(root: Path, out: Path, vendor_cache: Path, download: bool = False
     (out / "reports" / "index.html").write_text(page_reports(out, specs, rules), encoding="utf-8")
     (out / "audit.html").write_text(page_audit(root, specs, rules), encoding="utf-8")
     (out / "how.html").write_text(page_how(specs, rules), encoding="utf-8")
+    (out / "backstory.html").write_text(page_backstory(ai), encoding="utf-8")
     (out / "playground.html").write_text(page_playground(playground.run(specs)), encoding="utf-8")
     (out / ".nojekyll").write_text("", encoding="utf-8")
     shutil.copyfile(root / "LICENSE", out / "LICENSE.txt")
