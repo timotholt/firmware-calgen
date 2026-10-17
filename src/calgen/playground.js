@@ -4,6 +4,7 @@
  * site; nothing is uploaded. */
 (function () {
   "use strict";
+  var VER = document.currentScript ? new URL(document.currentScript.src).search : ""; // ?v=<content hash>, busts caches
   var DATA = JSON.parse(document.getElementById("default-data").textContent);
   var OPTS = JSON.parse(document.getElementById("options").textContent);
   var state = { product: "FA10507", board: "A", target: "f28004x", edits: {}, stage: "out", open: {}, tab: "c", preset: null, scenario: "shipped" };
@@ -197,11 +198,13 @@
     var groups = {};
     OPTS.editable.forEach(function (e) { (groups[e.owner] = groups[e.owner] || []).push(e); });
     var dsGroups = Object.keys(groups).filter(function (g) { return g.indexOf("Data sheet") === 0; });
-    var presetOpts = '<option value="">As shipped (data sheet)</option>' + Object.keys(OPTS.presets).map(function (k) {
-      return '<option value="' + k + '"' + (state.preset === k ? " selected" : "") + ">" + esc(OPTS.presets[k]) + "</option>";
-    }).join("");
+    var handEdited = Object.keys(state.edits).some(function (k) { return k.indexOf("ds.") === 0; });
+    var presetOpts = '<option value=""' + (handEdited || state.preset ? "" : " selected") + ">As shipped (data sheet)</option>" + Object.keys(OPTS.presets).map(function (k) {
+      return '<option value="' + k + '"' + (!handEdited && state.preset === k ? " selected" : "") + ">" + esc(OPTS.presets[k]) + "</option>";
+    }).join("") + (handEdited ? '<option value="__custom" selected>Custom (edited by hand)</option>' : "");
     var ds = '<div class="card dsbox"><div class="dshead"><h3>Data sheet values <span class="sub" style="font-weight:400">· what-if: edits override the data sheet and are marked OVERRIDE in the C</span></h3>' +
-      '<label class="inp preset' + (state.preset ? " edited" : "") + '"><span>Market preset</span><select id="preset"' + dis + ">" + presetOpts + "</select></label></div>" +
+      '<div class="presetrow"><label class="inp preset' + (state.preset || handEdited ? " edited" : "") + '"><span>Market preset</span><select id="preset"' + dis + ">" + presetOpts + "</select></label>" +
+      '<button id="reset" class="btn" type="button"' + dis + ">Back to shipped product</button></div></div>" +
       '<div class="dsgrid">' + dsGroups.map(function (g) {
         return '<div><div class="glabel">' + esc(g.split(" · ")[1]) + "</div>" + groups[g].map(function (e) { return field(e, dis); }).join("") + "</div>";
       }).join("") + "</div></div>";
@@ -210,13 +213,13 @@
       (groups.Board || []).map(function (e) { return field(e, dis); }).join("") +
       '<label class="inp' + (state.target !== "f28004x" ? " edited" : "") + '"><span>Target processor</span><select id="target"' + dis + '><option value="f28004x">F28004x-class (float32)</option><option value="f2803x">F2803x-class (IQ20, legacy)</option></select></label></div>';
     var design = '<div class="card"><h3>Design choice <span class="sub" style="font-weight:400">· power engineer</span></h3>' +
-      (groups["Design choice"] || []).map(function (e) { return field(e, dis); }).join("") +
-      '<button id="reset" class="btn" type="button"' + dis + ' style="margin-top:8px">Back to shipped product</button></div>';
+      (groups["Design choice"] || []).map(function (e) { return field(e, dis); }).join("") + "</div>";
     $("inputs").innerHTML = ds + '<div class="inrow">' + board + design + "</div>";
     $("board").value = state.board; $("target").value = state.target;
     $("board").onchange = function () { goCustom(); state.board = this.value; revealReasonsAfter(300); recompute(); };
     $("target").onchange = function () { goCustom(); state.target = this.value; revealReasonsAfter(300); recompute(); };
     $("preset").onchange = function () {
+      if (this.value === "__custom") return; // already custom; nothing to apply
       goCustom();
       state.preset = this.value || null;
       Object.keys(state.edits).forEach(function (k) { if (k.indexOf("ds.") === 0) delete state.edits[k]; });
@@ -376,7 +379,7 @@
     try {
       var py = await loadPyodide({ indexURL: new URL("assets/pyodide/", location.href).href });
       await py.loadPackage(new URL("assets/pyodide/pyyaml-6.0.2-cp312-cp312-pyodide_2024_0_wasm32.whl", location.href).href);
-      var files = await (await fetch("assets/calgen_bundle.json")).json();
+      var files = await (await fetch("assets/calgen_bundle.json" + VER)).json();
       Object.keys(files).forEach(function (p) {
         var full = "/calgen/" + p, dir = full.slice(0, full.lastIndexOf("/"));
         py.FS.mkdirTree(dir); py.FS.writeFile(full, files[p]);

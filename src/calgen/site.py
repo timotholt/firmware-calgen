@@ -13,6 +13,7 @@ No page makes a network request outside the site.
 
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import shutil
@@ -60,7 +61,7 @@ a{color:inherit}.btn{display:inline-block;border:1px solid var(--line);border-ra
 .story{margin:12px 0 0;padding:10px 12px;border-left:3px solid var(--line);font-size:13.5px;line-height:1.45}.story p{margin:4px 0 0;color:var(--muted)}
 .story .res{font-weight:600;margin-top:8px;padding:3px 8px;border-radius:4px;display:inline-block}.story .res.ok{color:var(--ok)}.story .res.bad{color:var(--bad)}
 .editany{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}.editany>summary{cursor:pointer;font-size:14px;font-weight:600;padding:4px 0}
-.editany .inputs{margin-top:8px}.editany .dshead{display:block}.editany .inp.preset{grid-template-columns:minmax(0,1fr) 190px}
+.editany .inputs{margin-top:8px}.editany .dshead{display:block}.editany .inp.preset{grid-template-columns:minmax(0,1fr) 190px}.presetrow{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}.presetrow .inp{flex:1;min-width:240px}.presetrow .btn{margin:0;font:inherit;font-size:13px;cursor:pointer;background:var(--bg);color:var(--fg)}
 .inp.edited select{border-color:var(--warn);background-color:var(--warnbg)}
 .howfix{margin-top:8px;padding-top:6px;border-top:1px solid var(--line);color:var(--fg)}.howfix p{margin:4px 0;color:var(--muted)}
 .applyfix{display:block;width:100%;text-align:left;margin-top:6px;font:inherit;font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid var(--ok);background:var(--okbg);color:var(--ok);cursor:pointer}
@@ -95,7 +96,7 @@ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/sv
 .frow>button:focus-visible{outline:2px solid var(--fg)}.frow .chev{width:12px;color:var(--muted)}.frow .sym{flex:1;min-width:0;overflow-wrap:anywhere}.frow .val{color:var(--muted)}
 .frow.open>button{background:var(--sel);color:var(--selfg)}.frow.open>button .val,.frow.open>button .chev{color:var(--selfg)}
 .fbody{padding:8px 4px 14px 14px;border-left:3px solid var(--fg);margin-left:2px}
-#formulas .frow.open>button{background:var(--soft);color:var(--fg);font-weight:600}#formulas .frow.open>button .chev{color:var(--fg)}#formulas .frow.open>button .val{color:var(--muted)}
+#formulas .frow>button:hover{background:var(--soft)}#formulas .frow>button:hover .sym{text-decoration:underline}#formulas .frow.open>button{background:var(--soft);color:var(--fg);font-weight:600}#formulas .frow.open>button .chev{color:var(--fg)}#formulas .frow.open>button .val{color:var(--muted)}
 #formulas .eq{padding:0}#formulas .katex-display{margin:4px 0}#formulas .katex-display>.katex{text-align:left;font-size:1.15em}
 #formulas .fbody table{width:auto;max-width:100%;margin-top:10px;font-size:12.5px}#formulas .fbody td,#formulas .fbody th{padding:4px 14px 4px 0}#formulas .fbody td:first-child{white-space:nowrap}
 @media (max-width:820px){.pg{grid-template-columns:1fr;grid-template-areas:"ins" "stages" "fms"}.ins{position:static;max-height:none;overflow:visible}}
@@ -130,11 +131,14 @@ def _e(x: object) -> str:
     return html.escape(str(x))
 
 
+ASSET_VERSION = ""  # content hash of site.css, playground.js and the engine bundle; set by build_site
+
+
 def _page(title: str, active: str, body: str, depth: int = 0, extra_head: str = "", scripts: str = "") -> str:
     up = "../" * depth
     nav = "".join(f'<a href="{up}{href}" class="{"on" if href == active else ""}">{_e(label)}</a>' for href, label in NAV)
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{_e(title)}</title><meta name="robots" content="noai, noimageai"><meta name="tdm-reservation" content="1"><meta name="tdm-policy" content="https://github.com/timotholt/firmware-calgen/blob/main/LICENSE"><link rel="stylesheet" href="{up}assets/katex/katex.min.css"><link rel="stylesheet" href="{up}assets/site.css">{extra_head}</head>
+<title>{_e(title)}</title><meta name="robots" content="noai, noimageai"><meta name="tdm-reservation" content="1"><meta name="tdm-policy" content="https://github.com/timotholt/firmware-calgen/blob/main/LICENSE"><link rel="stylesheet" href="{up}assets/katex/katex.min.css"><link rel="stylesheet" href="{up}assets/site.css?v={ASSET_VERSION}">{extra_head}</head>
 <body><main><nav><span class="brand">firmware-calgen</span>{nav}<a href="{REPO}">Source</a></nav>
 {notice_html()}
 {body}
@@ -377,7 +381,7 @@ def page_playground(default: dict, outcomes: dict | None = None) -> str:
 </div>
 <script id="default-data" type="application/json">{_script_json(default)}</script>
 <script id="options" type="application/json">{_script_json(opts)}</script>"""
-    scripts = '<script src="assets/pyodide/pyodide.js"></script><script src="assets/playground.js"></script>'
+    scripts = '<script src="assets/pyodide/pyodide.js"></script><script src="assets/playground.js?v=' + ASSET_VERSION + '"></script>'
     return _page("Playground", "playground.html", body, scripts=scripts)
 
 
@@ -401,9 +405,13 @@ def build_site(root: Path, out: Path, vendor_cache: Path, download: bool = False
         shutil.rmtree(out)
     assets = out / "assets"
     stage(vendor_cache, assets, download=download)
+    js = Path(__file__).with_name("playground.js").read_text(encoding="utf-8")
+    engine = json.dumps(bundle(root))
+    global ASSET_VERSION  # browsers and the Pages CDN cache assets; a new hash forces a fresh copy
+    ASSET_VERSION = hashlib.sha256((SITE_CSS + js + engine).encode()).hexdigest()[:12]
     (assets / "site.css").write_text(SITE_CSS, encoding="utf-8")
-    shutil.copyfile(Path(__file__).with_name("playground.js"), assets / "playground.js")
-    (assets / "calgen_bundle.json").write_text(json.dumps(bundle(root)), encoding="utf-8")
+    (assets / "playground.js").write_text(js, encoding="utf-8")
+    (assets / "calgen_bundle.json").write_text(engine, encoding="utf-8")
     corpus, cands, conf = audit_results(root, specs, rules)
     nano = [x[0] for x in model_runs(corpus, cands, rules).get("gpt-5.4-nano", [])]
     ai = {k: (sum(x.pct(getattr(x, k)) for x in nano) / len(nano) if nano else 0.0) for k in ("rule", "category", "units")}
