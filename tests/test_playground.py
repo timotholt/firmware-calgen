@@ -193,3 +193,14 @@ def test_nonrepresentable_frequency_updates_both_inductor_requirements(target, c
     for stage, current in [('rect', 20), ('out', 12.5)]:
         assert result['inductors'][stage]['l_uh'] == pytest.approx(410 / (4 * achieved * .3 * math.sqrt(2) * current) * 1e6)
     assert all(s['current'] != '23 kHz' for s in result['staleness'])
+
+
+@pytest.mark.parametrize('product', ['FA10449', 'FA10434', 'FA10507'])
+def test_published_specs_remain_independent_of_experiment(product):
+    original = run(SPECS, product=product)['product_specs']
+    experiment = run(SPECS, product=product, board_rev='B', target='f2803x',
+                     edits={'ds.vout_nom': 230}, preset='eu')['product_specs']
+    assert experiment == original
+    assert original['part'] == product
+    assert all(row['raw'] and row['source'].startswith('DS-') for row in original['rows'])
+    assert any('120' in row['raw'] for row in original['rows'])

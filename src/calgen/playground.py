@@ -163,6 +163,25 @@ def run(specs: str | Path, product: str = "FA10507", board_rev: str = "A", targe
     # The UI always promises a diff against the shipped product, including board/target changes.
     base_header = header(default)
     out = to_json(b, base_header)
+    # Published cells stay independent of every what-if and hardware selection.
+    fields = ["power_va", "vin_min", "fin_nom_lo", "iin_max", "vout_nom", "fout_hz",
+              "overload_trip_pct", "isolation", "pfc", "batt_type", "batt_string_v"]
+    published = base.datasheet.params
+    seen = set()
+    rows = []
+    for name in fields:
+        p = published.get(name)
+        if p is None or (p.label, p.raw) in seen:
+            continue
+        seen.add((p.label, p.raw))
+        rows.append({"label": p.label, "raw": p.raw, "source": p.source})
+    out["product_specs"] = {
+        "part": base.datasheet.part,
+        "brief": f"{published['power_va'].value:g} VA · {published['vout_nom'].value:g} V AC",
+        "rows": rows,
+        "findings": [{"message": d.finding.message, "note": d.note} for d in default.datasheet],
+        "inverter_assumption": base.inverter.label,
+    }
     out["shipped_inputs"] = to_json(default)["inputs"]
     out["baseline"] = {k: v[0] for k, v in baseline.items()}
     out["changed"] = [c.rule.id for c in b.constants if _differs(baseline.get(c.rule.id), c)]

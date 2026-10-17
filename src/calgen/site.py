@@ -135,7 +135,7 @@ ASSET_VERSION = ""  # content hash of site.css, playground.js and the engine bun
 
 def _page(title: str, active: str, body: str, depth: int = 0, extra_head: str = "", scripts: str = "") -> str:
     up = "../" * depth
-    primary = [("index.html", "Overview"), ("magnetics.html", "Magnetics"), ("playground.html", "Firmware")]
+    primary = [("index.html", "Overview"), ("playground.html", "Firmware"), ("magnetics.html", "Magnetics")]
     evidence = [(href, label) for href, label in NAV if href not in {h for h, _ in primary} and href != "backstory.html"]
     nav = '<div class="navlinks">' + "".join(f'<a href="{up}{href}?v={ASSET_VERSION}" class="{"on" if href == active else ""}" {"aria-current=page" if href == active else ""}>{_e(label)}</a>' for href, label in primary)
     nav += '<details class="navmore' + (' on' if active in {h for h, _ in evidence} else '') + '"><summary>Evidence</summary><div class="navmenu">'
@@ -524,6 +524,7 @@ def page_backstory(ai: dict[str, float]) -> str:
 def page_playground(default: dict) -> str:
     opts = playground.options()
     body = f"""<header class="workspace-heading"><div><h1>Firmware workspace</h1><p>Trace every change from specification to C.</p></div><div id="configuration" class="configuration" aria-label="Product and hardware"></div></header>
+<details id="product-specs" class="product-specs"><summary id="product-spec-summary">Product specs</summary><div id="product-spec-content"></div></details>
 <div class="workspace-meta"><p>Synthetic hardware · Public product ratings · Local computation</p><div id="engine" class="engine" role="status">Showing pre-computed results · loading the in-browser engine…</div></div>
 <div class="pg">
 <section class="ins workspace-panel" aria-label="Inputs"><h2 class="panel-title">Inputs</h2><div id="inputs" class="inputs"></div><div id="input-actions" class="input-actions"></div></section>

@@ -119,6 +119,17 @@
     $("reset").onclick = function () { mutate(resetProduct); };
   }
 
+  function renderProductSpecs() {
+    var spec = DATA.product_specs;
+    if (!spec) return;
+    $("product-spec-summary").textContent = 'Product specs · ' + spec.part + ' · ' + spec.brief;
+    $("product-spec-content").innerHTML = '<p class="spec-note">Published ratings · read only. Market presets and what-if edits below do not change this reference.</p>' +
+      '<div class="spec-table-scroll"><table><thead><tr><th>Rating</th><th>Published value</th><th>Source</th></tr></thead><tbody>' +
+      spec.rows.map(function (r) { return '<tr><th scope="row">' + esc(r.label) + '</th><td>' + esc(r.raw) + '</td><td>' + esc(r.source) + '</td></tr>'; }).join('') + '</tbody></table></div>' +
+      (spec.findings.length ? '<div class="spec-findings"><b>Source findings and interpretations</b><ul>' + spec.findings.map(function (f) { return '<li>' + esc(f.message) + (f.note ? ' ' + esc(f.note) : '') + '</li>'; }).join('') + '</ul></div>' : '') +
+      '<p class="spec-note"><b>Demo assumptions:</b> ' + esc(spec.inverter_assumption) + '. Board sensing, DC bus targets, switching choices, and protection factors are illustrative engineering inputs. <a href="how.html#assumptions">Review assumptions →</a></p>';
+  }
+
   function changeRows(limit) {
     var ids = DATA.changed || [];
     return ids.slice(0, limit || ids.length).map(function (id) {
@@ -519,7 +530,7 @@
     return k ? k.block : DATA.staleness.some(function (x) { return x.status === "fail"; }) ? "inv" : null;
   }
 
-  function render() { renderConfiguration(); renderProbs(); renderFlow(); renderInputs(); renderFormulas(); flashChanges(); prev = null; }
+  function render() { renderConfiguration(); renderProductSpecs(); renderProbs(); renderFlow(); renderInputs(); renderFormulas(); flashChanges(); prev = null; }
 
   function recompute() {
     if (!engine) return;
