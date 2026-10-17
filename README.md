@@ -100,7 +100,7 @@ Worked by hand (the review report and site typeset this from the same syntax tre
 
 $$I_\text{rated} = \frac{S}{V_\text{out}} = \frac{1500\ \text{VA}}{120\ \text{V}} = 12.5\ \text{A} \qquad I_\text{trip} = 12.5\ \text{A} \times 1.20 = 15\ \text{A} \qquad I_\text{trip,pk} = \sqrt{2}\cdot 15\ \text{A} = 21.21\ \text{A}$$
 
-$$N_\text{DAC,hi} = \operatorname{round}\!\left(\frac{\tfrac{3.3}{2}\ \text{V} + 21.21\ \text{A}\cdot 5\ \text{m}\Omega \cdot 10}{3.3\ \text{V}}\cdot 4095\right) = \operatorname{round}(3363.68) = 3364$$
+$$N_\text{DAC,hi} = \mathrm{round}\!\left(\frac{\tfrac{3.3}{2}\ \text{V} + 21.21\ \text{A}\cdot 5\ \text{m}\Omega \cdot 10}{3.3\ \text{V}}\cdot 4095\right) = \mathrm{round}(3363.68) = 3364$$
 
 ## Where AI is used, and where it is not
 
