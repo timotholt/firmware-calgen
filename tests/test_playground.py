@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 from calgen.playground import run
 
 SPECS = Path(__file__).resolve().parent.parent / "specs"
@@ -105,3 +107,13 @@ def test_failure_offers_fix_that_actually_passes():
     for s in check["suggest"]:
         fixed = run(SPECS, board_rev="B", edits={s["key"]: s["value"]})
         assert fixed["ok"], (s, fixed["failures"])
+
+
+def test_protection_numbers_for_gauge_and_waveform():
+    a = run(SPECS, "FA10507")["protection"]
+    assert a["sensor_fs"] == pytest.approx(82.5) and a["peak_limit"] == pytest.approx(43.75)
+    assert a["crest_pk"] == pytest.approx(37.5)
+    assert a["crest_pk"] < a["peak_limit"] <= a["headroom"] * a["sensor_fs"]
+    b = run(SPECS, "FA10507", "B")["protection"]
+    assert b["sensor_fs"] == pytest.approx(41.25)
+    assert b["sensor_fs"] < b["peak_limit"]  # rev B: the limit is off the sensor's scale

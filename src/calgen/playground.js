@@ -110,6 +110,74 @@
     });
   }
 
+  // ---- current-protection visuals (drawing only; numbers come from Python) ----
+  function f1(x) { return (Math.round(x * 10) / 10).toString(); }
+  function gaugeSvg(p) {
+    if (!p) return "";
+    var S = Math.max(p.sensor_fs, p.peak_limit) * 1.1, C = 300, R = 270;
+    function x(a) { return C + a / S * R; }
+    function rect(cls, a, b) { return '<rect class="' + cls + '" x="' + x(a).toFixed(1) + '" y="28" width="' + (x(b) - x(a)).toFixed(1) + '" height="14"/>'; }
+    var over = p.peak_limit > p.headroom * p.sensor_fs;
+    var g = '<svg class="viz gauge" viewBox="0 0 600 80" role="img" aria-label="Current sensor range plus or minus ' + f1(p.sensor_fs) +
+      " A; hardware peak limit " + f1(p.peak_limit) + " A" + (over ? ", outside the usable range" : "") + '">';
+    if (p.peak_limit > p.sensor_fs) g += rect("g-blind", -S, -p.sensor_fs) + rect("g-blind", p.sensor_fs, S);
+    g += rect("g-bar", -p.sensor_fs, p.sensor_fs) + rect("g-head", p.headroom * p.sensor_fs, p.sensor_fs) + rect("g-head", -p.sensor_fs, -p.headroom * p.sensor_fs);
+    g += '<line class="g-mid" x1="300" y1="24" x2="300" y2="46"/><text class="g-t" x="300" y="60" text-anchor="middle">0 A = mid-rail</text>';
+    var marks = [[p.rated_pk, "g-m", "rated " + f1(p.rated_pk)], [p.crest_pk, "g-m", p.crest + ":1 load " + f1(p.crest_pk)],
+      [p.peak_limit, over ? "g-lim bad" : "g-lim", "limit " + f1(p.peak_limit) + " A"]];
+    marks.forEach(function (m, i) {
+      [1, -1].forEach(function (sg) { g += '<line class="' + m[1] + '" x1="' + x(sg * m[0]).toFixed(1) + '" y1="24" x2="' + x(sg * m[0]).toFixed(1) + '" y2="46"/>'; });
+      g += '<text class="g-t ' + m[1] + '" x="' + x(m[0]).toFixed(1) + '" y="' + (i === 1 ? 74 : 18) + '" text-anchor="middle">' + esc(m[2]) + "</text>";
+    });
+    g += '<text class="g-t" x="' + x(p.sensor_fs).toFixed(1) + '" y="60" text-anchor="end">sensor ±' + f1(p.sensor_fs) + " A</text>";
+    return g + "</svg>";
+  }
+  function crestShape(cf) { // exponent k so that |sin|^k has the requested peak/RMS ratio
+    var lo = 1, hi = 40;
+    for (var it = 0; it < 30; it++) {
+      var k = (lo + hi) / 2, m = 0;
+      for (var i = 0; i < 360; i++) m += Math.pow(Math.abs(Math.sin(i * Math.PI / 180)), 2 * k);
+      if (1 / Math.sqrt(m / 360) < cf) lo = k; else hi = k;
+    }
+    return (lo + hi) / 2;
+  }
+  function waveSvg(p) {
+    if (!p) return "";
+    var S = Math.max(p.sensor_fs, p.peak_limit) * 1.1, W = 600, M = 75, A = 68, k = crestShape(p.crest);
+    var over = p.peak_limit > p.headroom * p.sensor_fs;
+    function y(a) { return (M - a / S * A).toFixed(1); }
+    function hline(cls, a) { return '<line class="' + cls + '" x1="0" x2="' + W + '" y1="' + y(a) + '" y2="' + y(a) + '"/>'; }
+    function path(fn) { var d = ""; for (var i = 0; i <= 300; i++) { var t = i / 300 * 4 * Math.PI; d += (i ? "L" : "M") + (i * 2) + " " + y(fn(t)); } return d; }
+    var sw = '<svg class="viz wave" viewBox="0 0 600 150" role="img" aria-label="Output current over two cycles: a ' + p.crest +
+      ":1 crest-factor load peaking at " + f1(p.crest_pk) + " A against a " + f1(p.peak_limit) + ' A hardware peak limit">';
+    sw += '<rect class="w-band" x="0" y="' + y(p.sensor_fs) + '" width="' + W + '" height="' + (y(-p.sensor_fs) - y(p.sensor_fs)).toFixed(1) + '"/>';
+    sw += hline("w-axis", 0) + hline("w-ol", p.overload_rms) + hline("w-ol", -p.overload_rms) +
+      hline("w-lim" + (over ? " bad" : ""), p.peak_limit) + hline("w-lim" + (over ? " bad" : ""), -p.peak_limit);
+    sw += '<path class="w-sine" d="' + path(function (t) { return p.rated_pk * Math.sin(t); }) + '"/>';
+    sw += '<path class="w-load" d="' + path(function (t) { var v = Math.sin(t); return p.crest_pk * (v < 0 ? -1 : 1) * Math.pow(Math.abs(v), k); }) + '"/>';
+    sw += "</svg>";
+    var key = '<div class="wkey">' +
+      '<span><i class="k-load"></i>' + p.crest + ":1 crest-factor load at rated " + f1(p.rated_rms) + " A RMS (illustrative)</span>" +
+      '<span><i class="k-sine"></i>sine at rated current</span>' +
+      '<span><i class="k-ol"></i>RMS overload ' + f1(p.overload_rms) + " A: timed, software</span>" +
+      '<span><i class="k-lim' + (over ? " bad" : "") + '"></i>peak limit ' + f1(p.peak_limit) + " A: instant, hardware</span>" +
+      '<span><i class="k-band"></i>sensor range ±' + f1(p.sensor_fs) + " A</span></div>";
+    return sw + key;
+  }
+
+  // ---- C syntax highlighting (display only; the download is the raw text) ----
+  function hlC(text) {
+    var re = /(\/\*[\s\S]*?\*\/)|(^[ \t]*#[ \t]*\w+)|(\b0x[0-9a-fA-F]+[uUlL]*\b|\b\d+(?:\.\d+)?(?:[eE][-+]?\d+)?[fFuUlL]*\b)|(\b(?:UPS|CALGEN)_\w+\b)/gm;
+    var out = "", last = 0, m;
+    while ((m = re.exec(text))) {
+      out += esc(text.slice(last, m.index));
+      var cls = m[1] ? (/OVERRIDE/.test(m[1]) ? "c-com c-ovr" : "c-com") : m[2] ? "c-pp" : m[3] ? "c-num" : "c-name";
+      out += '<span class="' + cls + '">' + esc(m[0]) + "</span>";
+      last = re.lastIndex;
+    }
+    return out + esc(text.slice(last));
+  }
+
   // ---- vertical power flow -----------------------------------------------
   function stageBox(b) {
     var rows = FLOW[b].map(function (id) {
@@ -120,6 +188,7 @@
     if (b === "out" && DATA.summaries && DATA.summaries.sense) {
       var sat = DATA.summaries.sense.indexOf("SATURATES") >= 0;
       summary += '<div class="sense' + (sat ? " bad" : "") + '">' + esc(DATA.summaries.sense) + "</div>";
+      summary += gaugeSvg(DATA.protection) + waveSvg(DATA.protection);
     }
     var any = DATA.constants.some(function (c) { return c.block === b && changed(c.id); });
     return '<div class="fb' + (state.stage === b ? " sel" : "") + (stageBad(b) ? " bad" : "") + (any ? " has-chg" : "") +
@@ -279,7 +348,7 @@
         }).join("");
       }
     } else if (state.tab === "c") {
-      out = DATA.header ? '<p><a class="btn" id="dl" href="#">Download calgen_' + esc(DATA.variant) + ".h</a></p><pre>" + esc(DATA.header) + "</pre>"
+      out = DATA.header ? '<p><a class="btn" id="dl" href="#">Download calgen_' + esc(DATA.variant) + ".h</a></p><pre class=\"code\">" + hlC(DATA.header) + "</pre>"
         : '<p class="alert bad">Not generated: ' + esc(DATA.gate_message) + "</p>";
     } else {
       out = DATA.diff ? "<pre>" + DATA.diff.split("\n").map(function (l) {

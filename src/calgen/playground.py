@@ -231,6 +231,31 @@ def _sense_line(val: dict, headroom_pct: float | None) -> str:
     return f"Current sensor ±{fs.value:.1f} A peak · hardware peak limit {pk.value:.1f} A uses {used:.0f}% (max {limit:g}%) · {verdict}"
 
 
+CREST_FACTOR = 3.0  # illustrative computer-type load (peak / RMS), the case pk_limit_factor is chosen to clear
+
+
+def protection(b: Build) -> dict | None:
+    """Current-protection numbers for the gauge and waveform, in amps (drawing only; no new math)."""
+    import math
+
+    val = {c.rule.id: c for c in b.constants}
+    need = ("iout_rated", "iout_trip", "iout_pk_limit", "iout_fs_pk")
+    if not all(val.get(k) is not None and val[k].value is not None for k in need):
+        return None
+    rated = val["iout_rated"].value
+    head = b.env.get("design.sense_headroom")
+    return {
+        "rated_rms": rated,
+        "rated_pk": math.sqrt(2) * rated,
+        "crest": CREST_FACTOR,
+        "crest_pk": CREST_FACTOR * rated,
+        "overload_rms": val["iout_trip"].value,
+        "peak_limit": val["iout_pk_limit"].value,
+        "sensor_fs": val["iout_fs_pk"].value,
+        "headroom": head.value if head is not None else 0.95,
+    }
+
+
 def suggestions(b: Build) -> dict[str, list[dict]]:
     """Concrete, one-click fixes for failures where the arithmetic is simple. check id -> suggestions."""
     import math
@@ -311,6 +336,7 @@ def to_json(b: Build, base_header: str | None = None) -> dict:
         "diff": diff,
         "inputs": {f"{kind}.{name}": _input_value(b, kind, name, unit) for kind, name, unit, _, _ in EDITABLE},
         "summaries": summaries(b),
+        "protection": protection(b),
         "footnote": "* single-phase is implied by the IEC C14 inlet and NEMA 5-15 outlets on the data sheet, not stated as a rating",
     }
 
