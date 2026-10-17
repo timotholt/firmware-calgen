@@ -204,3 +204,28 @@ def test_published_specs_remain_independent_of_experiment(product):
     assert original['part'] == product
     assert all(row['raw'] and row['source'].startswith('DS-') for row in original['rows'])
     assert any('120' in row['raw'] for row in original['rows'])
+
+
+@pytest.mark.parametrize('product', ['FA10449', 'FA10434', 'FA10507'])
+@pytest.mark.parametrize('target', ['f28004x', 'f2803x'])
+@pytest.mark.parametrize('board', ['A', 'B'])
+def test_protection_thresholds_decode_only_representable_dac_codes(product, target, board):
+    r = run(SPECS, product, board, target)
+    p = r['protection']
+    assert p['sensor_ok'] == (p['peak_limit'] <= p['sensor_usable'])
+    if p['codes_valid']:
+        assert 0 < p['trip_hi'] <= p['peak_limit']
+        assert -p['peak_limit'] <= p['trip_lo'] < 0
+        assert p['peak_margin'] == pytest.approx(min(p['trip_hi'], -p['trip_lo']) - p['crest_pk'])
+    else:
+        assert p['trip_hi'] is None and p['trip_lo'] is None and p['peak_margin'] is None
+    if product == 'FA10507' and board == 'B':
+        assert not p['codes_valid'] and not p['sensor_ok']
+
+
+def test_protection_checks_are_independent_and_invalid_load_is_not_drawn():
+    p = run(SPECS, edits={'design.pk_limit_factor': 2.5})['protection']
+    assert p['sensor_ok'] and p['codes_valid'] and p['peak_margin'] < 0
+    p = run(SPECS, edits={'ds.overload_trip_pct': 90})['protection']
+    assert not p['overload_ok'] and p['sensor_ok'] and p['peak_margin'] > 0
+    assert run(SPECS, edits={'ds.power_va': 0})['protection'] is None

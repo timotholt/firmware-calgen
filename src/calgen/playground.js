@@ -196,101 +196,61 @@
   }
 
   // ---- current-protection visuals (drawing only; numbers come from Python) ----
-  function f1(x) { return (Math.round(x * 100) / 100).toString(); }  // up to 2 decimals: 43.75, not 43.8
-  function gaugeSvg(p) {
-    if (!p) return "";
-    var S = Math.max(p.sensor_fs, p.peak_limit) * 1.1, C = 300, R = 270;
-    function x(a) { return C + a / S * R; }
-    function rect(cls, a, b) { return '<rect class="' + cls + '" x="' + x(a).toFixed(1) + '" y="28" width="' + (x(b) - x(a)).toFixed(1) + '" height="14"/>'; }
-    var over = p.peak_limit > p.headroom * p.sensor_fs;
-    var g = '<svg class="viz gauge" viewBox="0 0 600 80" role="img" aria-label="Current sensor range plus or minus ' + f1(p.sensor_fs) +
-      " A; hardware peak limit " + f1(p.peak_limit) + " A" + (over ? ", outside the usable range" : "") + '">';
-    if (p.peak_limit > p.sensor_fs) g += rect("g-blind", -S, -p.sensor_fs) + rect("g-blind", p.sensor_fs, S);
-    g += rect("g-bar", -p.sensor_fs, p.sensor_fs) + rect("g-head", p.headroom * p.sensor_fs, p.sensor_fs) + rect("g-head", -p.sensor_fs, -p.headroom * p.sensor_fs);
-    g += '<line class="g-mid" x1="300" y1="24" x2="300" y2="46"/><text class="g-t" x="300" y="60" text-anchor="middle">0 A = mid-rail</text>';
-    var marks = [[p.rated_pk, "g-m", "rated " + f1(p.rated_pk) + " A"], [p.crest_pk, "g-m", p.crest + ":1 load " + f1(p.crest_pk) + " A"],
-      [p.peak_limit, over ? "g-lim bad" : "g-lim", "limit " + f1(p.peak_limit) + " A"]];
-    marks.forEach(function (m, i) {
-      [1, -1].forEach(function (sg) { g += '<line class="' + m[1] + '" x1="' + x(sg * m[0]).toFixed(1) + '" y1="24" x2="' + x(sg * m[0]).toFixed(1) + '" y2="46"/>'; });
-      g += '<text class="g-t ' + m[1] + '" x="' + x(m[0]).toFixed(1) + '" y="' + (i === 1 ? 74 : 18) + '" text-anchor="middle">' + esc(m[2]) + "</text>";
-    });
-    g += '<text class="g-t" x="' + x(p.sensor_fs).toFixed(1) + '" y="60" text-anchor="end">sensor ±' + f1(p.sensor_fs) + " A</text>";
-    return g + "</svg>";
-  }
-  // Capacitor-input (computer-type) load: the rectifier conducts only for a short window
-  // before each voltage peak, while the line voltage exceeds the capacitor voltage. Drawn as
-  // a half-sine current pulse of width W per half-cycle; for crest factor CF the width is
-  // W = 2*pi / CF^2 (so the RMS equals the rated current), and the pulse ends just after the
-  // voltage peak, so it peaks before it, as measured rectifier currents do.
+  function f1(x) { return x !== 0 && Math.abs(x) < 0.01 ? Number(x.toPrecision(3)).toString() : (Math.round(x * 100) / 100).toString(); }  // up to 2 decimals: 43.75, not 43.8
+  // Illustrative half-sine pulses; width 2*pi/CF^2 preserves RMS for CF >= sqrt(2).
+  // Pulse placement is a visual choice, not a prediction of rectifier conduction timing.
   function pulse(theta, cf) {
-    var w = 2 * Math.PI / (cf * cf), end = Math.PI / 2 + 0.08, start = end - w;
+    var w = 2 * Math.PI / (cf * cf), start = Math.PI / 2 - w / 2, end = start + w;
     var t = ((theta % Math.PI) + Math.PI) % Math.PI, sgn = (theta % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) < Math.PI ? 1 : -1;
     return t >= start && t <= end ? sgn * Math.sin(Math.PI * (t - start) / w) : 0;
   }
+  var showSine = false;
+  function tripText(x) { return x !== 0 && Math.abs(x) < 0.001 ? Number(x.toPrecision(3)).toString() : x.toFixed(3).replace(/\.?0+$/, ''); }
   function waveSvg(p) {
-    if (!p) return "";
-    // One cycle of instantaneous current (an RMS threshold has no meaning on this axis),
-    // scaled to the hardware limit, with real axes and the headroom the limit leaves.
-    var S = Math.max(p.peak_limit, p.crest_pk) * 1.18, W = 600, H = 210, ml = 44, mr = 12, mt = 10, mb = 26;
-    var pw = W - ml - mr, ph = H - mt - mb, M = mt + ph / 2, A = ph / 2;
-    var over = p.peak_limit > p.headroom * p.sensor_fs, period = 1000 / (p.f_hz || 60);
+    var hi = p.codes_valid ? p.trip_hi : p.peak_limit, lo = p.codes_valid ? p.trip_lo : -p.peak_limit;
+    var S = Math.max(Math.abs(hi), Math.abs(lo), p.crest_pk, p.rated_pk) * 1.2;
+    var W = 600, H = 250, ml = 48, mr = 18, mt = 18, mb = 46;
+    var pw = W - ml - mr, ph = H - mt - mb, M = mt + ph / 2;
     function x(t) { return ml + t / (2 * Math.PI) * pw; }
-    function y(a) { return M - a / S * A; }
-    function hline(cls, a) { return '<line class="' + cls + '" x1="' + ml + '" x2="' + (ml + pw) + '" y1="' + y(a).toFixed(1) + '" y2="' + y(a).toFixed(1) + '"/>'; }
-    function path(fn) { var d = ""; for (var i = 0; i <= 400; i++) { var t = i / 400 * 2 * Math.PI; d += (i ? "L" : "M") + x(t).toFixed(1) + " " + y(fn(t)).toFixed(1); } return d; }
-    var sw = '<svg class="viz wave" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="One cycle of output current: a ' + p.crest +
-      ":1 rectifier load peaking at " + f1(p.crest_pk) + " A and a linear load peaking at " + f1(p.rated_pk) + " A, both " + f1(p.rated_rms) +
-      " A RMS, against a " + f1(p.peak_limit) + ' A hardware limit">';
-    if (p.sensor_fs < S) {  // the sensor's blind range, only when it falls inside the plot (rev B)
-      sw += '<rect class="w-blind" x="' + ml + '" y="' + mt + '" width="' + pw + '" height="' + (y(p.sensor_fs) - mt).toFixed(1) + '"/>' +
-        '<rect class="w-blind" x="' + ml + '" y="' + y(-p.sensor_fs).toFixed(1) + '" width="' + pw + '" height="' + (mt + ph - y(-p.sensor_fs)).toFixed(1) + '"/>';
-    }
-    // axes: current ticks every 10 or 20 A, time ticks at quarter cycles in ms
-    var step = S > 45 ? 20 : 10;
+    function y(a) { return M - a / S * ph / 2; }
+    function line(cls, value) { return '<line class="' + cls + '" x1="' + ml + '" x2="' + (ml + pw) + '" y1="' + y(value).toFixed(2) + '" y2="' + y(value).toFixed(2) + '"/>'; }
+    function path(fn) { var d = ''; for (var i = 0; i <= 800; i++) { var t = i / 800 * 2 * Math.PI; d += (i ? 'L' : 'M') + x(t).toFixed(2) + ' ' + y(fn(t)).toFixed(2); } return d; }
+    var s = '<svg class="viz wave" viewBox="0 0 600 250" role="img" aria-label="Illustrative load current over one cycle: ' + f1(p.rated_rms) + ' A RMS, ' + f1(p.crest_pk) + ' A peak. ' + (p.codes_valid ? 'Programmed comparator thresholds shown.' : 'Requested thresholds only; DAC codes invalid.') + '">';
+    var rough = S / 3, magnitude = Math.pow(10, Math.floor(Math.log10(rough)));
+    var step = [1, 2, 5, 10].map(function (n) { return n * magnitude; }).find(function (n) { return n >= rough; });
     for (var a = -Math.floor(S / step) * step; a <= S; a += step) {
-      sw += '<line class="w-grid" x1="' + ml + '" x2="' + (ml + pw) + '" y1="' + y(a).toFixed(1) + '" y2="' + y(a).toFixed(1) + '"/>' +
-        '<text class="g-t" x="' + (ml - 6) + '" y="' + (y(a) + 4).toFixed(1) + '" text-anchor="end">' + a + "</text>";
+      s += line(a === 0 ? 'w-axis' : 'w-grid', a) + '<text class="g-t" x="' + (ml - 7) + '" y="' + (y(a) + 4).toFixed(2) + '" text-anchor="end">' + f1(a) + '</text>';
     }
     for (var q = 0; q <= 4; q++) {
       var tx = ml + q / 4 * pw;
-      sw += '<line class="w-axis" x1="' + tx.toFixed(1) + '" x2="' + tx.toFixed(1) + '" y1="' + (mt + ph) + '" y2="' + (mt + ph + 4) + '"/>' +
-        '<text class="g-t" x="' + tx.toFixed(1) + '" y="' + (mt + ph + 16) + '" text-anchor="' + (q === 0 ? "start" : q === 4 ? "end" : "middle") + '">' + (period * q / 4).toFixed(1) + (q === 4 ? " ms" : "") + "</text>";
+      s += '<text class="g-t" x="' + tx + '" y="' + (mt + ph + 18) + '" text-anchor="' + (q === 0 ? 'start' : q === 4 ? 'end' : 'middle') + '">' + (q / 4) + '</text>';
     }
-    sw += '<text class="g-t" x="4" y="' + (mt + 10) + '">A</text>';
-    sw += '<line class="w-axis" x1="' + ml + '" x2="' + ml + '" y1="' + mt + '" y2="' + (mt + ph) + '"/>' + hline("w-axis", 0);
-    sw += hline("w-lim" + (over ? " bad" : ""), p.peak_limit) + hline("w-lim" + (over ? " bad" : ""), -p.peak_limit);
-    sw += '<text class="g-t" x="' + (ml + pw - 4) + '" y="' + (y(p.peak_limit) - 5).toFixed(1) + '" text-anchor="end">hardware limit ±' + f1(p.peak_limit) + " A</text>";
-    sw += '<path class="w-sine" d="' + path(function (t) { return p.rated_pk * Math.sin(t); }) + '"/>';
-    sw += '<path class="w-load" d="' + path(function (t) { return p.crest_pk * pulse(t, p.crest); }) + '"/>';
-    // headroom bracket between the first pulse's peak and the limit
-    var w = 2 * Math.PI / (p.crest * p.crest), tpk = Math.PI / 2 + 0.08 - w / 2, bx = x(tpk) + 26;
-    var y1 = y(p.crest_pk), y2 = y(p.peak_limit), gap = p.peak_limit - p.crest_pk;
-    sw += '<line class="w-br' + (over ? " bad" : "") + '" x1="' + bx.toFixed(1) + '" x2="' + bx.toFixed(1) + '" y1="' + y1.toFixed(1) + '" y2="' + y2.toFixed(1) + '"/>' +
-      '<line class="w-br' + (over ? " bad" : "") + '" x1="' + (bx - 4).toFixed(1) + '" x2="' + (bx + 4).toFixed(1) + '" y1="' + y1.toFixed(1) + '" y2="' + y1.toFixed(1) + '"/>' +
-      '<line class="w-br' + (over ? " bad" : "") + '" x1="' + (bx - 4).toFixed(1) + '" x2="' + (bx + 4).toFixed(1) + '" y1="' + y2.toFixed(1) + '" y2="' + y2.toFixed(1) + '"/>' +
-      '<text class="g-t w-brt' + (over ? " bad" : "") + '" x="' + (bx + 8).toFixed(1) + '" y="' + ((y1 + y2) / 2 + 4).toFixed(1) + '">' +
-      (over ? "" : f1(gap) + " A headroom (" + Math.round(gap / p.crest_pk * 100) + "%)") + "</text>";
-    sw += "</svg>";
-    var key = '<div class="wkey">' +
-      '<span><i class="k-load"></i>' + p.crest + ":1 rectifier load: " + f1(p.rated_rms) + " A RMS, " + f1(p.crest_pk) + " A peak (illustrative)</span>" +
-      '<span><i class="k-sine"></i>linear load: ' + f1(p.rated_rms) + " A RMS, " + f1(p.rated_pk) + " A peak</span>" +
-      '<span><i class="k-lim' + (over ? " bad" : "") + '"></i>hardware peak limit: instant</span>' +
-      (p.sensor_fs < S ? '<span><i class="k-blind"></i>beyond the sensor\'s ±' + f1(p.sensor_fs) + " A range</span>" : "") + "</div>";
-    return sw + key;
+    s += '<text class="g-t" x="' + ml + '" y="11">Current (A)</text><text class="g-t" x="' + (ml + pw / 2) + '" y="246" text-anchor="middle">Cycle position (cycles)</text>';
+    s += line('w-lim' + (p.codes_valid ? '' : ' bad'), hi) + line('w-lim' + (p.codes_valid ? '' : ' bad'), lo);
+    if (showSine) s += '<path class="w-sine" d="' + path(function (t) { return p.rated_pk * Math.sin(t); }) + '"/>';
+    s += '<path class="w-load" d="' + path(function (t) { return p.crest_pk * pulse(t, p.crest); }) + '"/></svg>';
+    s += '<div class="wkey"><span><i class="k-load"></i>Illustrative load · crest factor ' + p.crest + ' · ' + f1(p.rated_rms) + ' A RMS · ' + f1(p.crest_pk) + ' A peak</span>';
+    s += '<span><i class="k-lim' + (p.codes_valid ? '' : ' bad') + '"></i>' + (p.codes_valid ? 'Programmed trip thresholds: ' + (hi >= 0 ? '+' : '−') + tripText(Math.abs(hi)) + ' / ' + (lo >= 0 ? '+' : '−') + tripText(Math.abs(lo)) + ' A' : 'Requested thresholds: ±' + f1(p.peak_limit) + ' A · DAC codes invalid') + '</span></div>';
+    if (showSine) s += '<p class="reference-key">Dashed gray: sinusoidal reference · ' + f1(p.rated_pk) + ' A peak · same RMS current.</p>';
+    s += '<label class="wave-toggle"><input type="checkbox" id="wave-sine"' + (showSine ? ' checked' : '') + '> Show sinusoidal reference · same RMS current</label>';
+    s += '<p class="wnote">Constructed waveform, not measured or simulated rectifier behavior. Crest factor fixes peak/RMS, not pulse shape or timing. Switching ripple, transients, tolerances, and trip-response delays are not modeled.</p>';
+    return s;
   }
-  // The other protection layer, in its own units: RMS current against the timed overload trip.
-  function rmsBar(p) {
-    var mx = p.overload_rms * 1.35, W = 600, ml = 44, mr = 12, pw = W - ml - mr;
-    function x(v) { return ml + Math.min(v, mx) / mx * pw; }
-    var s = '<svg class="viz rmsbar" viewBox="0 0 ' + W + ' 54" role="img" aria-label="RMS current ' + f1(p.rated_rms) + " A against the " + f1(p.overload_rms) + ' A timed overload trip">' +
-      '<text class="g-t" x="4" y="25">RMS</text>' +
-      '<rect class="r-bar" x="' + ml + '" y="14" width="' + pw + '" height="16" rx="3"/>' +
-      '<rect class="r-val" x="' + ml + '" y="17" width="' + (x(p.rated_rms) - ml).toFixed(1) + '" height="10" rx="2"/>' +
-      '<line class="r-trip" x1="' + x(p.overload_rms).toFixed(1) + '" x2="' + x(p.overload_rms).toFixed(1) + '" y1="8" y2="36"/>' +
-      '<text class="g-t r-in" x="' + (ml + 6) + '" y="26">either load: ' + f1(p.rated_rms) + ' A RMS</text>' +
-      '<text class="g-t r-tript" x="' + (x(p.overload_rms) - 4).toFixed(1) + '" y="48" text-anchor="end">overload trip ' + f1(p.overload_rms) + " A RMS" +
-      (p.overload_delay_s ? ", after " + p.overload_delay_s + " s" : "") + " (software)</text></svg>";
-    return s + '<p class="wnote">Two protection layers in their own units: the hardware limit acts on every instantaneous peak; the overload acts on RMS current over time.</p>';
+  function protectionChecks(p) {
+    function card(id, status, title, value, detail) {
+      return '<section class="protection-check ' + status + '" data-check="' + id + '"><div><b>' + title + '</b><span class="check-status">' + ({ok:'Within modeled bounds',bad:'Outside modeled bounds',na:'Unavailable'})[status] + '</span></div><strong>' + value + '</strong><p>' + detail + '</p></section>';
+    }
+    var margin = p.peak_margin;
+    var peak = card('peak', !p.codes_valid ? 'na' : margin > 0 ? 'ok' : 'bad', 'Load peak vs trip threshold',
+      p.codes_valid ? (margin >= 0 ? '+' : '−') + tripText(Math.abs(margin)) + ' A peak margin' : 'Programmed thresholds unavailable',
+      p.codes_valid ? 'Smaller of the positive and negative trip magnitudes, minus the illustrative load peak (' + f1(p.crest_pk) + ' A). Nominal DAC transfer only; not a guaranteed transient margin.' : 'Requested trip magnitude: ' + f1(p.peak_limit) + ' A. Invalid comparator codes cannot establish a realizable trip threshold.');
+    var sensor = card('sensor', p.sensor_ok ? 'ok' : 'bad', 'Trip setting vs sensing range',
+      f1(p.peak_limit) + ' A requested / ' + f1(p.sensor_usable) + ' A usable',
+      'Each polarity · full scale ±' + f1(p.sensor_fs) + ' A; ' + Math.round(p.headroom * 100) + '% usable by design. ' + (p.sensor_ok ? 'Requested threshold fits the sensing budget.' : 'Requested threshold exceeds the sensing budget.') + ' This check is independent of load-peak margin.');
+    var rms = card('rms', p.overload_ok ? 'ok' : 'bad', 'RMS load vs timed overload',
+      f1(p.rated_rms) + ' A RMS / ' + f1(p.overload_rms) + ' A RMS trip',
+      'Rated illustrative load compared with the software overload setting.' + (p.overload_delay_s ? ' Configured delay: ' + p.overload_delay_s + ' s (demo assumption).' : ' No delay specified.') + ' This is a separate RMS check, not a line on the instantaneous-current plot.');
+    return '<div class="protection-checks">' + peak + sensor + rms + '</div><details class="trip-basis"><summary>Trip threshold basis</summary><p>Requested setting: ±' + f1(p.peak_limit) + ' A. ' + (p.codes_valid ? 'Plotted values are decoded separately from the positive and negative comparator DAC codes using the selected processor’s nominal transfer function. They are configuration thresholds, not a simulated clamp on current.' : 'The requested lines are reference settings only; the comparator DAC cannot represent them on this configuration.') + '</p></details>';
   }
 
   // ---- C syntax highlighting (display only; the download is the raw text) ----
@@ -313,17 +273,11 @@
       return '<div class="r' + (changed(id) ? " chg" : "") + '" data-vid="' + esc(id) + '" title="' + esc(c.symbol) + '"><span class="lbl">' + esc(LABEL[id] || id) + '</span><span class="rv">' + shown(c) + '</span><span class="tag tag-' + c.tag + '">' + esc(TAGNAME[c.tag]) + "</span></div>";
     }).join("");
     var summary = DATA.summaries ? '<div class="sum">' + esc(DATA.summaries[b]) + "</div>" : "";
-    if (b === "out" && DATA.summaries && DATA.summaries.sense) {
-      var sat = DATA.summaries.sense.indexOf("SATURATES") >= 0;
-      summary += '<div class="sense' + (sat ? " bad" : "") + '">' + esc(DATA.summaries.sense) + "</div>";
-      if (DATA.protection) {
-        var p = DATA.protection;
-        summary = '<div class="vizbox">' + waveSvg(p) + '</div>' +
-          '<div class="metric-strip"><div><small>Rated current</small><strong data-vid="iout_rated">' + f1(p.rated_rms) + ' A RMS</strong></div>' +
-          '<div><small>Sensor range</small><strong data-vid="iout_fs_pk">±' + f1(p.sensor_fs) + ' A</strong></div><div><small>Peak limit</small><strong data-vid="iout_pk_limit">±' + f1(p.peak_limit) + ' A</strong></div></div>' +
-          '<p class="sum">' + esc(DATA.summaries.inv) + '</p>' + rmsBar(p) +
-          '<details class="sensor-detail"><summary>Sensor headroom</summary><p class="sum">' + esc(DATA.summaries.sense) + '</p>' + gaugeSvg(p) + '</details>';
-      }
+    if (b === "out") {
+      var p = DATA.protection;
+      summary = p && !inputError && !pendingBefore
+        ? '<div class="vizbox">' + waveSvg(p) + '</div>' + protectionChecks(p)
+        : '<p class="alert bad">Protection illustration unavailable until valid current and load inputs are available.</p>';
     }
     if ((b === 'inv' || b === 'out') && DATA.product_specs) {
       summary += '<p class="inverter-note"><b>Illustrative inverter:</b> ' + esc(DATA.product_specs.inverter_assumption) + '. Topology and PWM are demo assumptions, not verified IntelliPower hardware.</p>';
@@ -361,6 +315,7 @@
     $("flow").innerHTML = '<h2 class="stage-heading">Power flow</h2><div class="stage-nav-scroll"><div class="stage-nav" aria-label="Power flow stages">' +
       ["in", "rect", "bus", "inv", "out", "batt"].map(function (b) { return '<button type="button" data-b="' + b + '" aria-pressed="' + (state.stage === b) + '" class="flow-stage flow-' + b + ' ' + (stageBad(b) ? 'is-bad' : '') + '">' + '<span>' + names[b] + '</span></button>'; }).join('') +
       '</div></div><h3 class="selected-stage-heading">' + esc(title) + '</h3>' + stageBox(state.stage) + '<div style="padding:0 18px 10px">' + legendHtml() + '</div>';
+    if ($("wave-sine")) $("wave-sine").onchange = function () { showSine = this.checked; renderFlow(); };
     $("flow").querySelectorAll('button[data-b]').forEach(function (button) { button.onclick = function () {
       state.stage = button.dataset.b; renderFlow(); renderFormulas();
     }; });
@@ -413,13 +368,13 @@
         var x = Number(inp.value), key = inp.dataset.k;
         if (!inp.value || !Number.isFinite(x) || x < Number(inp.min)) {
           clearTimeout(inputTimer); inputError = 'Enter a ' + (Number(inp.min) === 0 ? 'non-negative' : 'positive') + ' number for ' + inp.closest('label').querySelector('span').textContent + '.';
-          $("engine").textContent = 'Input needs attention'; renderProbs(); renderFormulas(); return;
+          $("engine").textContent = 'Input needs attention'; renderProbs(); renderFormulas(); renderFlow(); return;
         }
         inputError = '';
         if (!pendingBefore) pendingBefore = copyState();
         state.edits[key] = x;
         $("engine").textContent = 'Updating…';
-        renderProbs(); renderFormulas();
+        renderProbs(); renderFormulas(); renderFlow();
         clearTimeout(inputTimer);
         inputTimer = setTimeout(function () {
           finishPending(); recompute();

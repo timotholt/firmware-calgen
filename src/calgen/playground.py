@@ -267,7 +267,27 @@ def protection(b: Build) -> dict | None:
     rated = val["iout_rated"].value
     head = b.env.get("design.sense_headroom")
     cf = b.env["design.crest_factor"].value if "design.crest_factor" in b.env else 3.0
+    numbers = [rated, val["iout_trip"].value, val["iout_pk_limit"].value, val["iout_fs_pk"].value, cf]
+    if not all(math.isfinite(n) and n > 0 for n in numbers) or cf < math.sqrt(2):
+        return None  # the illustrative half-sine pulse family requires CF >= sqrt(2)
+    hi, lo = val.get("iout_pklim_dac_hi"), val.get("iout_pklim_dac_lo")
+    dac_max = b.env["target.dac_max"].value
+    codes_valid = all(c is not None and c.status == OK and c.value is not None
+                      and math.isfinite(c.value) and 0 <= c.value <= dac_max for c in (hi, lo))
+    def decode(code):
+        return ((code / b.env["target.dac_div"].value - 0.5) * b.env["target.v_ref"].value
+                / (b.env["board.r_shunt"].value * b.env["board.g_amp"].value))
+    trip_hi = decode(hi.value) if codes_valid else None
+    trip_lo = decode(lo.value) if codes_valid else None
+    usable = (head.value if head is not None else 0.95) * val["iout_fs_pk"].value
     return {
+        "trip_hi": trip_hi,
+        "trip_lo": trip_lo,
+        "codes_valid": codes_valid,
+        "peak_margin": min(trip_hi, -trip_lo) - cf * rated if codes_valid else None,
+        "sensor_usable": usable,
+        "sensor_ok": val["iout_pk_limit"].value <= usable,
+        "overload_ok": rated < val["iout_trip"].value,
         "rated_rms": rated,
         "rated_pk": math.sqrt(2) * rated,
         "crest": cf,
