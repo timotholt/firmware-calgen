@@ -65,3 +65,10 @@ About a day. No paid model calls in v1. New dependencies: a PDF writer for the g
 **Tests:** every returned candidate re-checked independently against the limits; interpolation matches data sheet points; known requirement → known best core; requirement estimates for FA10507 match hand-worked numbers; KaTeX parse of the new math.
 
 **Navigation:** Overview · Firmware playground · Magnetics · Audit · Review reports · How it works · AI practice · Tim Otholt (done first).
+
+## Phase 3: vendor DC-bias curves; transformer drawing fixes (2026-10-17)
+- **Source:** Magnetics *Powder Cores* catalog, 2025, p. 63, "Permeability versus DC Bias Curves — Fit Formula", Kool Mµ Toroids: % initial permeability = 1 / (a + b·H^c), H in oersteds. Coefficients for 26µ, 60µ, 125µ go in `specs/magnetics/dc_bias_fit.csv`, cited.
+- **Consistency:** the fit is the vendor's *typical* curve; the per-part data sheets give *minimum* bias at 80% and 50%. For 60µ the fit reaches 80% at ~45 Oe vs the 39 Oe minimum (~15% optimistic). Same shape, different promise.
+- **Model used for checks and sizing ("derated fit"):** the vendor curve with H scaled by k = max(H_fit,80/H_min,80, H_fit,50/H_min,50), so it passes at or below both guaranteed minimum points: smooth, vendor-shaped, and still conservative. No extrapolation past the data sheet's 50% point. The existing record check (peak H ≤ H₈₀ minimum) is unchanged.
+- **Charts:** derated curve solid, vendor typical curve faint, the two guaranteed points marked; x-axis 0 to 1.5× the design's peak current so the operating point's margin is visible.
+- **Transformers:** windings drawn as layers (columns along the window height), primary nearest the center leg, insulation gap, then secondary; shown at normal size since transformers have no inductance curve. Number formatting no longer uses scientific notation.

@@ -100,12 +100,17 @@ def test_every_magnetics_formula_parses_in_katex(tmp_path):
 
 
 # ---- sizing and playground requirements ---------------------------------------------
-def test_retained_follows_data_sheet_points():
-    c = CORES["0077908A7"]
-    assert mg.retained(c, 0) == 1.0
-    assert mg.retained(c, c.h80_oe) == pytest.approx(0.8)
-    assert mg.retained(c, c.h50_oe) == pytest.approx(0.5)
-    assert mg.retained(c, c.h50_oe * 1.01) is None  # no extrapolation
+@pytest.mark.parametrize("name", ["0077908A7", "0077083A7", "0077548A7"])  # 26u, 60u, 125u
+def test_retained_is_vendor_curve_derated_to_data_sheet_minimums(name):
+    # The catalog fit is the typical curve; what the checks count on must never beat the
+    # per-part guaranteed points (80% at H80 minimum, 50% at H50 minimum).
+    c = CORES[name]
+    assert c.fit is not None
+    assert mg.retained(c, 0) == pytest.approx(1.0)
+    assert mg.retained(c, c.h80_oe) <= 0.8 + 1e-9 and mg.retained(c, c.h50_oe) <= 0.5 + 1e-9
+    assert max(mg.retained(c, c.h80_oe), mg.retained(c, c.h50_oe) / 0.5 * 0.8) == pytest.approx(0.8)  # one point binds
+    assert mg.typical(c, c.h80_oe) > mg.retained(c, c.h80_oe)  # typical is more optimistic
+    assert mg.retained(c, c.h50_oe * 1.01) is None  # no extrapolation past the data sheet
 
 
 @pytest.mark.parametrize("req", [(330, 4, 4.5, 0.8), (783, 7.9, 12.8, 0.5), (603.6, 20, 32.5, 0.5), (1000, 0.8, 1.0, 0.8)])

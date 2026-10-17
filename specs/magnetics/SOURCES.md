@@ -10,3 +10,5 @@ Values in `cores.csv` are transcribed from public vendor data sheets (facts only
 **Derived, not stated:** the E-core window area is computed from nominal dimensions as (B − C)/2 × 2E for a core pair, before subtracting the coil former. Bare-core window; the window-fill limit in `limits.yaml` is set lower for E cores to allow for the former and insulation.
 
 **Dimensions** (`od_mm`, `id_mm`, `ht_mm`): uncoated OD, ID, and height for toroids, from the same data sheets. For E cores the columns hold A (overall width), C (center-leg width), and E (window half-height) from the Ferroxcube dimension tables; they are used only to draw the window.
+
+**DC-bias curve fit** (`dc_bias_fit.csv`): Magnetics *Powder Cores* catalog (2025 edition), p. 63, "Permeability versus DC Bias Curves — Fit Formula", Kool Mµ Toroids table: % initial permeability = 1 / (a + b·H^c), H in oersteds; "fit valid only for range shown on graph". This is the vendor's typical curve; checks and sizing scale it so it never exceeds the per-part data sheet minimums (see docs/MAGNETICS_PLAN.md, Phase 3).

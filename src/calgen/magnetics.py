@@ -47,16 +47,24 @@ class Core:
     od_mm: float | None = None  # toroid: uncoated OD; E core: overall width A
     id_mm: float | None = None  # toroid: uncoated ID; E core: center-leg width C
     ht_mm: float | None = None  # toroid: height; E core: window half-height E
+    perm: float | None = None
+    fit: tuple[float, float, float] | None = None  # vendor DC-bias fit (a, b, c): % initial perm = 1/(a + b H^c)
 
 
 def load_cores(path: Path) -> dict[str, Core]:
+    fits = {}
+    fit_file = Path(path).with_name("dc_bias_fit.csv")
+    if fit_file.exists():
+        with open(fit_file, newline="", encoding="utf-8") as f:
+            fits = {(r["material"], float(r["perm"])): (float(r["a"]), float(r["b"]), float(r["c"])) for r in csv.DictReader(f)}
     out = {}
     with open(path, newline="", encoding="utf-8") as f:
         for r in csv.DictReader(f):
             num = lambda k: float(r[k]) if r[k] else None  # noqa: E731
             out[r["core"]] = Core(r["core"], r["vendor"], r["family"], r["material"], num("al_nh"), num("al_tol_pct"),
                                   num("ae_mm2"), num("le_mm"), num("ve_mm3"), num("wa_mm2"), r["wa_basis"], num("h80_oe"), num("h50_oe"),
-                                  num("bsat_mt"), r["source"], num("od_mm"), num("id_mm"), num("ht_mm"))
+                                  num("bsat_mt"), r["source"], num("od_mm"), num("id_mm"), num("ht_mm"),
+                                  num("perm"), fits.get((r["material"], num("perm"))) if r["perm"] else None)
     return out
 
 
@@ -127,7 +135,8 @@ class Check:
 
 
 def _f(x: float, nd: int = 3) -> str:
-    return f"{x:.{nd}g}"
+    s = f"{x:.{nd}g}"
+    return f"{x:.0f}" if "e+" in s else s  # 2500, not 2.5e+03
 
 
 def check(d: Design, cores: dict[str, Core], limits: dict) -> list[Check]:
@@ -452,15 +461,39 @@ MAX_STACK = 4
 WIRES = [(awg, n) for awg in range(10, 25) for n in range(1, 7)]
 
 
+def _fit_pct(fit: tuple[float, float, float], h_oe: float) -> float:
+    a, b, c = fit
+    return 1 / (a + b * h_oe ** c) / 100
+
+
+def _fit_h(fit: tuple[float, float, float], frac: float) -> float:
+    """Magnetizing force at which the vendor's typical curve falls to frac of initial permeability."""
+    a, b, c = fit
+    return ((1 / (frac * 100) - a) / b) ** (1 / c)
+
+
+def derating(core: Core) -> float:
+    """Scale on H so the vendor's typical curve passes at or below both guaranteed data sheet
+    points (80% at H80 minimum, 50% at H50 minimum)."""
+    return max(_fit_h(core.fit, 0.8) / core.h80_oe, _fit_h(core.fit, 0.5) / core.h50_oe)
+
+
+def typical(core: Core, h_oe: float) -> float | None:
+    """Vendor typical curve (catalog fit), or None when no fit is on file."""
+    return _fit_pct(core.fit, h_oe) if core.fit else None
+
+
 def retained(core: Core, h_oe: float) -> float | None:
-    """Fraction of initial permeability left at magnetizing force h, linear between the data
-    sheet's points (0 Oe -> 100%, H80 -> 80%, H50 -> 50%). Below the real curve at low bias
-    (conservative). None past H50: no extrapolation."""
+    """Fraction of initial permeability counted on at magnetizing force h: the vendor's curve
+    derated to the data sheet minimums (or, without a fit, straight lines between the data
+    sheet's 100/80/50% points). None past the data sheet's 50% point: no extrapolation."""
+    if h_oe > core.h50_oe:
+        return None
+    if core.fit:
+        return _fit_pct(core.fit, h_oe * derating(core))
     if h_oe <= core.h80_oe:
         return 1 - 0.2 * h_oe / core.h80_oe
-    if h_oe <= core.h50_oe:
-        return 0.8 - 0.3 * (h_oe - core.h80_oe) / (core.h50_oe - core.h80_oe)
-    return None
+    return 0.8 - 0.3 * (h_oe - core.h80_oe) / (core.h50_oe - core.h80_oe)
 
 
 def pick_wire(i_rms: float, j_max: float) -> tuple[int, int, float]:
@@ -588,18 +621,22 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
     else:
         w, h = core.wa_mm2 / (2 * core.ht_mm), 2 * core.ht_mm  # one window of the pair, bare (no former)
         leg = core.id_mm
-        x0, y = 0.0, h
-        i = 0
-        while i < len(wires) and y > 0:
-            d = wires[i][1]
-            y -= d
-            if y < 0:
+        # Layers run the full window height, wound outward from the center leg; each winding
+        # starts a new layer after a 0.4 mm insulation gap (tape), as on a real bobbin.
+        x, i = 0.0, 0
+        while i < len(wires):
+            k, d = wires[i]
+            if x + d > w:
                 break
-            x = d / 2
-            while i < len(wires) and x + wires[i][1] / 2 <= w:
-                placed.append((wires[i][0], x0 + x, y + d / 2, wires[i][1] / 2))
-                x += wires[i][1]
+            per_col = max(1, int(h // d))
+            j = 0
+            while i < len(wires) and wires[i][0] == k and j < per_col:
+                placed.append((k, x + d / 2, d / 2 + j * d, d / 2))
                 i += 1
+                j += 1
+            x += d
+            if i < len(wires) and wires[i][0] != k:
+                x += 0.4
         overflow = len(wires) - i
         t = leg / 2  # half center leg (cut at the symmetry line); outer leg and yokes drawn at the same width
         body = (f'<path class="mw-core" fill-rule="evenodd" d="M{-t:.2f},{-t:.2f}h{t + w + t:.2f}v{h + 2 * t:.2f}h{-(t + w + t):.2f}z'
@@ -610,47 +647,57 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
     circles = "".join(f'<circle class="mw-w{k}" cx="{x:.2f}" cy="{y:.2f}" r="{r:.3f}"/>' for k, x, y, r in placed)
     label = ", ".join(f"{name}: {t} × {n} × {a} AWG" for name, t, n, a in windings)
     note = f"{len(wires) - overflow} of {len(wires)} conductors drawn" + (f"; {overflow} don't fit" if overflow else "")
-    size = "bigfig" if overflow else "thumbfig"  # the picture earns space only when the winding doesn't fit
+    # toroids: a thumbnail beside the inductance curve, large only when the winding doesn't fit;
+    # transformers have no curve, so the window is their main figure
+    size = "bigfig" if overflow else ("thumbfig" if core.family == "toroid" else "winfig")
     return (f'<figure class="mfig {size}"><svg viewBox="{view}" role="img" aria-label="Winding view: {label}; copper fills {fill * 100:.0f}% of the window">'
             f"{body}{circles}</svg><figcaption>{'Toroid, top view: each turn passes through the hole and returns around the outside' if core.family == 'toroid' else 'E-core window (one side)'}{f', {stack} stacked' if stack > 1 else ''} · {label} · "
             f"bare copper {fill * 100:.0f}% of the window · {note}</figcaption></figure>")
 
 
 def svg_l_vs_i(core: Core, turns: int, i_pk: float, l_req_uh: float | None, stack: int = 1, ref_at: str = "peak") -> str:
-    """Inductance vs DC current for a powder toroid, from the data sheet's 100/80/50% points
-    (linear between them, as the checks assume); stops at the 50% point.
-    ref_at: "peak" = l_req_uh is required at peak current (sizing); "zero" = it is a drawing's
-    0 A value, which says nothing about peak current (records)."""
+    """Inductance vs DC current over the design's operating range (0 to 1.5x peak).
+    Solid: the curve the checks count on (vendor curve derated to the data sheet minimums).
+    Faint: the vendor's typical curve. Squares: the data sheet's guaranteed 80% and 50% points.
+    ref_at: "peak" = l_req_uh is required at peak current (sizing); "zero" = a drawing's 0 A
+    value, which says nothing about peak current (records)."""
     le_cm = core.le_mm / 10
-    i50 = core.h50_oe * le_cm / (0.4 * math.pi * turns)
+    amps_per_oe = le_cm / (0.4 * math.pi * turns)
+    h = lambda i: i / amps_per_oe  # noqa: E731
     l0 = core.al_nh * stack * turns * turns / 1000
-    i_max = max(i50, i_pk) * 1.1
+    i_max = 1.5 * i_pk
     W, H, ml, mb, mt, mr = 420, 190, 52, 30, 10, 12
     pw, ph = W - ml - mr, H - mb - mt
     x = lambda i: ml + i / i_max * pw  # noqa: E731
     y = lambda l: mt + (1 - l / (l0 * 1.08)) * ph  # noqa: E731
-    pts = []
-    for k in range(0, 101):
-        i = i50 * k / 100
-        f = retained(core, min(0.4 * math.pi * turns * i / le_cm, core.h50_oe))  # clamp float round-off at the end point
-        pts.append(f"{x(i):.1f},{y(l0 * f):.1f}")
-    g = [f'<line class="mc-ax" x1="{ml}" y1="{mt + ph}" x2="{ml + pw}" y2="{mt + ph}"/><line class="mc-ax" x1="{ml}" y1="{mt}" x2="{ml}" y2="{mt + ph}"/>',
-         f'<polyline class="mc-l" points="{" ".join(pts)}"/>',
-         f'<text class="mc-t" x="{ml + pw}" y="{H - 6}" text-anchor="end">DC current (A)</text>',
-         f'<text class="mc-t" x="4" y="{mt + 8}">{l0:.0f} µH</text><text class="mc-t" x="4" y="{mt + ph}">0</text>']
+    i_end = min(i_max, core.h50_oe * amps_per_oe)
+    solid = " ".join(f"{x(i):.1f},{y(l0 * retained(core, min(h(i), core.h50_oe))):.1f}" for i in (i_end * k / 120 for k in range(121)))
+    g = [f'<line class="mc-ax" x1="{ml}" y1="{mt + ph}" x2="{ml + pw}" y2="{mt + ph}"/><line class="mc-ax" x1="{ml}" y1="{mt}" x2="{ml}" y2="{mt + ph}"/>']
     for frac, lab in ((0.8, "80%"), (0.5, "50%")):
         g.append(f'<line class="mc-g" x1="{ml}" x2="{ml + pw}" y1="{y(l0 * frac):.1f}" y2="{y(l0 * frac):.1f}"/><text class="mc-t" x="{ml + pw}" y="{y(l0 * frac) - 3:.1f}" text-anchor="end">{lab}</text>')
+    if core.fit:
+        faint = " ".join(f"{x(i):.1f},{y(l0 * typical(core, h(i))):.1f}" for i in (i_max * k / 120 for k in range(121)))
+        g.append(f'<polyline class="mc-typ" points="{faint}"/>')
+    g.append(f'<polyline class="mc-l" points="{solid}"/>')
+    for hmin, frac in ((core.h80_oe, 0.8), (core.h50_oe, 0.5)):
+        i_g = hmin * amps_per_oe
+        if i_g <= i_max:
+            g.append(f'<rect class="mc-min" x="{x(i_g) - 3.5:.1f}" y="{y(l0 * frac) - 3.5:.1f}" width="7" height="7"/>')
+    if i_end < i_max:
+        g.append(f'<text class="mc-t" x="{x(i_end) + 4:.1f}" y="{y(l0 * 0.5) + 14:.1f}">past the data sheet</text>')
     if l_req_uh:
         lab = f"required at peak: {l_req_uh:.0f} µH" if ref_at == "peak" else f"drawing: {l_req_uh:.0f} µH at 0 A"
         g.append(f'<line class="mc-req" x1="{ml}" x2="{ml + pw}" y1="{y(l_req_uh):.1f}" y2="{y(l_req_uh):.1f}"/><text class="mc-t mc-reqt" x="{ml + 4}" y="{y(l_req_uh) - 3:.1f}">{lab}</text>')
-    f_pk = retained(core, 0.4 * math.pi * turns * i_pk / le_cm)
+    f_pk = retained(core, h(i_pk))
     g.append(f'<line class="mc-pk" x1="{x(i_pk):.1f}" x2="{x(i_pk):.1f}" y1="{mt}" y2="{mt + ph}"/><text class="mc-t" x="{x(i_pk) + 3:.1f}" y="{mt + ph - 4}">peak {i_pk:g} A</text>')
     if f_pk is not None:
         g.append(f'<circle class="mc-dot" cx="{x(i_pk):.1f}" cy="{y(l0 * f_pk):.1f}" r="4"/>')
-    g.append(f'<text class="mc-t" x="{x(i50):.1f}" y="{mt + ph + 14}" text-anchor="middle">{i50:.1f}</text><text class="mc-t" x="{ml}" y="{mt + ph + 14}" text-anchor="middle">0</text>')
+    g.append(f'<text class="mc-t" x="{ml}" y="{mt + ph + 14}" text-anchor="middle">0</text><text class="mc-t" x="{ml + pw}" y="{mt + ph + 14}" text-anchor="end">{i_max:.3g} A</text>'
+             f'<text class="mc-t" x="{ml + pw / 2:.0f}" y="{H - 4}" text-anchor="middle">DC current</text>'
+             f'<text class="mc-t" x="4" y="{mt + 8}">{l0:.0f} µH</text><text class="mc-t" x="4" y="{mt + ph}">0</text>')
     cap = (f"{core.name}{f' ×{stack}' if stack > 1 else ''}, {turns} turns: {l0:.0f} µH at 0 A; "
            + (f"{l0 * f_pk:.0f} µH ({f_pk * 100:.0f}%) at {i_pk:g} A peak" if f_pk is not None else f"past the data sheet's 50% point at {i_pk:g} A")
-           + (". The drawing specifies inductance at 0 A only, so it doesn't say how much is needed at full current: a question for the designer."
-              if ref_at == "zero" else "")
-           + " Line: data sheet points joined straight (conservative).")
+           + (". The drawing specifies inductance at 0 A only, so it doesn't say how much is needed at full current: a question for the designer." if ref_at == "zero" else ".")
+           + (" Solid: Magnetics' catalog curve derated to this part's guaranteed minimums (squares); faint: the catalog's typical curve." if core.fit
+              else " Line: data sheet points joined straight (conservative)."))
     return f'<figure class="mfig"><svg viewBox="0 0 {W} {H}" role="img" aria-label="Inductance versus current">{"".join(g)}</svg><figcaption>{cap}</figcaption></figure>'
