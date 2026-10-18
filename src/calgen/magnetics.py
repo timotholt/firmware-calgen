@@ -837,12 +837,8 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
         section_body = (f'<rect class="mw-core" x="-1.5" y="0" width="1.5" height="{h:.2f}"/>' + "".join(parts[2:]))
         diagram = (f'<defs><marker id="mw-arrow" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8" fill="none" stroke="currentColor"/></marker></defs>'
                    f'<g transform="translate({left} {bottom}) scale({scale:.5f}) rotate(-90)">{section_body}{circles}</g>{annotations}')
-        dimensions = (f'<dl class="winding-dimensions"><div><dt>Window depth × breadth</dt><dd>{w:.2f} × {h:.2f} mm</dd></div>'
-                      f'<div><dt>Used build / window depth</dt><dd>{bb["build"]:.2f} / {w:.2f} mm</dd></div>'
-                      f'<div><dt>Bobbin wall</dt><dd>{wall:.2f} mm</dd></div>'
-                      f'<div><dt>End margin</dt><dd>{limits["margin_mm"]:g} mm</dd></div></dl>')
         return ('<section class="winding-evidence"><h4>Winding cross-section</h4>'
-                + dimensions + f'<figure class="mfig winding-section {size}"><svg viewBox="{rview}" role="img" aria-label="Winding window: {label}; build {bb["build"]:.2f} of {bb["w"]:.2f} mm">'
+                + f'<figure class="mfig winding-section {size}"><svg viewBox="{rview}" role="img" aria-label="Winding window: {label}; build {bb["build"]:.2f} of {bb["w"]:.2f} mm">'
                 f'{diagram}</svg>'
                 f'<figcaption>E-core window (one side), to scale, center leg at the bottom · {note}</figcaption></figure>'
                 '<p class="winding-caveat">Idealized section using the demo bobbin and insulation assumptions. Not a winding instruction or validated insulation design.</p></section>')
