@@ -804,7 +804,7 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
         circles = "".join(f'<circle class="mw-w{k}" cx="{x:.2f}" cy="{y:.2f}" r="{r:.3f}"/>' for k, x, y, r in placed)
         t = core.id_mm / 2
         # Presentation only: retain the shared bobbin geometry, with build upward.
-        scale = min(280 / h, 130 / max(w, bb["build"]))
+        scale = min(380 / h, 150 / max(w, bb["build"]))
         left, bottom = 65, 225
         right, top = left + h * scale, bottom - w * scale
         build_top = bottom - bb["build"] * scale
@@ -814,19 +814,19 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
         annotations = dim(left, 265, right, 265, f"{h:.2f} mm window breadth", (left + right) / 2, 285)
         annotations += dim(40, top, 40, bottom, f"{w:.2f} mm available", 105, top - 12)
         annotations += dim(right + 18, build_top, right + 18, bottom, "", 0, 0)
-        annotations += f'<text class="mw-label" x="{right + 30:.2f}" y="245">{bb["build"]:.2f} mm build</text>'
+        annotations += f'<text class="mw-label" x="{right + 20:.2f}" y="245">{bb["build"]:.2f} mm build</text>'
         for k, xs, xe in bb["spans"]:
             name, turns, _, _ = windings[k]
             title = {"PRI": "Primary", "SEC": "Secondary", "AUX": "Auxiliary"}.get(name.upper(), name)
             yy = bottom - (xs + xe) / 2 * scale
-            ly = 38 + k * 27
-            annotations += (f'<path class="mw-leader" d="M{right - 35:.2f},{yy:.2f} L{right + 45:.2f},{ly - 4} H570"/>'
-                            f'<text class="mw-label" x="{right + 50:.2f}" y="{ly - 9}">{title} · {turns} turns</text>')
+            ly = top + 22 + k * 30
+            annotations += (f'<path class="mw-leader" d="M{right - 35:.2f},{yy:.2f} L{right + 20:.2f},{ly - 4} H590"/>'
+                            f'<text class="mw-label" x="{right + 25:.2f}" y="{ly - 9}">{title}</text>')
         if bb["tapes"]:
             xs, xe = bb["tapes"][0]
             yy = bottom - (xs + xe) / 2 * scale
-            annotations += (f'<path class="mw-leader" d="M{left + 25:.2f},{yy:.2f} L{left - 10},55 H210"/>'
-                            '<text class="mw-label" x="55" y="46">Insulation tape</text>')
+            annotations += (f'<path class="mw-leader" d="M{left + 25:.2f},{yy:.2f} L{left - 10},{top - 35:.2f} H210"/>'
+                            f'<text class="mw-label" x="55" y="{top - 44:.2f}">Insulation tape</text>')
         annotations += f'<text class="mw-label" x="{left:.2f}" y="310">Bobbin wall {wall:.2f} mm · end margins {limits["margin_mm"]:g} mm</text>'
         rview = "0 0 600 325"
         section_body = (f'<rect class="mw-core" x="-1.5" y="0" width="1.5" height="{h:.2f}"/>' + "".join(parts[2:]))
