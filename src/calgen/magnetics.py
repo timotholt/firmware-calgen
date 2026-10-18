@@ -812,9 +812,13 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
             return (f'<path class="mw-dimension" d="M{x1:.2f},{y1:.2f} L{x2:.2f},{y2:.2f}" marker-start="url(#mw-arrow)" marker-end="url(#mw-arrow)"/>'
                     f'<text class="mw-label" x="{tx:.2f}" y="{ty:.2f}" text-anchor="middle">{text}</text>')
         annotations = dim(left, 265, right, 265, f"{h:.2f} mm window breadth", (left + right) / 2, 285)
-        annotations += dim(40, top, 40, bottom, f"{w:.2f} mm available", 105, top - 12)
+        annotations += dim(40, top, 40, bottom, "Window depth", 105, top - 30)
+        annotations += f'<text class="mw-label" x="105" y="{top - 10:.2f}" text-anchor="middle">{w:.2f} mm</text>'
+        annotations += (f'<rect class="mw-full-window" x="{left}" y="{top:.2f}" width="{h * scale:.2f}" height="{w * scale:.2f}"/>'
+                        f'<path class="mw-extension" d="M35,{top:.2f} H{left} M35,{bottom} H{left} '
+                        f'M{right},{build_top:.2f} H{right + 23:.2f} M{right},{bottom} H{right + 23:.2f}"/>')
         annotations += dim(right + 18, build_top, right + 18, bottom, "", 0, 0)
-        annotations += f'<text class="mw-label" x="{right + 20:.2f}" y="245">{bb["build"]:.2f} mm build</text>'
+        annotations += f'<text class="mw-label" x="{right + 20:.2f}" y="245">Used build<tspan x="{right + 20:.2f}" dy="20">{bb["build"]:.2f} mm</tspan></text>'
         for k, xs, xe in bb["spans"]:
             name, turns, strands, awg = windings[k]
             title = {"PRI": "Primary", "SEC": "Secondary", "AUX": "Auxiliary"}.get(name.upper(), name)
@@ -828,13 +832,13 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
             annotations += (f'<path class="mw-leader" d="M{left + 25:.2f},{yy:.2f} L{left + 140},{top - 5:.2f} H{left + 300}"/>'
                             f'<text class="mw-label" x="{left + 145}" y="{top - 12:.2f}">Insulation tape</text>')
         annotations += f'<text class="mw-label" x="{left:.2f}" y="310">Bobbin wall {wall:.2f} mm · end margins {limits["margin_mm"]:g} mm</text>'
-        crop_top = max(0, top - 36)  # remove unused canvas without changing drawing scale
+        crop_top = max(0, top - 54)  # remove unused canvas without changing drawing scale
         rview = f"0 {crop_top:.2f} 600 {325 - crop_top:.2f}"
         section_body = (f'<rect class="mw-core" x="-1.5" y="0" width="1.5" height="{h:.2f}"/>' + "".join(parts[2:]))
         diagram = (f'<defs><marker id="mw-arrow" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8" fill="none" stroke="currentColor"/></marker></defs>'
                    f'<g transform="translate({left} {bottom}) scale({scale:.5f}) rotate(-90)">{section_body}{circles}</g>{annotations}')
-        dimensions = (f'<dl class="winding-dimensions"><div><dt>Window</dt><dd>{w:.2f} × {h:.2f} mm</dd></div>'
-                      f'<div><dt>Winding build</dt><dd>{bb["build"]:.2f} / {w:.2f} mm</dd></div>'
+        dimensions = (f'<dl class="winding-dimensions"><div><dt>Window depth × breadth</dt><dd>{w:.2f} × {h:.2f} mm</dd></div>'
+                      f'<div><dt>Used build / window depth</dt><dd>{bb["build"]:.2f} / {w:.2f} mm</dd></div>'
                       f'<div><dt>Bobbin wall</dt><dd>{wall:.2f} mm</dd></div>'
                       f'<div><dt>End margin</dt><dd>{limits["margin_mm"]:g} mm</dd></div></dl>')
         return ('<section class="winding-evidence"><h4>Winding cross-section</h4>'

@@ -75,3 +75,5 @@ html{scrollbar-gutter:stable}
 
 .magnetics-page .epanel .winding-section.winfig svg,.magnetics-page .epanel .winding-section.bigfig svg{max-width:600px;max-height:none;overflow:visible}.mw-label{font-size:12px;fill:var(--fg);font-family:inherit}.mw-dimension,.mw-leader{fill:none;stroke:var(--muted);stroke-width:.8}.mw-dimension{color:var(--muted)}.mw-leader{stroke-width:.7}
 @container(max-width:460px){.winding-section .mw-label{font-size:20px}}
+
+.mw-full-window{fill:none;stroke:var(--muted);stroke-width:1;stroke-dasharray:4 3}.mw-extension{fill:none;stroke:var(--muted);stroke-width:.7}
