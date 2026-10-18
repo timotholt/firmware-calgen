@@ -204,7 +204,7 @@
     var t = ((theta % Math.PI) + Math.PI) % Math.PI, sgn = (theta % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) < Math.PI ? 1 : -1;
     return t >= start && t <= end ? sgn * Math.sin(Math.PI * (t - start) / w) : 0;
   }
-  var showSine = false;
+  var showSine = true;
   function tripText(x) { return x !== 0 && Math.abs(x) < 0.001 ? Number(x.toPrecision(3)).toString() : x.toFixed(3).replace(/\.?0+$/, ''); }
   function waveSvg(p) {
     var hi = p.codes_valid ? p.trip_hi : p.peak_limit, lo = p.codes_valid ? p.trip_lo : -p.peak_limit;
