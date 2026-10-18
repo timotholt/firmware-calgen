@@ -819,7 +819,7 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
             name, turns, _, _ = windings[k]
             title = {"PRI": "Primary", "SEC": "Secondary", "AUX": "Auxiliary"}.get(name.upper(), name)
             yy = bottom - (xs + xe) / 2 * scale
-            ly = top + 22 + k * 30
+            ly = top + 22 + (len(bb["spans"]) - 1 - k) * 30
             annotations += (f'<path class="mw-leader" d="M{right - 35:.2f},{yy:.2f} L{right + 20:.2f},{ly - 4} H590"/>'
                             f'<text class="mw-label" x="{right + 25:.2f}" y="{ly - 9}">{title}</text>')
         if bb["tapes"]:
