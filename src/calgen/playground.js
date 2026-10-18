@@ -233,7 +233,7 @@
     s += '<span><i class="k-lim' + (p.trip_window_valid ? '' : ' bad') + '"></i>' + (p.codes_valid ? 'Programmed trip thresholds: ' + (hi >= 0 ? '+' : '−') + tripText(Math.abs(hi)) + ' / ' + (lo >= 0 ? '+' : '−') + tripText(Math.abs(lo)) + ' A' : 'Requested thresholds: ±' + f1(p.peak_limit) + ' A · DAC codes invalid') + '</span></div>';
     if (showSine) s += '<p class="reference-key">Dashed gray: sinusoidal reference · ' + f1(p.rated_pk) + ' A peak · same RMS current.</p>';
     s += '<label class="wave-toggle"><input type="checkbox" id="wave-sine"' + (showSine ? ' checked' : '') + '> Show sinusoidal reference · same RMS current</label>';
-    s += '<p class="wnote">Constructed waveform, not measured or simulated rectifier behavior. Crest factor fixes peak/RMS, not pulse shape or timing. Switching ripple, transients, tolerances, and trip-response delays are not modeled.</p>';
+    s += '<p class="wnote">Illustrative waveform; crest factor sets peak/RMS, not shape or timing. Ripple, transients, tolerances, and trip delays are not modeled.</p>';
     return s;
   }
   function protectionChecks(p) {
@@ -243,14 +243,14 @@
     var margin = p.peak_margin;
     var peak = card('peak', !p.codes_valid ? 'na' : margin > 0 ? 'ok' : 'bad', 'Load peak vs trip threshold',
       !p.codes_valid ? 'Programmed thresholds unavailable' : !p.trip_window_valid ? 'No valid bipolar trip window' : (margin >= 0 ? '+' : '−') + tripText(Math.abs(margin)) + ' A peak margin',
-      p.codes_valid && !p.trip_window_valid ? 'DAC rounding places the thresholds at or across zero. This configuration has no valid trip window for bipolar load current.' : p.codes_valid ? 'Smaller of the positive and negative trip magnitudes, minus the illustrative load peak (' + f1(p.crest_pk) + ' A). Nominal DAC transfer only; not a guaranteed transient margin.' : 'Requested trip magnitude: ' + f1(p.peak_limit) + ' A. Invalid comparator codes cannot establish a realizable trip threshold.');
+      p.codes_valid && !p.trip_window_valid ? 'DAC rounding collapses the bipolar trip window.' : p.codes_valid ? 'Smaller trip magnitude minus load peak (' + f1(p.crest_pk) + ' A). Nominal values; transient margin is not guaranteed.' : 'Requested trip magnitude: ' + f1(p.peak_limit) + ' A. DAC codes cannot represent this setting.');
     var sensor = card('sensor', p.sensor_ok ? 'ok' : 'bad', 'Trip setting vs sensing range',
       f1(p.peak_limit) + ' A requested / ' + f1(p.sensor_usable) + ' A usable',
-      'Each polarity · full scale ±' + f1(p.sensor_fs) + ' A; ' + Math.round(p.headroom * 100) + '% usable by design. ' + (p.sensor_ok ? 'Requested threshold fits the sensing budget.' : 'Requested threshold exceeds the sensing budget.') + ' This check is independent of load-peak margin.');
+      'Full scale ±' + f1(p.sensor_fs) + ' A; ' + Math.round(p.headroom * 100) + '% usable by design. ' + (p.sensor_ok ? 'Requested threshold fits the sensing budget.' : 'Requested threshold exceeds the sensing budget.'));
     var rms = card('rms', p.overload_ok ? 'ok' : 'bad', 'RMS load vs timed overload',
       f1(p.rated_rms) + ' A RMS / ' + f1(p.overload_rms) + ' A RMS trip',
-      'Rated illustrative load compared with the software overload setting.' + (p.overload_delay_s ? ' Configured delay: ' + p.overload_delay_s + ' s (demo assumption).' : ' No delay specified.') + ' This is a separate RMS check, not a line on the instantaneous-current plot.');
-    return '<div class="protection-checks">' + peak + sensor + rms + '</div><details class="trip-basis"><summary>Trip threshold basis</summary><p>Requested setting: ±' + f1(p.peak_limit) + ' A. ' + (p.codes_valid ? 'Plotted values are decoded separately from the positive and negative comparator DAC codes using the selected processor’s nominal transfer function. They are configuration thresholds, not a simulated clamp on current.' : 'The requested lines are reference settings only; the comparator DAC cannot represent them on this configuration.') + '</p></details>';
+      'Rated RMS load vs software overload.' + (p.overload_delay_s ? ' Delay: ' + p.overload_delay_s + ' s (demo assumption).' : ' No delay specified.') + ' Separate from peak-current protection.');
+    return '<div class="protection-checks">' + peak + sensor + rms + '</div><details class="trip-basis"><summary>Trip threshold basis</summary><p>Requested setting: ±' + f1(p.peak_limit) + ' A. ' + (p.codes_valid ? 'Each polarity is decoded from its DAC code using the processor’s nominal transfer function. Thresholds do not simulate current clamping.' : 'Dashed lines show the requested settings only; this DAC cannot represent them.') + '</p></details>';
   }
 
   // ---- C syntax highlighting (display only; the download is the raw text) ----
