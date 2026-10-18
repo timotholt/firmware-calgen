@@ -814,7 +814,7 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
         annotations = dim(left, 265, right, 265, f"{h:.2f} mm window breadth", (left + right) / 2, 285)
         annotations += dim(40, top, 40, bottom, f"{w:.2f} mm available", 105, top - 12)
         annotations += dim(right + 18, build_top, right + 18, bottom, "", 0, 0)
-        annotations += f'<text class="mw-label" x="{right + 30:.2f}" y="245">{bb["build"]:.2f} mm total build</text>'
+        annotations += f'<text class="mw-label" x="{right + 30:.2f}" y="245">{bb["build"]:.2f} mm build</text>'
         for k, xs, xe in bb["spans"]:
             name, turns, _, _ = windings[k]
             title = {"PRI": "Primary", "SEC": "Secondary", "AUX": "Auxiliary"}.get(name.upper(), name)
