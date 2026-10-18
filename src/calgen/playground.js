@@ -9,6 +9,7 @@
   var OPTS = JSON.parse(document.getElementById("options").textContent);
   var state = { product: "FA10507", board: "A", target: "f28004x", edits: {}, stage: "out", open: {}, tab: "changes", preset: null };
   var engine = null;
+  var sensorFailureSeen = false;
   var prev = null; // id -> display from the previous computation, for flashing what just changed
   var history = [], inputTimer = null, pendingBefore = null, inputError = "";
   var groupsOpen = { Board: true };
@@ -23,6 +24,7 @@
     fn(); recompute();
   }
   function resetProduct() {
+    sensorFailureSeen = false;
     state.board = "A"; state.target = "f28004x"; state.edits = {}; state.preset = null;
     state.stage = "out"; state.open = {}; groupsOpen = { Board: true };
   }
@@ -163,6 +165,8 @@
     var headline = "Ready for review", message = "Review the generated constants and source findings.";
     var invalid = inputFinding();
     var senseFail = DATA.checks.some(function (k) { return k.id === "iout_sense_range" && k.status === "fail"; });
+    if (senseFail && !pending && !inputError) sensorFailureSeen = true;
+    if (!blocked && sensorFailureSeen && DATA.protection) message = "The sensor now covers the required protection limit. Configuration constants have been regenerated.";
     var busFail = DATA.checks.some(function (k) { return k.id === "bus_above_output_peak" && k.status === "fail"; });
     if (pending) { headline = "Updating your experiment"; message = "Rechecking the edited inputs before generating C code."; }
     else if (inputError) { headline = "Check your input"; message = inputError; }
@@ -185,10 +189,10 @@
       '<h2>' + esc(headline) + '</h2><p>' + esc(message) + '</p>';
     if (!blocked && DATA.header) h += '<button type="button" class="btn view-code" id="view-code">View generated C code →</button>';
     if (!pending && !inputError && !DATA.ok) h += fixHtml(all);
-    if (findings.length) h += '<div class="review-note"><details><summary>' + findings.length + ' source finding' + (findings.length === 1 ? '' : 's') + ' for review</summary>' + findings.map(function (d) {
+    if (findings.length) h += '<div class="review-note"><details><summary>' + findings.length + ' source finding' + (findings.length === 1 ? '' : 's') + ' · separate review</summary><p>These source interpretations do not block the modeled checks; review them before using the output.</p>' + findings.map(function (d) {
       return '<p>' + esc(d.message) + ' ' + esc(d.note) + '</p>';
     }).join('') + '</details></div>';
-    h += '<h3>What changed</h3>' + (count ? '<div class="changes-list">' + changeRows(5) + '</div>' + (count > 5 ? '<button class="text-button" id="all-changes">View all ' + count + ' changes →</button>' : '') : '<p>No changes from this product’s baseline.</p>');
+    h += '<h3>Changes from product baseline</h3>' + (count ? '<div class="changes-list">' + changeRows(5) + '</div>' + (count > 5 ? '<button class="text-button" id="all-changes">View all ' + count + ' changes →</button>' : '') : '<p>No changes from this product’s baseline.</p>');
     if (all.length && !pending && !inputError) h += '<details><summary>View ' + all.length + ' failed check' + (all.length === 1 ? '' : 's') + '</summary><ul>' + all.map(function (x) { return '<li>' + esc(x.msg) + '</li>'; }).join('') + '</ul></details>';
     h += '<details class="model-limits"><summary>Model limits and assumptions</summary><p>Synthetic hardware. Passing modeled checks requires engineering review before use. <a href="how.html#assumptions">Review assumptions →</a></p></details>';
     $("probs").innerHTML = h;
@@ -447,7 +451,7 @@
         }).join("");
       }
     } else if (state.tab === "c") {
-      out = DATA.header ? '<p><a class="btn" id="dl" href="#">Download calgen_' + esc(DATA.variant) + ".h</a></p><pre class=\"code\">" + hlC(DATA.header) + "</pre>"
+      out = DATA.header ? '<h3>Generated configuration header</h3><p class="sub">A C header of protection thresholds, scaling factors, and configuration constants for this selection.</p><p><a class="btn" id="dl" href="#">Download calgen_' + esc(DATA.variant) + ".h</a></p><pre class=\"code\">" + hlC(DATA.header) + "</pre>"
         : '<p class="alert bad">Not generated: ' + esc(DATA.gate_message) + "</p>";
     } else {
       out = DATA.diff ? "<pre>" + DATA.diff.split("\n").map(function (l) {

@@ -112,14 +112,14 @@
   }
 
   // ---- sizing (runs calgen.magnetics in Pyodide) ----------------------------------------
-  var engine = null, open = 0, lastReq = null, sztab = "curve", application = "dc_bias";
+  var engine = null, open = 0, lastReq = null, selectedByUser = false, sztab = "curve", application = "dc_bias";
   function sizeNow() {
     if (!engine) return;
     var req = { l_uh: num("sz-l"), i_rms: num("sz-irms"), i_pk: num("sz-ipk"), min_retained: parseFloat($("sz-ret").value), application: application,
       past: DATA.records.filter(function (r) { return !r.flagged; }).map(function (r) { return { id: r.id, kind: r.kind, l_uh: r.l_uh, i_a: r.i_a }; }) };
     if (!(req.l_uh > 0 && req.i_rms > 0 && req.i_pk > 0)) { $("sz-out").innerHTML = '<p class="alert bad">Enter a positive inductance, RMS current, and peak current.</p>'; return; }
     if (req.i_pk < req.i_rms) { $("sz-out").innerHTML = '<p class="alert bad" role="alert">Peak current must be at least the RMS current.</p>'; return; }
-    lastReq = req; open = 0; sztab = "curve";
+    lastReq = req; open = 0; selectedByUser = false; sztab = "curve";
     try {
       var res = JSON.parse(engine.size_json("/calgen/specs", JSON.stringify(req)));
       renderSizing(res);
@@ -145,7 +145,7 @@
           return row;
         }).join("") + "</table></div></div>";
       var x = c[open] || c[0];
-      h += '<div class="m2col szdetail"><div class="mleft"><h4>Selected design · ' + esc(x.core) + (x.stack > 1 ? " ×" + x.stack + " stacked" : "") + ": " + x.turns + " turns of " + x.strands + " × " + x.awg + " AWG</h4>" +
+      h += '<div class="m2col szdetail"><div class="mleft">' + (!selectedByUser ? '<p class="sub selection-basis">Initially selected: smallest core volume.</p>' : '') + '<h4>Selected design · ' + esc(x.core) + (x.stack > 1 ? " ×" + x.stack + " stacked" : "") + ": " + x.turns + " turns of " + x.strands + " × " + x.awg + " AWG</h4>" +
         '<div class="metric-strip"><div><small>L at peak · estimate</small><strong>' + fmtL(x.l_pk_uh) + '</strong></div><div><small>Inductance retained</small><strong>' + Math.round(x.retained * 100) + '%</strong></div><div><small>Window fill</small><strong>' + Math.round(x.fill * 100) + '%</strong></div></div><details class="mag-math"><summary>Derivations and checks</summary>' +
         x.latex.map(function (l) { return '<div class="eq"><div class="tex">' + esc(l) + "</div></div>"; }).join("") + "</details></div>" +
         '<aside class="mright" aria-label="Evidence">' + tabsHtml({ curve: true, winding: true }, sztab, "data-sztab") + '<div class="epanel">' + x.fig[sztab] + "</div></aside></div>";
@@ -159,8 +159,8 @@
     }
     $("sz-out").innerHTML = h;
     $("sz-out").querySelectorAll("tr.cand").forEach(function (tr) {
-      tr.onclick = function () { open = +tr.dataset.i; renderSizing(res); };
-      tr.onkeydown = function (ev) { if (ev.key === "Enter") { open = +tr.dataset.i; renderSizing(res); } };
+      tr.onclick = function () { open = +tr.dataset.i; selectedByUser = true; renderSizing(res); };
+      tr.onkeydown = function (ev) { if (ev.key === "Enter") { open = +tr.dataset.i; selectedByUser = true; renderSizing(res); } };
     });
     $("sz-out").querySelectorAll(".etab").forEach(function (b) { b.onclick = function () { sztab = b.dataset.sztab; renderSizing(res); }; });
     $("sz-out").querySelectorAll("a[data-id]").forEach(function (a) { a.onclick = function (ev) { ev.preventDefault(); sel = a.dataset.id; render(); $("m-detail").scrollIntoView({ behavior: "smooth" }); }; });

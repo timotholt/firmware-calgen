@@ -200,8 +200,8 @@ def page_home(counts: dict[str, int], ai: dict[str, float], mag: dict) -> str:
 <div class="initiatives">
 <section class="init">
 <div class="kicker">Firmware · Initiative 2</div>
-<h2>See what a hardware change breaks.</h2>
-<p>Change the product, board, or processor. See the affected limits, follow failed checks to a repair, and inspect the resulting C code.</p>
+<h2>Generate checked firmware constants.</h2>
+<p>Trace configuration constants to product ratings and hardware assumptions. Inspect the generated C header and its changes from baseline.</p>
 <p><a class="primary-link" href="playground.html?v={ASSET_VERSION}">Explore Firmware →</a></p>
 
 <div class="thumb miniflow">{flow}<div class="sub" style="width:100%;margin-top:6px">A failed modeled check blocks C code generation.</div></div>
@@ -211,9 +211,9 @@ def page_home(counts: dict[str, int], ai: dict[str, float], mag: dict) -> str:
 <section class="init">
 <div class="kicker">Magnetics · Initiative 1</div>
 <h2>Find a starting point for an inductor.</h2>
-<p>Compare candidate windings by size, inductance at peak current, and window fill. Inspect a passing or flagged past drawing to see what the checks catch.</p>
+<p>Compare core size, inductance at peak current, and winding fit. Review the checks alongside each design.</p>
 <p><a class="primary-link" href="magnetics.html?v={ASSET_VERSION}">Explore Magnetics →</a></p>
-<div class="try-story"><b>Try this</b> Start with the loaded candidates. Change peak current and select Size it, or open a passing and flagged example in Past designs.</div>
+<div class="try-story"><b>Try this</b> Change peak current and select Size it, or inspect a flagged past design.</div>
 
 <ul class="mini"><li><b>{mag["drawings"]}</b> synthetic drawings, read back from PDF</li><li><b>{mag["cores"]}</b> real cores with cited data</li><li>checks agree with the blind key on <b>{mag["agree"]} of {mag["drawings"]}</b></li></ul>
 <p class="sub">First-pass screening. Core loss, AC winding loss, temperature rise, and engineering validation remain outside this model.</p>
