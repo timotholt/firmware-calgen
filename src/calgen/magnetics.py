@@ -803,15 +803,42 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
         size = "bigfig" if overflow else "winfig"
         circles = "".join(f'<circle class="mw-w{k}" cx="{x:.2f}" cy="{y:.2f}" r="{r:.3f}"/>' for k, x, y, r in placed)
         t = core.id_mm / 2
-        # rotated 90°: center leg at the bottom, layers build upward, so the long window fills the panel width
-        rview = f"{-t - 2:.1f} {-(w + t + 2):.1f} {h + 2 * t + 4:.1f} {w + 2 * t + 4:.1f}"
+        # Presentation only: retain the shared bobbin geometry, with build upward.
+        scale = min(280 / h, 130 / max(w, bb["build"]))
+        left, bottom = 65, 225
+        right, top = left + h * scale, bottom - w * scale
+        build_top = bottom - bb["build"] * scale
+        def dim(x1, y1, x2, y2, text, tx, ty):
+            return (f'<path class="mw-dimension" d="M{x1:.2f},{y1:.2f} L{x2:.2f},{y2:.2f}" marker-start="url(#mw-arrow)" marker-end="url(#mw-arrow)"/>'
+                    f'<text class="mw-label" x="{tx:.2f}" y="{ty:.2f}" text-anchor="middle">{text}</text>')
+        annotations = dim(left, 265, right, 265, f"{h:.2f} mm window breadth", (left + right) / 2, 285)
+        annotations += dim(40, top, 40, bottom, f"{w:.2f} mm available", 105, top - 12)
+        annotations += dim(right + 18, build_top, right + 18, bottom, "", 0, 0)
+        annotations += f'<text class="mw-label" x="{right + 30:.2f}" y="245">{bb["build"]:.2f} mm total build</text>'
+        for k, xs, xe in bb["spans"]:
+            name, turns, _, _ = windings[k]
+            title = {"PRI": "Primary", "SEC": "Secondary", "AUX": "Auxiliary"}.get(name.upper(), name)
+            yy = bottom - (xs + xe) / 2 * scale
+            ly = 38 + k * 27
+            annotations += (f'<path class="mw-leader" d="M{right - 35:.2f},{yy:.2f} L{right + 45:.2f},{ly - 4} H570"/>'
+                            f'<text class="mw-label" x="{right + 50:.2f}" y="{ly - 9}">{title} · {turns} turns</text>')
+        if bb["tapes"]:
+            xs, xe = bb["tapes"][0]
+            yy = bottom - (xs + xe) / 2 * scale
+            annotations += (f'<path class="mw-leader" d="M{left + 25:.2f},{yy:.2f} L{left - 10},55 H210"/>'
+                            '<text class="mw-label" x="55" y="46">Insulation tape</text>')
+        annotations += f'<text class="mw-label" x="{left:.2f}" y="310">Bobbin wall {wall:.2f} mm · end margins {limits["margin_mm"]:g} mm</text>'
+        rview = "0 0 600 325"
+        section_body = (f'<rect class="mw-core" x="-1.5" y="0" width="1.5" height="{h:.2f}"/>' + "".join(parts[2:]))
+        diagram = (f'<defs><marker id="mw-arrow" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8" fill="none" stroke="currentColor"/></marker></defs>'
+                   f'<g transform="translate({left} {bottom}) scale({scale:.5f}) rotate(-90)">{section_body}{circles}</g>{annotations}')
         dimensions = (f'<dl class="winding-dimensions"><div><dt>Window</dt><dd>{w:.2f} × {h:.2f} mm</dd></div>'
                       f'<div><dt>Winding build</dt><dd>{bb["build"]:.2f} / {w:.2f} mm</dd></div>'
                       f'<div><dt>Bobbin wall</dt><dd>{wall:.2f} mm</dd></div>'
                       f'<div><dt>End margin</dt><dd>{limits["margin_mm"]:g} mm</dd></div></dl>')
-        return (f'<section class="winding-evidence"><h4>Illustrative winding arrangement</h4><p class="winding-description">{label}</p>'
+        return (f'<section class="winding-evidence"><h4>Winding cross-section</h4><p class="winding-description">{label}</p>'
                 + dimensions + f'<figure class="mfig winding-section {size}"><svg viewBox="{rview}" role="img" aria-label="Winding window: {label}; build {bb["build"]:.2f} of {bb["w"]:.2f} mm">'
-                f'<g transform="rotate(-90)">{body}{circles}</g></svg>'
+                f'{diagram}</svg>'
                 f'<figcaption>E-core window (one side), to scale, center leg at the bottom · {note}</figcaption></figure>'
                 '<p class="winding-caveat">Idealized section using the demo bobbin and insulation assumptions. Not a winding instruction or validated insulation design.</p></section>')
     note = (f"{len(wires) - overflow} of {len(wires)} conductors drawn at ideal packing" + (f"; {overflow} don't fit even then" if overflow else "")
