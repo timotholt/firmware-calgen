@@ -128,16 +128,16 @@
     if (!c.length) {
       h += '<p class="alert bad">No candidate found within this catalog and the screening assumptions, even stacked four high. Review a larger core family or the design requirements.</p>';
     } else {
-      h += '<p class="sub">' + c.length + " screening candidate" + (c.length === 1 ? "" : "s") + ", smallest core volume first. Compare candidates to select a different design.</p>";
+      h += '<p class="sub">' + c.length + " screening candidate" + (c.length === 1 ? "" : "s") + ", smallest core volume first. Select a row for its curve, winding, and calculations.</p>";
       if (c.some(function (x) { return x.retained < 0.8; })) h += '<p class="alert na">Candidates marked <span class="pill na">below 80%</span> keep less than 80% of their inductance at peak current. That is common for PFC inductors, but a drawing of one would be flagged by the drawing check below, which requires 80%.</p>';
-      h += '<details class="mag-compare"><summary>Compare all ' + c.length + ' candidates</summary><div class="mag-table-scroll" tabindex="0" role="region" aria-label="Candidate comparison"><table class="szt"><tr><th>Core</th><th>Stack · core height</th><th>Turns</th><th>Wire</th><th>L at 0 A (min A<sub>L</sub>)</th><th>L at peak (est.)</th><th>L kept at peak</th><th>J (RMS)</th><th>Fill</th><th>Core volume</th></tr>' +
+      h += '<div class="mag-compare"><div class="mag-table-scroll" tabindex="0" role="region" aria-label="Candidate comparison"><table class="szt"><tr><th>Core</th><th>Stack · core height</th><th>Turns</th><th>Wire</th><th>L at 0 A (min A<sub>L</sub>)</th><th>L at peak (est.)</th><th>L kept at peak</th><th>J (RMS)</th><th>Fill</th><th>Core volume</th></tr>' +
         c.map(function (x, i) {
           var row = '<tr class="cand' + (open === i ? " on" : "") + '" data-i="' + i + '" tabindex="0"><td class="mono">' + esc(x.core) + "</td><td>×" + x.stack + " · " + x.height_mm.toFixed(0) + " mm</td><td>" + x.turns + "</td><td>" + x.strands + " × " + x.awg + " AWG</td><td>" +
             fmtL(x.l0_uh) + "</td><td><b>" + fmtL(x.l_pk_uh) + "</b></td><td>" + Math.round(x.retained * 100) + "%" + (x.retained < 0.8 ? ' <span class="pill na">below 80%</span>' : "") + "</td><td>" + x.j.toFixed(2) + " A/mm²</td><td>" + Math.round(x.fill * 100) + "%</td><td>" + (x.core_volume_mm3 / 1000).toFixed(1) + " cm³</td></tr>";
           return row;
-        }).join("") + "</table></div></details>";
+        }).join("") + "</table></div></div>";
       var x = c[open] || c[0];
-      h += '<div class="m2col szdetail"><div class="mleft"><h4>' + esc(x.core) + (x.stack > 1 ? " ×" + x.stack + " stacked" : "") + ": " + x.turns + " turns of " + x.strands + " × " + x.awg + " AWG</h4>" +
+      h += '<div class="m2col szdetail"><div class="mleft"><h4>Selected design · ' + esc(x.core) + (x.stack > 1 ? " ×" + x.stack + " stacked" : "") + ": " + x.turns + " turns of " + x.strands + " × " + x.awg + " AWG</h4>" +
         '<div class="metric-strip"><div><small>L at peak · estimate</small><strong>' + fmtL(x.l_pk_uh) + '</strong></div><div><small>Inductance retained</small><strong>' + Math.round(x.retained * 100) + '%</strong></div><div><small>Window fill</small><strong>' + Math.round(x.fill * 100) + '%</strong></div></div><details class="mag-math"><summary>Derivations and checks</summary>' +
         x.latex.map(function (l) { return '<div class="eq"><div class="tex">' + esc(l) + "</div></div>"; }).join("") + "</details></div>" +
         '<aside class="mright" aria-label="Evidence">' + tabsHtml({ curve: true, winding: true }, sztab, "data-sztab") + '<div class="epanel">' + x.fig[sztab] + "</div></aside></div>";
