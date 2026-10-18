@@ -7,7 +7,7 @@
  * target  : f28004x (default format float32)
  * inverter: Full bridge - unipolar PWM (assumed hardware profile)
  * PWM Hz  : requested 20000; achieved 20000
- * inputs  : sha256 3ac98ba0e7a679f7a6252a4cf1f506ff494d1b9d44e9c3c856ab5b2ae8c0b290
+ * inputs  : sha256 efd09c7981c3dfd0cb3aee2962f195ec2e0a29dbc22b8ee0da45166a54c1f410
  *
  * OVERRIDE ds.iin_max: DS-10434 Rev.09172021 prints "7.4 Amps @90VAC Input,
  *   560W Output" in the Input Frequency row and "50 or 60 Hz" in the Input Max

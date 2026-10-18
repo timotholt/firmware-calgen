@@ -229,3 +229,18 @@ def test_protection_checks_are_independent_and_invalid_load_is_not_drawn():
     p = run(SPECS, edits={'ds.overload_trip_pct': 90})['protection']
     assert not p['overload_ok'] and p['sensor_ok'] and p['peak_margin'] > 0
     assert run(SPECS, edits={'ds.power_va': 0})['protection'] is None
+
+
+def test_legacy_dac_quantization_can_collapse_a_tiny_trip_window():
+    p = run(SPECS, target='f2803x', edits={'board.g_amp': 0.01})['protection']
+    assert p['codes_valid'] and not p['trip_window_valid']
+    assert p['trip_hi'] < 0 < p['trip_lo']
+    assert p['sensor_ok'] and p['overload_ok'] and p['peak_margin'] < 0
+
+
+def test_unrealizable_quantized_trip_window_blocks_generated_code():
+    r = run(SPECS, edits={'board.g_amp': 0.001})
+    assert not r['ok'] and not r['header']
+    assert not r['protection']['trip_window_valid']
+    failed = {c['id'] for c in r['checks'] if c['status'] == 'fail'}
+    assert {'crest_clears_dac_hi', 'crest_clears_dac_lo'} <= failed

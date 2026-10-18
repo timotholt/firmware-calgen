@@ -284,6 +284,7 @@ def protection(b: Build) -> dict | None:
         "trip_hi": trip_hi,
         "trip_lo": trip_lo,
         "codes_valid": codes_valid,
+        "trip_window_valid": codes_valid and trip_lo < 0 < trip_hi,
         "peak_margin": min(trip_hi, -trip_lo) - cf * rated if codes_valid else None,
         "sensor_usable": usable,
         "sensor_ok": val["iout_pk_limit"].value <= usable,

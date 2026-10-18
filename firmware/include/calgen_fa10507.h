@@ -7,7 +7,7 @@
  * target  : f28004x (default format float32)
  * inverter: Half bridge - bipolar PWM (assumed hardware profile)
  * PWM Hz  : requested 20000; achieved 20000
- * inputs  : sha256 20528ba036c6be2fa6c45e6714e3320bbc5be717bdf227223098bdc8a9650559
+ * inputs  : sha256 ebc1f199e809015d3f5e5f4cbb96737c877b1d1a5ae2c9bad1c235355bba53ba
  *
  * SYNTHETIC DEMO: firmware names and circuit values are invented; product ratings
  * come from the public data sheet cited above. Not from any vendor SDK.

@@ -7,7 +7,7 @@
  * target  : f2803x (default format iq20)
  * inverter: Half bridge - bipolar PWM (assumed hardware profile)
  * PWM Hz  : requested 20000; achieved 20000
- * inputs  : sha256 db6f7e68a5fcdc7978c67e30e943222cdc1fce4736583bf9c9cfc424feeef497
+ * inputs  : sha256 a3d46fff83adcb604383d6d392f6048830b61b9182f9036436e22680d7f710f7
  *
  * SYNTHETIC DEMO: firmware names and circuit values are invented; product ratings
  * come from the public data sheet cited above. Not from any vendor SDK.

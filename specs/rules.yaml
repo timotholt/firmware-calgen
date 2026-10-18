@@ -446,6 +446,22 @@ checks:
     block: out
     fix: "Raise the peak-limit factor (and check the current sensor still covers it), or lower the rated crest factor."
 
+  - id: crest_clears_dac_hi
+    describe: The DAC-derived positive trip threshold must clear the rated illustrative load peak after quantization
+    lhs: design.crest_factor * iout_rated
+    op: "<"
+    rhs: (iout_pklim_dac_hi / target.dac_div - 0.5) * target.v_ref / (board.r_shunt * board.g_amp)
+    block: out
+    fix: "Increase current-sense resolution with an appropriate shunt, amplifier gain, or comparator DAC; recheck the sensing range and trip setting."
+
+  - id: crest_clears_dac_lo
+    describe: The magnitude of the DAC-derived negative trip threshold must clear the rated illustrative load peak after quantization
+    lhs: design.crest_factor * iout_rated
+    op: "<"
+    rhs: (0.5 - iout_pklim_dac_lo / target.dac_div) * target.v_ref / (board.r_shunt * board.g_amp)
+    block: out
+    fix: "Increase current-sense resolution with an appropriate shunt, amplifier gain, or comparator DAC; recheck the sensing range and trip setting."
+
   - id: dac_hi_in_range
     describe: Positive peak-limit DAC code must exist on this chip's comparator DAC
     lhs: iout_pklim_dac_hi

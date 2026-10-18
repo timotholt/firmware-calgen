@@ -226,11 +226,11 @@
       s += '<text class="g-t" x="' + tx + '" y="' + (mt + ph + 18) + '" text-anchor="' + (q === 0 ? 'start' : q === 4 ? 'end' : 'middle') + '">' + (q / 4) + '</text>';
     }
     s += '<text class="g-t" x="' + ml + '" y="11">Current (A)</text><text class="g-t" x="' + (ml + pw / 2) + '" y="246" text-anchor="middle">Cycle position (cycles)</text>';
-    s += line('w-lim' + (p.codes_valid ? '' : ' bad'), hi) + line('w-lim' + (p.codes_valid ? '' : ' bad'), lo);
+    s += line('w-lim' + (p.trip_window_valid ? '' : ' bad'), hi) + line('w-lim' + (p.trip_window_valid ? '' : ' bad'), lo);
     if (showSine) s += '<path class="w-sine" d="' + path(function (t) { return p.rated_pk * Math.sin(t); }) + '"/>';
     s += '<path class="w-load" d="' + path(function (t) { return p.crest_pk * pulse(t, p.crest); }) + '"/></svg>';
     s += '<div class="wkey"><span><i class="k-load"></i>Illustrative load · crest factor ' + p.crest + ' · ' + f1(p.rated_rms) + ' A RMS · ' + f1(p.crest_pk) + ' A peak</span>';
-    s += '<span><i class="k-lim' + (p.codes_valid ? '' : ' bad') + '"></i>' + (p.codes_valid ? 'Programmed trip thresholds: ' + (hi >= 0 ? '+' : '−') + tripText(Math.abs(hi)) + ' / ' + (lo >= 0 ? '+' : '−') + tripText(Math.abs(lo)) + ' A' : 'Requested thresholds: ±' + f1(p.peak_limit) + ' A · DAC codes invalid') + '</span></div>';
+    s += '<span><i class="k-lim' + (p.trip_window_valid ? '' : ' bad') + '"></i>' + (p.codes_valid ? 'Programmed trip thresholds: ' + (hi >= 0 ? '+' : '−') + tripText(Math.abs(hi)) + ' / ' + (lo >= 0 ? '+' : '−') + tripText(Math.abs(lo)) + ' A' : 'Requested thresholds: ±' + f1(p.peak_limit) + ' A · DAC codes invalid') + '</span></div>';
     if (showSine) s += '<p class="reference-key">Dashed gray: sinusoidal reference · ' + f1(p.rated_pk) + ' A peak · same RMS current.</p>';
     s += '<label class="wave-toggle"><input type="checkbox" id="wave-sine"' + (showSine ? ' checked' : '') + '> Show sinusoidal reference · same RMS current</label>';
     s += '<p class="wnote">Constructed waveform, not measured or simulated rectifier behavior. Crest factor fixes peak/RMS, not pulse shape or timing. Switching ripple, transients, tolerances, and trip-response delays are not modeled.</p>';
@@ -242,8 +242,8 @@
     }
     var margin = p.peak_margin;
     var peak = card('peak', !p.codes_valid ? 'na' : margin > 0 ? 'ok' : 'bad', 'Load peak vs trip threshold',
-      p.codes_valid ? (margin >= 0 ? '+' : '−') + tripText(Math.abs(margin)) + ' A peak margin' : 'Programmed thresholds unavailable',
-      p.codes_valid ? 'Smaller of the positive and negative trip magnitudes, minus the illustrative load peak (' + f1(p.crest_pk) + ' A). Nominal DAC transfer only; not a guaranteed transient margin.' : 'Requested trip magnitude: ' + f1(p.peak_limit) + ' A. Invalid comparator codes cannot establish a realizable trip threshold.');
+      !p.codes_valid ? 'Programmed thresholds unavailable' : !p.trip_window_valid ? 'No valid bipolar trip window' : (margin >= 0 ? '+' : '−') + tripText(Math.abs(margin)) + ' A peak margin',
+      p.codes_valid && !p.trip_window_valid ? 'DAC rounding places the thresholds at or across zero. This configuration has no valid trip window for bipolar load current.' : p.codes_valid ? 'Smaller of the positive and negative trip magnitudes, minus the illustrative load peak (' + f1(p.crest_pk) + ' A). Nominal DAC transfer only; not a guaranteed transient margin.' : 'Requested trip magnitude: ' + f1(p.peak_limit) + ' A. Invalid comparator codes cannot establish a realizable trip threshold.');
     var sensor = card('sensor', p.sensor_ok ? 'ok' : 'bad', 'Trip setting vs sensing range',
       f1(p.peak_limit) + ' A requested / ' + f1(p.sensor_usable) + ' A usable',
       'Each polarity · full scale ±' + f1(p.sensor_fs) + ' A; ' + Math.round(p.headroom * 100) + '% usable by design. ' + (p.sensor_ok ? 'Requested threshold fits the sensing budget.' : 'Requested threshold exceeds the sensing budget.') + ' This check is independent of load-peak margin.');
