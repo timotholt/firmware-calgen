@@ -83,3 +83,5 @@ html{scrollbar-gutter:stable}
 @media(max-width:900px){.first-minute{align-items:flex-start;flex-direction:column}.demo-steps{gap:16px}}@media(max-width:600px){.demo-steps{grid-template-columns:1fr;gap:8px}.demo-start{align-items:flex-start;flex-direction:column;gap:12px}.first-minute{padding:16px}.first-minute h2{font-size:19px}}
 
 @media(max-width:600px){.first-minute{display:flex;gap:12px}.first-minute>div{display:contents}.first-minute .kicker{order:0}.first-minute h2{order:1;margin:0}.first-minute>.primary-link{order:2}.first-minute .demo-steps{order:3;margin-top:4px}.workspace-page .pg{grid-template-areas:"result" "ins" "stages" "fms"}}
+
+#m-detail .mleft{scroll-margin-top:80px}

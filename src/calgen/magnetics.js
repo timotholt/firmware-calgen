@@ -53,7 +53,7 @@
     button.onclick = function () {
       ["f-kind", "f-status", "f-text", "f-lmin", "f-lmax", "f-imin"].forEach(function (id) { $(id).value = ""; });
       sel = button.dataset.example; tab = null; render();
-      $("m-detail").scrollIntoView({ block: "start" });
+      $("m-detail").querySelector(".mleft").scrollIntoView({ block: "start" });
     };
   });
 
