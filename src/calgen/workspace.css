@@ -59,3 +59,6 @@ html{scrollbar-gutter:stable}
 
 /* Leave one text line between the cycle axis and the legend. */
 .workspace-page .wave+.wkey{margin-top:24px}.wave-toggle{align-items:baseline}.wave-toggle input{align-self:flex-start;margin-top:2px}
+
+/* Open input accordions share the stage selection palette. */
+.workspace-page .input-group[open]{border-color:var(--acc)}.workspace-page .input-group[open]>summary{background:var(--accbg);color:var(--selfg);border-bottom-color:var(--acc)}
