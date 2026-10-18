@@ -837,7 +837,7 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
                       f'<div><dt>Winding build</dt><dd>{bb["build"]:.2f} / {w:.2f} mm</dd></div>'
                       f'<div><dt>Bobbin wall</dt><dd>{wall:.2f} mm</dd></div>'
                       f'<div><dt>End margin</dt><dd>{limits["margin_mm"]:g} mm</dd></div></dl>')
-        return (f'<section class="winding-evidence"><h4>Winding cross-section</h4><p class="winding-description">{label}</p>'
+        return ('<section class="winding-evidence"><h4>Winding cross-section</h4>'
                 + dimensions + f'<figure class="mfig winding-section {size}"><svg viewBox="{rview}" role="img" aria-label="Winding window: {label}; build {bb["build"]:.2f} of {bb["w"]:.2f} mm">'
                 f'{diagram}</svg>'
                 f'<figcaption>E-core window (one side), to scale, center leg at the bottom · {note}</figcaption></figure>'
