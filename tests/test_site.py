@@ -109,7 +109,8 @@ def test_overview_offers_two_tasks_and_preserves_portfolio_context(site):
     html = (site / 'index.html').read_text()
     assert 'Explore Magnetics →' in html and 'Explore Firmware →' in html
     assert html.index('Explore Firmware →') < html.index('Explore Magnetics →')
-    assert 'On the 1500 VA product, select Board Rev B' in html
+    assert 'Start in Firmware →' in html and '#first-minute' in html
+    assert 'The example loads the 1500 VA product with Rev B.' in html
     assert 'Why I built this: the posting, assumptions, and week-one checks' in html
     assert '<details class="more-box"><summary>Why I built this' in html
     assert 'A7' in html and 'Nothing uploaded' in html

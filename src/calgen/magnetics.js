@@ -49,6 +49,14 @@
     });
   }
 
+  document.querySelectorAll('[data-example]').forEach(function (button) {
+    button.onclick = function () {
+      ["f-kind", "f-status", "f-text", "f-lmin", "f-lmax", "f-imin"].forEach(function (id) { $(id).value = ""; });
+      sel = button.dataset.example; tab = null; render();
+      $("m-detail").scrollIntoView({ block: "start" });
+    };
+  });
+
   // ---- record detail: design on the left, evidence tabs on the right ---------------------
   var tab = null; // current evidence tab; reset to the record's default when the selection changes
   var TABS = [["curve", "Curve"], ["flux", "Flux"], ["winding", "Winding"], ["drawing", "Source drawing"]];

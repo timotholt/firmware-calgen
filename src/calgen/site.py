@@ -187,39 +187,39 @@ GENERATED_SAMPLE = (
 
 
 def page_home(counts: dict[str, int], ai: dict[str, float], mag: dict) -> str:
-    pfc = mag["pfc"]
     flow = "".join(f'<span class="ministage{" bad" if s == "AC output" else ""}">{s}</span>' + ('<span class="miniarrow">→</span>' if i < 4 else "")
                    for i, s in enumerate(["AC input", "Rectifier / PFC", "DC bus", "Inverter", "AC output"]))
     body = f"""
 <div class="overview-intro">
 <div class="kicker">Independent demo · AMETEK IntelliPower AI Automation Intern</div>
-<h1 class="hero">From engineering requirements to checked designs and firmware.</h1>
-<p class="lead">Explore two working tools built around the posting’s two initiatives. Change a product’s hardware and see which firmware constants pass the modeled checks, or size an inductor from real core data.</p>
-<p class="overview-meta">Runs locally in your browser · No install or account · Nothing uploaded</p>
+<h1 class="hero">Change a requirement. See what breaks.</h1>
+<p class="lead">Change hardware and see which firmware constants fail. Compare inductor candidates against real core data, with calculations and source evidence beside each result.</p>
+<p class="overview-meta">Runs in your browser · No install or account · Nothing uploaded</p>
+<section class="first-minute" aria-label="Start here"><div><span class="kicker">Start here · about a minute</span><h2>Follow one hardware change from failure to repair.</h2><ol class="demo-steps"><li><b>Try the alternate board.</b> The example loads the 1500 VA product with Rev B.</li><li><b>See why it fails.</b> The sensor cannot cover the required protection limit.</li><li><b>Try a repair.</b> Recheck the result and inspect the generated C code.</li></ol></div><a class="primary-link" href="playground.html?v={ASSET_VERSION}#first-minute">Start in Firmware →</a></section>
 </div>
 <div class="initiatives">
 <section class="init">
-<div class="kicker">Initiative 2 · Firmware modification and calibration</div>
+<div class="kicker">Firmware · Initiative 2</div>
 <h2>See what a hardware change breaks.</h2>
-<p>Choose a product, board, and processor. Trace the resulting limits and register values to their sources, and inspect the C code that passes the checks.</p>
+<p>Change the product, board, or processor. See the affected limits, follow failed checks to a repair, and inspect the resulting C code.</p>
 <p><a class="primary-link" href="playground.html?v={ASSET_VERSION}">Explore Firmware →</a></p>
-<div class="try-story"><b>Try this</b> On the 1500 VA product, select Board Rev B. See why generation stops, then apply a suggested repair.</div>
-<div class="thumb miniflow">{flow}<div class="sub" style="width:100%;margin-top:6px">rev B on the 1500 VA unit: the sensor saturates before the peak limit fires, so nothing is written.</div></div>
+<div class="try-story"><b>Try this</b> Use the board-change example at the top of Firmware. Reset returns the product to its baseline.</div>
+<div class="thumb miniflow">{flow}<div class="sub" style="width:100%;margin-top:6px">A failed modeled check blocks C code generation.</div></div>
 <ul class="mini"><li><b>3</b> real IntelliPower data sheets, cited per value</li><li><b>{counts['contradicts']} of {counts['total']}</b> legacy constants contradict the data sheet</li><li><b>0</b> values written when any gate fails</li></ul>
 <p class="sub">Generation stops when a modeled gate fails. Passing checks still requires engineering review.</p>
 </section>
 <section class="init">
-<div class="kicker">Initiative 1 · Magnetics design automation</div>
+<div class="kicker">Magnetics · Initiative 1</div>
 <h2>Find a starting point for an inductor.</h2>
-<p>Enter inductance and current requirements to compare candidate windings on real cores. Explore checked, searchable records from past synthetic drawings.</p>
+<p>Compare candidate windings by size, inductance at peak current, and window fill. Inspect a passing or flagged past drawing to see what the checks catch.</p>
 <p><a class="primary-link" href="magnetics.html?v={ASSET_VERSION}">Explore Magnetics →</a></p>
-<div class="try-story"><b>Try this</b> Change the peak current and compare which candidates still pass the modeled constraints.</div>
-<div class="thumb">{mag["thumb"]}</div>
+<div class="try-story"><b>Try this</b> Start with the loaded candidates. Change peak current and select Size it, or open a passing and flagged example in Past designs.</div>
+
 <ul class="mini"><li><b>{mag["drawings"]}</b> synthetic drawings, read back from PDF</li><li><b>{mag["cores"]}</b> real cores with cited data</li><li>checks agree with the blind key on <b>{mag["agree"]} of {mag["drawings"]}</b></li></ul>
 <p class="sub">First-pass screening. Core loss, AC winding loss, temperature rise, and engineering validation remain outside this model.</p>
 </section>
 </div>
-<section class="overview-connection"><h2>Two tools, connected by the same requirements.</h2><div class="connect"><b>Follow a requirement.</b> The firmware playground's rectifier stage estimates its PFC inductor (FA10507: ≈ {pfc['l_uh']:.0f} µH, {pfc['i_rms']:.3g} A RMS, {pfc['i_pk']:.1f} A peak) <span class="miniarrow">→</span> one click sizes it in Magnetics against real cores <span class="miniarrow">→</span> with the closest past designs alongside. Same products, both initiatives.</div><p class="sub">Start with either tool; Firmware can also hand an estimated inductor requirement directly to Magnetics.</p></section>
+<section class="overview-connection"><h2>Carry the requirement into Magnetics.</h2><div class="connect">In Firmware, select <b>PFC</b> in Power flow and follow its inductor sizing link. Magnetics opens with that estimated requirement filled in, ready to compare against real cores.</div><p class="sub">The handoff is a first-pass estimate; the sizing method and assumptions remain visible in each tool.</p></section>
 <section class="overview-evidence"><h2>What supports the results?</h2><p>Built with AI agents under my direction. Calculations and gates are deterministic; AI drafts legacy-constant classifications for human review. <a href="ai.html">See the measured AI results →</a></p>
 <div class="key">
 <div><b>Real</b>IntelliPower product data sheets; Magnetics Inc. and Ferroxcube core data; the posting.</div>
@@ -423,10 +423,10 @@ def page_magnetics(data: dict, key_match: tuple[int, int]) -> str:
         f"<td>{c['ae_mm2']:g}</td><td>{c['le_mm']:g}</td><td>{c['wa_mm2']:g}{' *' if c['wa_basis'] != 'data sheet' else ''}</td>"
         f"<td>{'—' if c['h80_oe'] is None else format(c['h80_oe'], 'g') + ' Oe'}</td><td>{'—' if c['bsat_mt'] is None else format(c['bsat_mt'], 'g') + ' mT'}</td><td class='sub'>{_e(c['source'])}</td></tr>"
         for c in data["cores"])
-    body = f"""<header class="mag-heading"><div><h1>Magnetics workspace</h1><p>Turn requirements into starting designs. Review the evidence.</p></div><nav class="mag-jumps" aria-label="Magnetics sections"><a href="#size">Size an inductor</a><a href="#past-designs">Past designs</a></nav></header>
+    body = f"""<header class="mag-heading"><div><h1>Magnetics workspace</h1><p>Set a requirement, compare candidates, and inspect the evidence.</p></div><nav class="mag-jumps" aria-label="Magnetics sections"><a href="#size">Size an inductor</a><a href="#past-designs">Past designs</a></nav></header>
 <div class="mag-meta"><span>{len(data['cores'])} real cores · {len(recs)} synthetic drawings · {nflag} need review</span><span>Local computation · DC-bias screening only</span></div>
 <section class="sizer" id="size">
-<div class="mag-requirements"><h2>Size an inductor</h2><p class="sub">Set your requirements to compare starting designs.</p>
+<div class="mag-requirements"><h2>Size an inductor</h2><p class="sub">Candidates are loaded below. Change a requirement and select Size it to compare again.</p>
 <details class="sizing-method"><summary>Screening method and limits</summary><p class="sub">Enter a requirement; every Kool Mµ toroid in the catalog, stacked one to four high, is tried with the fewest turns estimated to reach the inductance <i>at peak current</i>, the smallest wire that meets the current-density limit (fewest strands when within 10%), and a window-fill check. Computed in your browser by the same Python as the checks below. DC-bias screening only: adjusted curves are estimates; AC excitation, losses, and temperature need separate validation.</p></details>
 <p class="sub" id="sz-from"></p>
 <div class="msearch">
@@ -438,7 +438,8 @@ def page_magnetics(data: dict, key_match: tuple[int, int]) -> str:
 </div>
 </div><div class="mag-results"><h2>Candidate designs</h2><div id="sz-out" aria-live="polite"><p class="sub">Loading the in-browser engine…</p></div></div>
 </section>
-<section class="mag-library" id="past-designs"><header class="mag-library-heading"><h2>Past designs</h2><p class="sub">Select a drawing to inspect its checks, curve, and winding. All drawings are synthetic.</p></header>
+<section class="mag-library" id="past-designs"><header class="mag-library-heading"><h2>Past designs</h2><p class="sub">See what the checks catch, then explore the searchable library. All drawings are synthetic.</p></header>
+<div class="example-actions" aria-label="Past design examples"><button type="button" class="btn" data-example="MAG-001">Passing example · MAG-001</button><button type="button" class="btn" data-example="MAG-008">Flagged example · winding overflow</button></div>
 <div class="msearch">
 <label>Kind <select id="f-kind"><option value="">All</option><option value="inductor">Inductors</option><option value="transformer">Transformers</option></select></label>
 <label>Inductance from <input id="f-lmin" type="number" min="0" step="any" placeholder="µH"></label>
@@ -523,9 +524,10 @@ def page_backstory(ai: dict[str, float]) -> str:
 
 def page_playground(default: dict) -> str:
     opts = playground.options()
-    body = f"""<header class="workspace-heading"><div><h1>Firmware workspace</h1><p>Trace every change from specification to C code.</p></div><div id="configuration" class="configuration" aria-label="Product and hardware"></div></header>
+    body = f"""<header class="workspace-heading"><div><h1>Firmware workspace</h1><p>Change an input, see the result, and trace it to the C code.</p></div><div id="configuration" class="configuration" aria-label="Product and hardware"></div></header>
 <details id="product-specs" class="product-specs"><summary id="product-spec-summary">Product specs</summary><div id="product-spec-content"></div></details>
 <div class="workspace-meta"><p>Synthetic hardware · Public product ratings · Local computation</p><div id="engine" class="engine" role="status">Showing pre-computed results · loading the in-browser engine…</div></div>
+<section id="first-minute" class="demo-start" aria-label="Firmware example"><div><h2>Try a hardware change.</h2><p>Load the 1500 VA product with Rev B to see a sensor-range failure. Try a suggested repair in Results; use Reset to restore the baseline.</p></div><button id="try-board-example" class="btn" type="button" disabled>Try board-change example</button></section>
 <div class="pg">
 <section class="ins workspace-panel" aria-label="Inputs"><h2 class="panel-title">Inputs</h2><div id="inputs" class="inputs"></div><div id="input-actions" class="input-actions"></div></section>
 <section class="stages workspace-panel" aria-label="Engineering view"><div id="flow"></div></section>

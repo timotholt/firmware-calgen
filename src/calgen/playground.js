@@ -117,6 +117,11 @@
     }); };
     $("target").onchange = function () { var v = this.value; mutate(function () { state.target = v; }); };
     $("reset").onclick = function () { mutate(resetProduct); };
+    $("try-board-example").disabled = !engine;
+    $("try-board-example").onclick = function () {
+      mutate(function () { state.product = "FA10507"; resetProduct(); state.board = "B"; });
+      $("probs").scrollIntoView({ block: "nearest" });
+    };
   }
 
   function renderProductSpecs() {
@@ -181,7 +186,7 @@
     if (findings.length) h += '<div class="review-note"><details><summary>' + findings.length + ' source finding' + (findings.length === 1 ? '' : 's') + ' for review</summary>' + findings.map(function (d) {
       return '<p>' + esc(d.message) + ' ' + esc(d.note) + '</p>';
     }).join('') + '</details></div>';
-    h += '<h3>What changed</h3>' + (count ? '<div class="changes-list">' + changeRows(5) + '</div>' + (count > 5 ? '<button class="text-button" id="all-changes">View all ' + count + ' changes →</button>' : '') : '<p>Matches the shipped product’s values.</p>');
+    h += '<h3>What changed</h3>' + (count ? '<div class="changes-list">' + changeRows(5) + '</div>' + (count > 5 ? '<button class="text-button" id="all-changes">View all ' + count + ' changes →</button>' : '') : '<p>No changes from this product’s baseline.</p>');
     if (all.length && !pending && !inputError) h += '<details><summary>View ' + all.length + ' failed check' + (all.length === 1 ? '' : 's') + '</summary><ul>' + all.map(function (x) { return '<li>' + esc(x.msg) + '</li>'; }).join('') + '</ul></details>';
     h += '<p class="evidence-note">' + (blocked ? 'No C code available until the inputs and checks pass.' : 'Synthetic hardware · modeled checks only. Engineering sign-off is still required.') + '</p>';
     $("probs").innerHTML = h;
