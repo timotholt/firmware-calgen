@@ -231,7 +231,7 @@
     s += '<path class="w-load" d="' + path(function (t) { return p.crest_pk * pulse(t, p.crest); }) + '"/></svg>';
     s += '<div class="wkey"><span><i class="k-load"></i>Illustrative load · crest factor ' + p.crest + ' · ' + f1(p.rated_rms) + ' A RMS · ' + f1(p.crest_pk) + ' A peak</span>';
     s += '<span><i class="k-lim' + (p.trip_window_valid ? '' : ' bad') + '"></i>' + (p.codes_valid ? 'Programmed trip thresholds: ' + (hi >= 0 ? '+' : '−') + tripText(Math.abs(hi)) + ' / ' + (lo >= 0 ? '+' : '−') + tripText(Math.abs(lo)) + ' A' : 'Requested thresholds: ±' + f1(p.peak_limit) + ' A · DAC codes invalid') + '</span></div>';
-    s += '<label class="wave-toggle"><input type="checkbox" id="wave-sine"' + (showSine ? ' checked' : '') + '><span>Sinusoidal reference · dashed gray · ' + f1(p.rated_pk) + ' A peak · ' + f1(p.rated_rms) + ' A RMS</span></label>';
+    s += '<label class="wave-toggle"><input type="checkbox" id="wave-sine"' + (showSine ? ' checked' : '') + '><span>Sinusoidal reference · dashed gray · ' + f1(p.rated_rms) + ' A RMS · ' + f1(p.rated_pk) + ' A peak</span></label>';
     s += '<p class="wnote">Illustrative waveform; crest factor sets peak/RMS, not shape or timing. Ripple, transients, tolerances, and trip delays are not modeled.</p>';
     return s;
   }
