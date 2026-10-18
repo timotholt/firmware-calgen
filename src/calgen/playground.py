@@ -357,7 +357,7 @@ def inductor_requirements(b: Build) -> dict[str, dict]:
         out["rect"] = {"name": "PFC boost inductor", "application": "pfc", "l_uh": vbus / (4 * f_sw * di) * 1e6, "i_rms": i_rms,
                        "i_pk": math.sqrt(2) * i_rms + di / 2, "min_retained": 0.5,
                        "basis": f"L = V_bus / (4 f_sw ΔI), ΔI = {r:g} × line peak at the data sheet's max input current; boost, worst case at V_in = V_bus/2; {shared}; "
-                                "keeps ≥ 50% at peak, common for PFC, so a drawing of it would fail the 80% drawing check"}
+                                "PFC sizing uses ≥ 50% retained inductance; the separate past-drawing DC-bias audit requires ≥ 80%"}
     if all(k in val for k in ("iout_trip", "iout_rated", "iout_pk_limit", "vout_hi")):
         di = r * math.sqrt(2) * val["iout_rated"]
         # Hardware and PWM mode come from the declared profile, never from voltage headroom.

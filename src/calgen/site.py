@@ -428,7 +428,7 @@ def page_magnetics(data: dict, key_match: tuple[int, int]) -> str:
 <section class="sizer" id="size">
 <div class="mag-requirements"><h2>Size an inductor</h2><p class="sub">Candidates are loaded below. Change a requirement and select Size it to compare again.</p>
 <details class="sizing-method"><summary>Screening method and limits</summary><p class="sub">Enter a requirement; every Kool Mµ toroid in the catalog, stacked one to four high, is tried with the fewest turns estimated to reach the inductance <i>at peak current</i>, the smallest wire that meets the current-density limit (fewest strands when within 10%), and a window-fill check. Computed in your browser by the same Python as the checks below. DC-bias screening only: adjusted curves are estimates; AC excitation, losses, and temperature need separate validation.</p></details>
-<p class="sub" id="sz-from"></p>
+<div class="sub" id="sz-from"></div>
 <div class="msearch">
 <label>Inductance at peak (µH) <input id="sz-l" type="number" min="0" step="any" value="330" placeholder="µH"></label>
 <label>RMS current (A) <input id="sz-irms" type="number" min="0" step="any" value="4" placeholder="A"></label>

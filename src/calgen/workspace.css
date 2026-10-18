@@ -89,3 +89,5 @@ html{scrollbar-gutter:stable}
 .result .view-code{display:block;background:var(--acc);color:var(--bg);border-color:var(--acc);font:inherit;font-size:13px;margin:14px 0;cursor:pointer}.fms{scroll-margin-top:80px}.model-limits{font-size:12px;color:var(--muted);margin:12px 0}.model-limits p{margin:8px 0}
 
 .screening-basis{font-size:12px;line-height:1.6;padding:10px 12px;margin:12px 0;background:var(--soft);border:1px solid var(--line);border-radius:6px;color:var(--fg)}.screening-basis details{margin-top:6px;color:var(--muted)}.screening-basis p{margin:8px 0 0}.import-precision{display:block;font-size:11px;line-height:1.5;margin-top:6px;color:var(--muted)}
+
+.import-basis{margin-top:8px;font-size:12px}.import-basis p{margin:8px 0;overflow-wrap:anywhere}.magnetics-page .szt{min-width:840px}.magnetics-page .szt td,.magnetics-page .szt th{padding:10px 8px}.magnetics-page .szt td:last-child,.magnetics-page .szt th:last-child{white-space:nowrap;min-width:8ch}.mag-compare{container-type:inline-size}.table-scroll-hint{display:none;font-size:11px;color:var(--muted);margin:0 0 8px}@container(max-width:839px){.table-scroll-hint{display:block}}
