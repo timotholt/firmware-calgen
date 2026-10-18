@@ -825,10 +825,11 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
         if bb["tapes"]:
             xs, xe = bb["tapes"][0]
             yy = bottom - (xs + xe) / 2 * scale
-            annotations += (f'<path class="mw-leader" d="M{left + 25:.2f},{yy:.2f} L{left - 10},{top - 35:.2f} H210"/>'
-                            f'<text class="mw-label" x="55" y="{top - 44:.2f}">Insulation tape</text>')
+            annotations += (f'<path class="mw-leader" d="M{left + 25:.2f},{yy:.2f} L{left + 140},{top - 5:.2f} H{left + 300}"/>'
+                            f'<text class="mw-label" x="{left + 145}" y="{top - 12:.2f}">Insulation tape</text>')
         annotations += f'<text class="mw-label" x="{left:.2f}" y="310">Bobbin wall {wall:.2f} mm · end margins {limits["margin_mm"]:g} mm</text>'
-        rview = "0 0 600 325"
+        crop_top = max(0, top - 36)  # remove unused canvas without changing drawing scale
+        rview = f"0 {crop_top:.2f} 600 {325 - crop_top:.2f}"
         section_body = (f'<rect class="mw-core" x="-1.5" y="0" width="1.5" height="{h:.2f}"/>' + "".join(parts[2:]))
         diagram = (f'<defs><marker id="mw-arrow" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8" fill="none" stroke="currentColor"/></marker></defs>'
                    f'<g transform="translate({left} {bottom}) scale({scale:.5f}) rotate(-90)">{section_body}{circles}</g>{annotations}')
