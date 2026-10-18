@@ -51,7 +51,7 @@
 
   // ---- record detail: design on the left, evidence tabs on the right ---------------------
   var tab = null; // current evidence tab; reset to the record's default when the selection changes
-  var TABS = [["curve", "Curve"], ["flux", "Flux"], ["winding", "Winding"], ["drawing", "Drawing"]];
+  var TABS = [["curve", "Curve"], ["flux", "Flux"], ["winding", "Winding"], ["drawing", "Source drawing"]];
   function tabsHtml(avail, cur, attr) {
     return '<div class="etabs" role="tablist">' + TABS.filter(function (t) { return avail[t[0]]; }).map(function (t) {
       return '<button type="button" role="tab" class="etab' + (t[0] === cur ? " on" : "") + '" aria-selected="' + (t[0] === cur) + '" ' + attr + '="' + t[0] + '">' + t[1] + "</button>";
@@ -59,9 +59,9 @@
   }
   function evidence(r, cur) {
     if (cur === "drawing") {
-      return '<a href="magnetics/' + esc(r.id) + '.pdf" target="_blank" rel="noopener" title="Open the PDF"><img class="mpng" src="magnetics/' + esc(r.id) +
+      return '<p class="drawing-evidence-note"><b>Source evidence · synthetic drawing</b><br>Original extraction input, preserved with its seeded discrepancies. Not a manufacturing release; test values, including hipot, are demo specifications.</p><a href="magnetics/' + esc(r.id) + '.pdf" target="_blank" rel="noopener" title="Open the PDF"><img class="mpng" src="magnetics/' + esc(r.id) +
         '.png" alt="Drawing ' + esc(r.id) + ": " + esc(r.title) + '" width="1268" height="980"></a><p class="sub"><a href="magnetics/' + esc(r.id) +
-        '.pdf" target="_blank" rel="noopener">Open the PDF</a> · synthetic drawing; the fields on the left were read from its text layer</p>';
+        '.pdf" target="_blank" rel="noopener">Open source PDF</a> · extracted fields and checks are shown alongside</p>';
     }
     return r.fig[cur] || '<p class="sub">Not available for this design.</p>';
   }

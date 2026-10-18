@@ -805,17 +805,32 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
         t = core.id_mm / 2
         # rotated 90°: center leg at the bottom, layers build upward, so the long window fills the panel width
         rview = f"{-t - 2:.1f} {-(w + t + 2):.1f} {h + 2 * t + 4:.1f} {w + 2 * t + 4:.1f}"
-        return (f'<figure class="mfig {size}"><svg viewBox="{rview}" role="img" aria-label="Winding window: {label}; build {bb["build"]:.2f} of {bb["w"]:.2f} mm">'
+        dimensions = (f'<dl class="winding-dimensions"><div><dt>Window</dt><dd>{w:.2f} × {h:.2f} mm</dd></div>'
+                      f'<div><dt>Winding build</dt><dd>{bb["build"]:.2f} / {w:.2f} mm</dd></div>'
+                      f'<div><dt>Bobbin wall</dt><dd>{wall:.2f} mm</dd></div>'
+                      f'<div><dt>End margin</dt><dd>{limits["margin_mm"]:g} mm</dd></div></dl>')
+        return (f'<section class="winding-evidence"><h4>Illustrative winding arrangement</h4><p class="winding-description">{label}</p>'
+                + dimensions + f'<figure class="mfig winding-section {size}"><svg viewBox="{rview}" role="img" aria-label="Winding window: {label}; build {bb["build"]:.2f} of {bb["w"]:.2f} mm">'
                 f'<g transform="rotate(-90)">{body}{circles}</g></svg>'
-                f"<figcaption>E-core window (one side), to scale, center leg at the bottom · {label} · {note}</figcaption></figure>")
+                f'<figcaption>E-core window (one side), to scale, center leg at the bottom · {note}</figcaption></figure>'
+                '<p class="winding-caveat">Idealized section using the demo bobbin and insulation assumptions. Not a winding instruction or validated insulation design.</p></section>')
     note = (f"{len(wires) - overflow} of {len(wires)} conductors drawn at ideal packing" + (f"; {overflow} don't fit even then" if overflow else "")
             + ("; the 40% winding factor leaves room for the shuttle, lead-outs and uneven layers" if core.family == "toroid" else ""))
-    # toroids: a thumbnail beside the inductance curve, large only when the winding doesn't fit;
-    # transformers have no curve, so the window is their main figure
-    size = "bigfig" if overflow else ("thumbfig" if core.family == "toroid" else "winfig")
-    return (f'<figure class="mfig {size}"><svg viewBox="{view}" role="img" aria-label="Winding view: {label}; wire (with enamel) fills {fill * 100:.0f}% of the window">'
-            f"{body}{circles}</svg><figcaption>{'Toroid, top view: each turn passes through the hole and returns around the outside' if core.family == 'toroid' else 'E-core window (one side)'}{f', ×{stack} stacked' if stack > 1 else ''} · {label} · "
-            f"wire with enamel fills {fill * 100:.0f}% of the window · {note}</figcaption></figure>")
+    opening_view = f"{-r_in - 2:.2f} {-r_in - 2:.2f} {2 * r_in + 4:.2f} {2 * r_in + 4:.2f}"
+    dimensions = (f'<dl class="winding-dimensions"><div><dt>Catalog core OD</dt><dd>{core.od_mm:g} mm</dd></div>'
+                  f'<div><dt>Catalog core ID</dt><dd>{core.id_mm:g} mm</dd></div>'
+                  f'<div><dt>Bare stack height</dt><dd>{stack} × {core.ht_mm:g} = {stack * core.ht_mm:g} mm</dd></div>'
+                  f'<div><dt>Effective opening Ø</dt><dd>{2 * r_in:.2f} mm</dd></div></dl>')
+    status = "Geometric overflow" if overflow else "Ideal packing shown"
+    return (f'<section class="winding-evidence"><h4>Illustrative winding arrangement</h4><p class="winding-description">{label}</p>'
+            + dimensions + '<div class="winding-views">'
+            f'<figure class="mfig winding-top"><svg viewBox="{view}" role="img" aria-label="Winding view: {label}; wire (with enamel) fills {fill * 100:.0f}% of the window">'
+            f'{body}{circles}</svg><figcaption>Top view · simplified wire paths{f" · ×{stack} stack" if stack > 1 else ""}</figcaption></figure>'
+            f'<figure class="mfig winding-section"><svg viewBox="{opening_view}" role="img" aria-label="Window occupancy: {len(placed)} of {len(wires)} conductor cross-sections, {fill * 100:.0f}% calculated fill">'
+            f'<circle class="mw-window-boundary" cx="0" cy="0" r="{r_in:.2f}"/>{circles}</svg>'
+            '<figcaption>Window cross-section · each disk is one insulated conductor pass</figcaption></figure></div>'
+            f'<p class="winding-fit"><b>{status}</b> · wire with enamel fills {fill * 100:.0f}% of the window · {note}</p>'
+            '<p class="winding-caveat">Views are scaled independently; use the dimensions above. Fill uses conductor cross-sections and catalog window area, not orange coverage. Effective opening is derived from that area. Enamel allowance is approximate; tape, leads, tooling clearance, and wound outer dimensions are not modeled. Not a manufacturing layout.</p></section>')
 
 
 def svg_l_vs_i(core: Core, turns: int, i_pk: float, l_req_uh: float | None, stack: int = 1, ref_at: str = "peak", al_scale: float = 1.0) -> str:
