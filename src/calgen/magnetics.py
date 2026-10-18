@@ -829,7 +829,7 @@ def svg_l_vs_i(core: Core, turns: int, i_pk: float, l_req_uh: float | None, stac
     h = lambda i: i / amps_per_oe  # noqa: E731
     l0 = core.al_nh * al_scale * stack * turns * turns / 1000
     i_max = 1.5 * i_pk
-    W, H, ml, mb, mt, mr = 420, 198, 64, 30, 18, 12
+    W, H, ml, mb, mt, mr = 600, 250, 54, 46, 24, 18
     pw, ph = W - ml - mr, H - mb - mt
     x = lambda i: ml + i / i_max * pw  # noqa: E731
     # a drawing value up to 2x above the core's reach rescales the chart (the gap is the evidence);
@@ -839,46 +839,57 @@ def svg_l_vs_i(core: Core, turns: int, i_pk: float, l_req_uh: float | None, stac
     y = lambda l: mt + (1 - l / top) * ph  # noqa: E731
     i_end = min(i_max, core.h50_oe * amps_per_oe)
     solid = " ".join(f"{x(i):.1f},{y(l0 * retained(core, min(h(i), core.h50_oe))):.1f}" for i in (i_end * k / 120 for k in range(121)))
-    g = [f'<line class="mc-ax" x1="{ml}" y1="{mt + ph}" x2="{ml + pw}" y2="{mt + ph}"/><line class="mc-ax" x1="{ml}" y1="{mt}" x2="{ml}" y2="{mt + ph}"/>']
-    for frac, lab in ((0.8, "80%"), (0.5, "50%")):
-        g.append(f'<line class="mc-g" x1="{ml}" x2="{ml + pw}" y1="{y(l0 * frac):.1f}" y2="{y(l0 * frac):.1f}"/><text class="mc-t" x="{ml + pw}" y="{y(l0 * frac) - 3:.1f}" text-anchor="end">{lab}</text>')
+    g = []
+    # Plot values, not annotations: reference values live in the legend below.
+    unit_scale, unit = (1000, "mH") if top >= 1000 else (1, "µH")
+    rough = top / 4
+    magnitude = 10 ** math.floor(math.log10(rough))
+    tick_step = next(n * magnitude for n in (1, 2, 5, 10) if n * magnitude >= rough)
+    for k in range(math.floor(top / tick_step) + 1):
+        value = k * tick_step
+        g.append(f'<line class="mc-g" x1="{ml}" x2="{ml + pw}" y1="{y(value):.2f}" y2="{y(value):.2f}"/>'
+                 f'<text class="mc-t" x="{ml - 7}" y="{y(value) + 4:.2f}" text-anchor="end">{value / unit_scale:.3g}</text>')
+    if i_end < i_max:
+        g.append(f'<rect class="mc-unmodeled" x="{x(i_end):.2f}" y="{mt}" width="{x(i_max) - x(i_end):.2f}" height="{ph}"/>')
     if core.fit:
-        faint = " ".join(f"{x(i):.1f},{y(l0 * typical(core, h(i))):.1f}" for i in (i_end * k / 120 for k in range(121)))  # fit valid only on the data sheet's range
+        faint = " ".join(f"{x(i):.1f},{y(l0 * typical(core, h(i))):.1f}" for i in (i_end * k / 120 for k in range(121)))
         g.append(f'<polyline class="mc-typ" points="{faint}"/>')
     g.append(f'<polyline class="mc-l" points="{solid}"/>')
     for hmin, frac in ((core.h80_oe, 0.8), (core.h50_oe, 0.5)):
         i_g = hmin * amps_per_oe
         if i_g <= i_max:
             g.append(f'<rect class="mc-min" x="{x(i_g) - 3.5:.1f}" y="{y(l0 * frac) - 3.5:.1f}" width="7" height="7"/>')
-    if i_end < i_max:
-        g.append(f'<text class="mc-t" x="{x(i_end) + 4:.1f}" y="{y(l0 * 0.5) + 14:.1f}">past the data sheet</text>')
-    if l_req_uh:
-        lab = f"required at peak: {_fmt_l(l_req_uh)}" if ref_at == "peak" else f"drawing: {_fmt_l(l_req_uh)} at 0 A"
-        yr = mt - 3 if off_scale else y(l_req_uh)  # off scale: a line above the plot area
-        lab += " (above the chart)" if off_scale else ""
-        g.append(f'<line class="mc-req" x1="{ml}" x2="{ml + pw}" y1="{yr:.1f}" y2="{yr:.1f}"/><text class="mc-t mc-reqt" x="{ml + 4}" y="{yr - 3:.1f}">{lab}</text>')
+    if l_req_uh and not off_scale:
+        yr = y(l_req_uh)
+        g.append(f'<line class="mc-req" x1="{ml}" x2="{ml + pw}" y1="{yr:.1f}" y2="{yr:.1f}"/>')
     f_pk = retained(core, h(i_pk))
-    g.append(f'<line class="mc-pk" x1="{x(i_pk):.1f}" x2="{x(i_pk):.1f}" y1="{mt}" y2="{mt + ph}"/><text class="mc-t" x="{x(i_pk) + 3:.1f}" y="{mt + ph - 4}">peak {i_pk:g} A</text>')
+    g.append(f'<line class="mc-pk" x1="{x(i_pk):.1f}" x2="{x(i_pk):.1f}" y1="{mt}" y2="{mt + ph}"/>')
     if f_pk is not None:
-        g.append(f'<circle class="mc-dot" cx="{x(i_pk):.1f}" cy="{y(l0 * f_pk):.1f}" r="4"/>')
-    g.append(f'<text class="mc-t" x="{ml}" y="{mt + ph + 14}" text-anchor="middle">0</text><text class="mc-t" x="{ml + pw}" y="{mt + ph + 14}" text-anchor="end">{i_max:.3g} A</text>'
-             f'<text class="mc-t" x="{ml + pw / 2:.0f}" y="{H - 4}" text-anchor="middle">bias current</text>'
-             f'<line class="mc-ax" x1="{ml - 4}" x2="{ml}" y1="{y(l0):.1f}" y2="{y(l0):.1f}"/><text class="mc-t" x="{ml - 6}" y="{y(l0) + 4:.1f}" text-anchor="end">{_fmt_l(l0)}</text>'
-             f'<text class="mc-t" x="{ml - 6}" y="{mt + ph}" text-anchor="end">0</text>'
-             f'<text class="mc-t" transform="translate(10,{mt + ph * 0.62:.0f}) rotate(-90)" text-anchor="middle">inductance</text>')
+        g.append(f'<circle class="mc-dot" cx="{x(i_pk):.1f}" cy="{y(l0 * f_pk):.1f}" r="3"/>')
+    g.append(f'<line class="mc-ax" x1="{ml}" x2="{ml + pw}" y1="{mt + ph}" y2="{mt + ph}"/>')
+    current_mag = 10 ** math.floor(math.log10(i_max / 4))
+    current_step = next(n * current_mag for n in (1, 2, 5, 10) if n * current_mag >= i_max / 4)
+    for k in range(math.floor(i_max / current_step) + 1):
+        current = current_step * k
+        anchor = "start" if k == 0 else "middle"
+        g.append(f'<text class="mc-t" x="{x(current):.2f}" y="{mt + ph + 18}" text-anchor="{anchor}">{current:.3g}</text>')
+    g.append(f'<text class="mc-t" x="{ml}" y="14">Inductance ({unit})</text>'
+             f'<text class="mc-t" x="{ml + pw / 2}" y="{H - 4}" text-anchor="middle">DC bias current (A)</text>')
     cap = (f"{core.name}{f' ×{stack}' if stack > 1 else ''}, {turns} turns: {_fmt_l(l0)} at 0 A{' (minimum Aₗ)' if al_scale < 1 else ''}; "
            + (f"{_fmt_l(l0 * f_pk)} ({f_pk * 100:.0f}%) at {i_pk:g} A peak" if f_pk is not None else f"past the data sheet's 50% point at {i_pk:g} A")
-           + (". The drawing specifies inductance at 0 A only, so it doesn't say how much is needed at full current: a question for the designer." if ref_at == "zero" else ".")
-           + (" Adjusted estimate: the vendor's typical DC-bias curve shifted to sit at or below both guaranteed points. The curve between those points is not guaranteed; AC excitation and losses require separate validation." if core.fit else ""))
+           + (". Drawing specifies 0 A inductance only; the required inductance at peak current is unknown." if ref_at == "zero" else ".")
+           + (" The curve between those points is not guaranteed; AC excitation and losses need separate validation." if core.fit else ""))
     sw = lambda body: f'<svg class="mc-sw" viewBox="0 0 22 10" aria-hidden="true">{body}</svg>'  # noqa: E731
     line = lambda cls: sw(f'<line class="{cls}" x1="1" y1="5" x2="21" y2="5"/>')  # noqa: E731
     keys = [(line("mc-l"), "adjusted estimate (not guaranteed)" if core.fit else "interpolated estimate (not guaranteed)")]
     if core.fit:
         keys.append((line("mc-typ"), "catalog typical curve"))
-    keys.append((sw('<rect class="mc-min" x="7.5" y="1.5" width="7" height="7"/>'), "guaranteed minimum (80%, 50%)"))
+    keys.append((sw('<rect class="mc-min" x="7.5" y="1.5" width="7" height="7"/>'), "guaranteed minimum (80%, 50%)" + (" · outside shown range" if core.h80_oe * amps_per_oe > i_max else "")))
     if l_req_uh:
-        keys.append((line("mc-req"), "required at peak" if ref_at == "peak" else "drawing value (0 A)" + (", off scale" if off_scale else "")))
+        keys.append((line("mc-req"), (f"required at peak: {_fmt_l(l_req_uh)}" if ref_at == "peak" else f"drawing: {_fmt_l(l_req_uh)} at 0 A") + (" · above plot range" if off_scale else "")))
     keys.append((sw('<line class="mc-pk" x1="11" y1="0" x2="11" y2="10"/>' + ('<circle class="mc-dot" cx="11" cy="5" r="3.5"/>' if f_pk is not None else "")),
-                 "peak current; dot: L at peak" if f_pk is not None else "peak current"))
+                 f"Peak current: {i_pk:g} A" + (f" · estimated L: {_fmt_l(l0 * f_pk)}" if f_pk is not None else " · outside curve range")))
+    if i_end < i_max:
+        keys.append((sw('<rect class="mc-unmodeled" x="1" y="1" width="20" height="8"/>'), "Shaded region: beyond catalog curve range"))
     leg = '<div class="mc-leg">' + "".join(f"<span>{s}{t}</span>" for s, t in keys) + "</div>"
-    return f'<figure class="mfig"><svg viewBox="0 0 {W} {H}" role="img" aria-label="Inductance versus current">{"".join(g)}</svg>{leg}<figcaption>{cap}</figcaption></figure>'
+    return f'<figure class="mfig mc-chart"><svg class="mc-plot" viewBox="0 0 {W} {H}" role="img" aria-label="Inductance versus current">{"".join(g)}</svg>{leg}<figcaption>{cap}</figcaption></figure>'
