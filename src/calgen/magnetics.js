@@ -9,7 +9,12 @@
 
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
-  function num(id) { var v = parseFloat($(id).value); return isNaN(v) ? null : v; }
+  var importedInputs = {}; // formatted fields retain the imported number until edited
+  function num(id) {
+    var field = $(id), imported = importedInputs[id];
+    if (imported && field.value === imported.display) return imported.raw;
+    var v = parseFloat(field.value); return isNaN(v) ? null : v;
+  }
   function fmtL(uh) { return uh >= 1000 ? (uh / 1000).toPrecision(3) + " mH" : uh.toPrecision(3) + " µH"; }
   var FAIL_TEXT = { inductance: "stated inductance doesn't match Aₗ × N² within tolerance", core_known: "core not in the catalog",
     ratio: "turns ratio doesn't match the winding table", current_density: "wire too thin for the current", window_fill: "winding doesn't fit the window",
@@ -137,11 +142,11 @@
       h += '<p class="alert bad">No candidate found within this catalog and the screening assumptions, even stacked four high. Review a larger core family or the design requirements.</p>';
     } else {
       h += '<p class="sub">' + c.length + " screening candidate" + (c.length === 1 ? "" : "s") + ", sorted by core volume. Compare stacking, retained inductance, and fill; select a row for its evidence.</p>";
-      if (c.some(function (x) { return x.retained < 0.8; })) h += '<p class="alert na">Candidates marked <span class="pill na">below 80%</span> keep less than 80% of their inductance at peak current. That is common for PFC inductors, but a drawing of one would be flagged by the drawing check below, which requires 80%.</p>';
+      if (lastReq && lastReq.min_retained < 0.8) h += '<div class="screening-basis"><b>Sizing criterion: ≥ ' + Math.round(lastReq.min_retained * 100) + '% inductance retained at peak current.</b> These candidates meet that criterion. <details><summary>How this differs from the drawing audit</summary><p>Past inductor drawings use a fixed 80% retained-inductance requirement for their DC-bias check. That audit is stricter than this sizing criterion; passing sizing does not imply passing the drawing audit.</p></details></div>';
       h += '<div class="mag-compare"><div class="mag-table-scroll" tabindex="0" role="region" aria-label="Candidate comparison"><table class="szt"><tr><th>Core</th><th>Stack · core height</th><th>Turns</th><th>Wire</th><th>L at 0 A (min A<sub>L</sub>)</th><th>L at peak (est.)</th><th>L kept at peak</th><th>Current density<br>(A/mm²)</th><th>Fill</th><th>Core volume</th></tr>' +
         c.map(function (x, i) {
           var row = '<tr class="cand' + (open === i ? " on" : "") + '" data-i="' + i + '" tabindex="0"><td class="mono">' + esc(x.core) + "</td><td>×" + x.stack + " · " + x.height_mm.toFixed(0) + " mm</td><td>" + x.turns + "</td><td>" + x.strands + " × " + x.awg + " AWG</td><td>" +
-            fmtL(x.l0_uh) + "</td><td><b>" + fmtL(x.l_pk_uh) + "</b></td><td>" + Math.round(x.retained * 100) + "%" + (x.retained < 0.8 ? ' <span class="pill na">below 80%</span>' : "") + "</td><td>" + x.j.toFixed(2) + " A/mm²</td><td>" + Math.round(x.fill * 100) + "%</td><td>" + (x.core_volume_mm3 / 1000).toFixed(1) + " cm³</td></tr>";
+            fmtL(x.l0_uh) + "</td><td><b>" + fmtL(x.l_pk_uh) + "</b></td><td>" + Math.round(x.retained * 100) + "%" + "</td><td>" + x.j.toFixed(2) + " A/mm²</td><td>" + Math.round(x.fill * 100) + "%</td><td>" + (x.core_volume_mm3 / 1000).toFixed(1) + " cm³</td></tr>";
           return row;
         }).join("") + "</table></div></div>";
       var x = c[open] || c[0];
@@ -169,10 +174,18 @@
   function fromHash() { // magnetics.html#size?name=...&l=...&irms=...&ipk=...&ret=...&from=...
     var m = location.hash.match(/^#size\?(.*)$/); if (!m) return false;
     var q = {}; m[1].split("&").forEach(function (kv) { var p = kv.split("="); q[p[0]] = decodeURIComponent(p[1] || ""); });
-    if (q.l) $("sz-l").value = q.l; if (q.irms) $("sz-irms").value = q.irms; if (q.ipk) $("sz-ipk").value = q.ipk;
+    importedInputs = {};
+    [["sz-l", q.l], ["sz-irms", q.irms], ["sz-ipk", q.ipk]].forEach(function (pair) {
+      if (!pair[1]) return;
+      var raw = Number(pair[1]), display = Number.isFinite(raw) ? String(Number(raw.toPrecision(4))) : pair[1];
+      $(pair[0]).value = display;
+      if (Number.isFinite(raw)) importedInputs[pair[0]] = { raw: raw, display: $(pair[0]).value };
+    });
     if (q.ret) $("sz-ret").value = q.ret;
     application = q.application || "dc_bias";
+    $("sz-from").innerHTML = "";
     if (q.name) $("sz-from").innerHTML = "Requirement from the firmware playground: <b>" + esc(q.name) + "</b>" + (q.from ? " for " + esc(q.from) : "") + (q.basis ? ' <span title="' + esc(q.basis) + '">(first-pass estimate; hover for the basis)</span>' : "");
+    $("sz-from").innerHTML += '<small class="import-precision">Inputs are rounded for display; original precision is retained until you edit them.</small>';
     return true;
   }
   async function boot() {
@@ -193,7 +206,7 @@
     }
   }
   $("sz-go").onclick = sizeNow;
-  ["sz-l", "sz-irms", "sz-ipk"].forEach(function (id) { $(id).onkeydown = function (ev) { if (ev.key === "Enter") sizeNow(); }; });
+  ["sz-l", "sz-irms", "sz-ipk"].forEach(function (id) { $(id).oninput = function () { delete importedInputs[id]; }; $(id).onkeydown = function (ev) { if (ev.key === "Enter") sizeNow(); }; });
   $("sz-ret").onchange = sizeNow;
   window.addEventListener("hashchange", function () { if (fromHash()) { $("size").scrollIntoView(); sizeNow(); } });
 

@@ -433,7 +433,7 @@ def page_magnetics(data: dict, key_match: tuple[int, int]) -> str:
 <label>Inductance at peak (µH) <input id="sz-l" type="number" min="0" step="any" value="330" placeholder="µH"></label>
 <label>RMS current (A) <input id="sz-irms" type="number" min="0" step="any" value="4" placeholder="A"></label>
 <label>Peak current (A) <input id="sz-ipk" type="number" min="0" step="any" value="4.5" placeholder="A"></label>
-<label>Keep at peak <select id="sz-ret"><option value="0.8">≥ 80% (what the drawing check requires)</option><option value="0.5">≥ 50% (common for PFC; fails the 80% drawing check)</option></select></label>
+<label>Minimum L retained <select id="sz-ret"><option value="0.8">≥ 80% retained</option><option value="0.5">≥ 50% retained · PFC screening</option></select></label>
 <button id="sz-go" class="btn primary-btn" type="button">Size it</button>
 </div>
 </div><div class="mag-results"><h2>Candidate designs</h2><div id="sz-out" aria-live="polite"><p class="sub">Loading the in-browser engine…</p></div></div>
