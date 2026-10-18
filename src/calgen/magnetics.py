@@ -816,12 +816,12 @@ def svg_window(core: Core, windings: list[tuple[str, int, int, int]], stack: int
         annotations += dim(right + 18, build_top, right + 18, bottom, "", 0, 0)
         annotations += f'<text class="mw-label" x="{right + 20:.2f}" y="245">{bb["build"]:.2f} mm build</text>'
         for k, xs, xe in bb["spans"]:
-            name, turns, _, _ = windings[k]
+            name, turns, strands, awg = windings[k]
             title = {"PRI": "Primary", "SEC": "Secondary", "AUX": "Auxiliary"}.get(name.upper(), name)
             yy = bottom - (xs + xe) / 2 * scale
-            ly = top + 22 + (len(bb["spans"]) - 1 - k) * 30
-            annotations += (f'<path class="mw-leader" d="M{right - 35:.2f},{yy:.2f} L{right + 20:.2f},{ly - 4} H590"/>'
-                            f'<text class="mw-label" x="{right + 25:.2f}" y="{ly - 9}">{title}</text>')
+            ly = top + 2 + (len(bb["spans"]) - 1 - k) * 64
+            annotations += (f'<path class="mw-leader" d="M{right - 35:.2f},{yy:.2f} L{right + 20:.2f},{ly + 7}"/>'
+                            f'<text class="mw-label" x="{right + 25:.2f}" y="{ly - 9}">{title}<tspan x="{right + 25:.2f}" dy="19">{turns} turns</tspan><tspan x="{right + 25:.2f}" dy="19">{strands} × {awg} AWG</tspan></text>')
         if bb["tapes"]:
             xs, xe = bb["tapes"][0]
             yy = bottom - (xs + xe) / 2 * scale
