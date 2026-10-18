@@ -282,7 +282,7 @@ def _copper_checks(d: Design, core: Core, limits: dict) -> list[Check]:
                          f"winding build {b['build']:.2f} mm of the {b['w']:.2f} mm window ({b['build'] / b['w'] * 100:.0f}%), "
                          f"with a {_f(b['wall'])} mm bobbin wall, {_f(b['margin'])} mm margin tape at each end, and tape between and over the windings"
                          + ("" if b["fits"] else ": it won't fit with this insulation"),
-                         [rf"\text{{build}} = \underbrace{{{_f(b['wall'])}}}_{{\text{{bobbin}}}} + \underbrace{{{terms}}}_{{\text{{layers}} \times {limits.get('build_factor', 1.0):g}\,d_{{ins}}}} + \underbrace{{{_f(tape_total)}}}_{{\text{{tape}}}} = {b['build']:.2f}\,\mathrm{{mm}} \le {b['w']:.2f}\,\mathrm{{mm}}",
+                         [rf"\text{{build}} = \underbrace{{{_f(b['wall'])}}}_{{\text{{bobbin}}}} + \underbrace{{{terms}}}_{{\text{{layers}} \times {limits.get('build_factor', 1.0):g}\,d_{{ins}}}} + \underbrace{{{_f(tape_total)}}}_{{\text{{tape}}}} = {b['build']:.2f}\,\mathrm{{mm}} {r'\le' if b['fits'] else '>'} {b['w']:.2f}\,\mathrm{{mm}}",
                           rf"\text{{breadth between margins}} = {_f(b['h'])} - 2({_f(b['wall'])} + {_f(b['margin'])}) = {_f(b['y1'] - b['y0'])}\,\mathrm{{mm}} \quad \text{{(assumptions)}}"]))
         return out
     # winding factor counts wire with its enamel, as Magnetics' 40% winding factor does
@@ -292,7 +292,7 @@ def _copper_checks(d: Design, core: Core, limits: dict) -> list[Check]:
     ok = fill <= lim
     out.append(Check("window_fill", "Winding fits the core window", PASS if ok else FLAG,
                      f"wire (with enamel) fills {fill * 100:.0f}% of the window vs a {lim * 100:.0f}% winding factor" + ("" if ok else ": the winding won't fit"),
-                     [rf"\frac{{\sum N \cdot n \cdot \pi d_{{ins}}^2/4}}{{W_a}} = \frac{{{_f(cu, 4)}\,\mathrm{{mm^2}}}}{{{_f(core.wa_mm2, 4)}\,\mathrm{{mm^2}}}} = {fill * 100:.0f}\% \le {lim * 100:.0f}\%"]))
+                     [rf"\frac{{\sum N \cdot n \cdot \pi d_{{ins}}^2/4}}{{W_a}} = \frac{{{_f(cu, 4)}\,\mathrm{{mm^2}}}}{{{_f(core.wa_mm2, 4)}\,\mathrm{{mm^2}}}} = {fill * 100:.0f}\% {r'\le' if ok else '>'} {lim * 100:.0f}\%"]))
     return out
 
 

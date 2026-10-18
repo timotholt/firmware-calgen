@@ -85,3 +85,5 @@ html{scrollbar-gutter:stable}
 @media(max-width:600px){.first-minute{display:flex;gap:12px}.first-minute>div{display:contents}.first-minute .kicker{order:0}.first-minute h2{order:1;margin:0}.first-minute>.primary-link{order:2}.first-minute .demo-steps{order:3;margin-top:4px}.workspace-page .pg{grid-template-areas:"result" "ins" "stages" "fms"}}
 
 #m-detail .mleft{scroll-margin-top:80px}
+
+.result .view-code{display:block;background:var(--acc);color:var(--bg);border-color:var(--acc);font:inherit;font-size:13px;margin:14px 0;cursor:pointer}.fms{scroll-margin-top:80px}.model-limits{font-size:12px;color:var(--muted);margin:12px 0}.model-limits p{margin:8px 0}

@@ -38,7 +38,7 @@
     vin_min: "Vin min", vin_max: "Vin max", fin_min: "Fin min", fin_max: "Fin max", iin_limit: "Iin max",
     vbus_min: "Bus min", vbus_set: "Bus setpoint", vbus_fs: "Bus sensor FS",
     vout_set: "Vout", fout_hz: "Fout", fout_mode: "Mode", pwm_period: "PWM period",
-    iout_rated: "Rated", iout_trip: "Overload (RMS)", iout_pk_limit: "Peak limit", iout_fs_pk: "Sensor FS", iout_pklim_dac_hi: "High-limit DAC", iout_pklim_dac_lo: "Low-limit DAC", vout_lo: "Output low", vout_hi: "Output high",
+    iout_rated: "Rated", iout_trip: "Overload (RMS)", iout_pk_limit: "Peak limit", iout_fs_pk: "Sensor current range", iout_pklim_dac_hi: "Upper trip DAC code", iout_pklim_dac_lo: "Lower trip DAC code", vout_lo: "Output low", vout_hi: "Output high",
     vbat_nom: "Nominal", vbat_cutoff: "Cutoff"
   };
   var INPUT_CHECKS = ["input_voltage_order", "input_frequency_order", "battery_cells_integer", "battery_cells_positive", "output_regulation_nonnegative", "output_regulation_below_100"];
@@ -107,7 +107,7 @@
     }).join('') + '</select></label>' +
       '<label>Board revision<select id="board" aria-label="Board revision" aria-describedby="board-note"' + dis + '><option value="A">Rev A · original amplifier</option><option value="B">Rev B · alternate amplifier</option></select><small id="board-note" class="hardware-note">Demo board configurations—not actual IntelliPower hardware.</small></label>' +
       '<label>Target processor<select id="target" aria-label="Target processor" aria-describedby="processor-note"' + dis + '><option value="f28004x">F28004x · float32</option><option value="f2803x">F2803x · IQ20</option></select><small id="processor-note" class="hardware-note">Illustrative processor pairing; actual product processor unverified.</small></label>' +
-      '<button id="reset" class="btn" type="button" title="Restore this product’s shipped defaults"' + dis + '>↺ Reset</button>';
+      '<button id="reset" class="btn" type="button" title="Restore this product’s baseline"' + dis + '>↺ Reset</button>';
     $("product").value = state.product; $("board").value = state.board; $("target").value = state.target;
     $("product").onchange = function () { var v = this.value; mutate(function () { state.product = v; resetProduct(); }); };
     $("board").onchange = function () { var v = this.value; mutate(function () {
@@ -118,6 +118,7 @@
     $("target").onchange = function () { var v = this.value; mutate(function () { state.target = v; }); };
     $("reset").onclick = function () { mutate(resetProduct); };
     $("try-board-example").disabled = !engine;
+    $("try-board-example").textContent = engine ? "Apply Rev B" : "Loading example…";
     $("try-board-example").onclick = function () {
       mutate(function () { state.product = "FA10507"; resetProduct(); state.board = "B"; });
       $("probs").scrollIntoView({ block: "nearest" });
@@ -159,7 +160,7 @@
     Object.keys(FLOW).forEach(function (b) { all = all.concat(problems(b)); });
     var pending = !!pendingBefore;
     var blocked = !DATA.ok || !!inputError || pending;
-    var headline = "Ready for review", message = "The modeled constraints pass. Review the assumptions and source findings before using the generated constants.";
+    var headline = "Ready for review", message = "Review the generated constants and source findings.";
     var invalid = inputFinding();
     var senseFail = DATA.checks.some(function (k) { return k.id === "iout_sense_range" && k.status === "fail"; });
     var busFail = DATA.checks.some(function (k) { return k.id === "bus_above_output_peak" && k.status === "fail"; });
@@ -182,14 +183,19 @@
     var findings = DATA.datasheet || [];
     var h = '<div class="result-status' + (blocked ? ' bad' : '') + '">' + (pending ? 'Updating…' : blocked ? '● Generation blocked' : '✓ C code generated · modeled checks pass') + '</div>' +
       '<h2>' + esc(headline) + '</h2><p>' + esc(message) + '</p>';
+    if (!blocked && DATA.header) h += '<button type="button" class="btn view-code" id="view-code">View generated C code →</button>';
     if (!pending && !inputError && !DATA.ok) h += fixHtml(all);
     if (findings.length) h += '<div class="review-note"><details><summary>' + findings.length + ' source finding' + (findings.length === 1 ? '' : 's') + ' for review</summary>' + findings.map(function (d) {
       return '<p>' + esc(d.message) + ' ' + esc(d.note) + '</p>';
     }).join('') + '</details></div>';
     h += '<h3>What changed</h3>' + (count ? '<div class="changes-list">' + changeRows(5) + '</div>' + (count > 5 ? '<button class="text-button" id="all-changes">View all ' + count + ' changes →</button>' : '') : '<p>No changes from this product’s baseline.</p>');
     if (all.length && !pending && !inputError) h += '<details><summary>View ' + all.length + ' failed check' + (all.length === 1 ? '' : 's') + '</summary><ul>' + all.map(function (x) { return '<li>' + esc(x.msg) + '</li>'; }).join('') + '</ul></details>';
-    h += '<p class="evidence-note">' + (blocked ? 'No C code available until the inputs and checks pass.' : 'Synthetic hardware · modeled checks only. Engineering sign-off is still required.') + '</p>';
+    h += '<details class="model-limits"><summary>Model limits and assumptions</summary><p>Synthetic hardware. Passing modeled checks requires engineering review before use. <a href="how.html#assumptions">Review assumptions →</a></p></details>';
     $("probs").innerHTML = h;
+    if ($("view-code")) $("view-code").onclick = function () {
+      state.tab = "c"; renderFormulas();
+      $("formulas").closest(".fms").scrollIntoView({ block: "start" });
+    };
     $("probs").querySelectorAll('.applyfix').forEach(function (button) {
       button.onclick = function () { mutate(function () { state.edits[button.dataset.k] = parseFloat(button.dataset.v); groupsOpen.Board = true; }); };
     });
@@ -304,7 +310,7 @@
       ['<span class="tag tag-assumption">assumption</span>', "Computed from an invented board value or design choice (shunt, gain, margin, factor, timing) or a generic chemistry figure"],
       ['<span class="tag tag-design">design</span>', "Engineer-supplied value carried through unchanged (loop gains)"],
       ['<span class="tag tag-override">what-if</span>', "Your override of a data sheet value (marked OVERRIDE in the C code)"],
-      ['<span class="lgchg"><span class="was">12.5</span> → <b>16.7</b></span>', "Differs from the shipped product (rev A board, F28004x-class, default design)"],
+      ['<span class="lgchg"><span class="was">12.5</span> → <b>16.7</b></span>', "Differs from the product baseline (Rev A board, F28004x, default design)"],
       ['<span class="lgbad">red indicator</span>', "A gate failed in this stage; why, and how to fix it, appear in Results"],
       ["1φ*", "Single-phase is implied by the IEC C14 inlet and NEMA 5-15 outlets, not stated as a rating"]
     ];
@@ -334,7 +340,7 @@
     return '<label class="inp' + (edited ? ' edited' : '') + '"><span>' + esc(e.label) + '</span>' +
       '<input type="number" aria-label="' + esc(e.label + (unit ? " " + unit : "")) + '" step="' + (e.key === 'ds.batt_series_cells' ? '1' : 'any') + '" min="' + (zeroAllowed ? '0' : '0.000001') + '" data-k="' + esc(e.key) + '" value="' + (v == null ? '' : esc(v)) + '"' +
       (v == null ? ' placeholder="n/a" title="not in data sheet"' : '') + dis + '><i class="u">' + esc(unit) + '</i>' +
-      (edited ? '<small class="input-origin">Shipped: ' + (base == null ? 'not stated' : esc(base) + ' ' + esc(unit)) + ' · edited</small>' : '') + '</label>';
+      (edited ? '<small class="input-origin">Baseline: ' + (base == null ? 'not stated' : esc(base) + ' ' + esc(unit)) + ' · edited</small>' : '') + '</label>';
   }
 
   function renderInputs() {
@@ -345,7 +351,7 @@
       (groups[group] = groups[group] || []).push(e);
     });
     var handEdited = Object.keys(state.edits).some(function (k) { return k.indexOf('ds.') === 0; });
-    var presetOpts = '<option value="">As shipped</option>' + Object.keys(OPTS.presets).map(function (k) {
+    var presetOpts = '<option value="">Product baseline</option>' + Object.keys(OPTS.presets).map(function (k) {
       return '<option value="' + k + '">' + esc(OPTS.presets[k]) + '</option>';
     }).join('') + (handEdited ? '<option value="__custom">Custom · edited by hand</option>' : '');
     var h = '<label class="market-control">What-if market<select id="preset" aria-label="What-if market"' + dis + '>' + presetOpts + '</select><span class="market-note">Hypothetical specification edits, not certified market compatibility.</span></label>';
@@ -388,7 +394,7 @@
       };
     });
     var n = Object.keys(state.edits).length + (state.board !== 'A' ? 1 : 0) + (state.target !== 'f28004x' ? 1 : 0) + (state.preset ? 1 : 0);
-    $("input-actions").innerHTML = '<span>' + (n ? n + ' experiment change' + (n === 1 ? '' : 's') : 'Shipped defaults') + '</span><button type="button" class="text-button" id="undo"' + (history.length ? '' : ' disabled') + '>↶ Undo</button>';
+    $("input-actions").innerHTML = '<span>' + (n ? n + ' experiment change' + (n === 1 ? '' : 's') : 'Product baseline') + '</span><button type="button" class="text-button" id="undo"' + (history.length ? '' : ' disabled') + '>↶ Undo</button>';
     $("undo").onclick = function () {
       finishPending();
       if (!history.length) return;
@@ -410,7 +416,7 @@
   function isOpen(c) { return state.open[c.id] !== undefined ? state.open[c.id] : c.status === "fail"; } // changed rows show old -> new in the row itself
 
   function renderFormulas() {
-    var tabs = [["changes", "Changes"], ["math", "Derivations"], ["c", "Generated C code"], ["diff", "Diff vs shipped"]];
+    var tabs = [["changes", "Changes"], ["math", "Derivations"], ["c", "Generated C code"], ["diff", "Code diff vs baseline"]];
     $("fhead").textContent = state.tab === "math" ? "Derivations · " + DATA.blocks[state.stage] + " (click a stage to switch)" : "Output";
     $("tabs").innerHTML = tabs.map(function (t) { return '<button type="button" class="pill tab' + (state.tab === t[0] ? " on" : "") + '" data-t="' + t[0] + '" aria-pressed="' + (state.tab === t[0]) + '">' + t[1] + "</button>"; }).join("");
     $("tabs").querySelectorAll(".tab").forEach(function (e) {
@@ -423,9 +429,9 @@
       out = '<p class="sub">' + esc(inputError || 'Rechecking your changes…') + ' C code downloads are unavailable until the inputs pass.</p>';
     } else if (state.tab === "changes") {
       var changedConstants = DATA.constants.filter(function (c) { return changed(c.id); });
-      out = changedConstants.length ? '<table class="change-table"><thead><tr><th>Constant</th><th>Shipped</th><th>Current</th></tr></thead><tbody>' + changedConstants.map(function (c) {
+      out = changedConstants.length ? '<table class="change-table"><thead><tr><th>Constant</th><th>Baseline</th><th>Current</th></tr></thead><tbody>' + changedConstants.map(function (c) {
         return '<tr><td><button type="button" class="text-button" data-change="' + esc(c.id) + '">' + esc(c.symbol) + '</button></td><td class="mono">' + esc(DATA.baseline[c.id]) + '</td><td>' + esc(c.display) + '</td></tr>';
-      }).join('') + '</tbody></table>' : '<p class="sub">Your starting point matches the shipped product. Change a board, processor, or input to compare the results here.</p>';
+      }).join('') + '</tbody></table>' : '<p class="sub">No changes from the product baseline. Change a board, processor, or input to compare the results here.</p>';
     } else if (state.tab === "math") {
       var list = DATA.constants.filter(function (c) { return c.block === state.stage; });
       out = list.map(function (c) {

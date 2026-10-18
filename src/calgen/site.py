@@ -195,7 +195,7 @@ def page_home(counts: dict[str, int], ai: dict[str, float], mag: dict) -> str:
 <h1 class="hero">Change a requirement. See what breaks.</h1>
 <p class="lead">Change hardware and see which firmware constants fail. Compare inductor candidates against real core data, with calculations and source evidence beside each result.</p>
 <p class="overview-meta">Runs in your browser · No install or account · Nothing uploaded</p>
-<section class="first-minute" aria-label="Start here"><div><span class="kicker">Start here · about a minute</span><h2>Follow one hardware change from failure to repair.</h2><ol class="demo-steps"><li><b>Try the alternate board.</b> The example loads the 1500 VA product with Rev B.</li><li><b>See why it fails.</b> The sensor cannot cover the required protection limit.</li><li><b>Try a repair.</b> Recheck the result and inspect the generated C code.</li></ol></div><a class="primary-link" href="playground.html?v={ASSET_VERSION}#first-minute">Start in Firmware →</a></section>
+<section class="first-minute" aria-label="Start here"><div><span class="kicker">Start here · about a minute</span><h2>Follow one hardware change from failure to repair.</h2><ol class="demo-steps"><li><b>Try the alternate board.</b> Open Firmware, then apply Rev B to the 1500 VA product.</li><li><b>See why it fails.</b> The sensor cannot cover the required protection limit.</li><li><b>Try a repair.</b> Recheck the result and inspect the generated C code.</li></ol></div><a class="primary-link" href="playground.html?v={ASSET_VERSION}#first-minute">Open the walkthrough →</a></section>
 </div>
 <div class="initiatives">
 <section class="init">
@@ -203,10 +203,10 @@ def page_home(counts: dict[str, int], ai: dict[str, float], mag: dict) -> str:
 <h2>See what a hardware change breaks.</h2>
 <p>Change the product, board, or processor. See the affected limits, follow failed checks to a repair, and inspect the resulting C code.</p>
 <p><a class="primary-link" href="playground.html?v={ASSET_VERSION}">Explore Firmware →</a></p>
-<div class="try-story"><b>Try this</b> Use the board-change example at the top of Firmware. Reset returns the product to its baseline.</div>
+
 <div class="thumb miniflow">{flow}<div class="sub" style="width:100%;margin-top:6px">A failed modeled check blocks C code generation.</div></div>
 <ul class="mini"><li><b>3</b> real IntelliPower data sheets, cited per value</li><li><b>{counts['contradicts']} of {counts['total']}</b> legacy constants contradict the data sheet</li><li><b>0</b> values written when any gate fails</li></ul>
-<p class="sub">Generation stops when a modeled gate fails. Passing checks still requires engineering review.</p>
+
 </section>
 <section class="init">
 <div class="kicker">Magnetics · Initiative 1</div>
@@ -527,7 +527,7 @@ def page_playground(default: dict) -> str:
     body = f"""<header class="workspace-heading"><div><h1>Firmware workspace</h1><p>Change an input, see the result, and trace it to the C code.</p></div><div id="configuration" class="configuration" aria-label="Product and hardware"></div></header>
 <details id="product-specs" class="product-specs"><summary id="product-spec-summary">Product specs</summary><div id="product-spec-content"></div></details>
 <div class="workspace-meta"><p>Synthetic hardware · Public product ratings · Local computation</p><div id="engine" class="engine" role="status">Showing pre-computed results · loading the in-browser engine…</div></div>
-<section id="first-minute" class="demo-start" aria-label="Firmware example"><div><h2>Try a hardware change.</h2><p>Load the 1500 VA product with Rev B to see a sensor-range failure. Try a suggested repair in Results; use Reset to restore the baseline.</p></div><button id="try-board-example" class="btn" type="button" disabled>Try board-change example</button></section>
+<section id="first-minute" class="demo-start" aria-label="Firmware example"><div><h2>Try a hardware change.</h2><p>Apply Rev B to the 1500 VA product, see why generation stops, then try a repair. Reset restores the baseline.</p></div><button id="try-board-example" class="btn" type="button" disabled>Loading example…</button></section>
 <div class="pg">
 <section class="ins workspace-panel" aria-label="Inputs"><h2 class="panel-title">Inputs</h2><div id="inputs" class="inputs"></div><div id="input-actions" class="input-actions"></div></section>
 <section class="stages workspace-panel" aria-label="Engineering view"><div id="flow"></div></section>

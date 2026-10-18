@@ -334,3 +334,16 @@ def test_empty_sizing_results_do_not_claim_a_pass():
     assert not result['candidates']
     assert result['scope']['verdict'] == 'Screening only · no candidate passes modeled constraints'
     assert 'large AC excitation' in result['scope']['remaining']
+
+
+def test_window_comparison_symbol_agrees_with_verdict():
+    """A failed inequality must not be printed as if the constraint passed."""
+    by = {d.id: d for d in DESIGNS}
+    for did, limits, expected in (
+        ('MAG-001', LIMITS, mg.PASS), ('MAG-008', LIMITS, mg.FLAG),
+        ('XFMR-001', LIMITS, mg.PASS), ('XFMR-001', dict(LIMITS, margin_mm=6), mg.FLAG),
+    ):
+        c = next(c for c in mg.check(by[did], CORES, limits) if c.id == 'window_fill')
+        assert c.status == expected
+        assert (r'\le' in c.latex[0]) == (expected == mg.PASS)
+        assert (' > ' in c.latex[0]) == (expected == mg.FLAG)
